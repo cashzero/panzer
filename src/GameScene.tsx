@@ -11,7 +11,7 @@ import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { initEngineSound, updateEngineSound } from './audio';
 import { GAME_CONFIG } from './config';
-import { getTerrainHeight } from './Terrain';
+import { getTerrainHeight, raycastTerrain } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
@@ -42,8 +42,17 @@ function GunAimPoint() {
     const player = useGameStore.getState().playerTank;
     if (player.destroyed || !groupRef.current) return;
 
-    // Read the aim point computed by PlayerController (same direction as gunner camera)
-    groupRef.current.position.copy(player.gunSightAimPoint);
+    // Raycast aimDir against terrain to find the concrete world hit point.
+    // A fixed world point projects consistently from any camera position/FOV.
+    const hit = raycastTerrain(player.aimGunPivotWorld, player.aimDir, 2000);
+    if (hit) {
+      groupRef.current.position.copy(hit);
+    } else {
+      // Aiming at sky — fallback to a point within camera far plane
+      groupRef.current.position.copy(
+        player.aimGunPivotWorld.clone().add(player.aimDir.clone().multiplyScalar(800))
+      );
+    }
   });
 
   return (
@@ -86,10 +95,15 @@ function PlayerController() {
       targetLeftSpeed = baseSpeed;
       targetRightSpeed = baseSpeed;
 
+      // Speed-dependent inner track factor: less differential at higher speeds
+      const currentSpeed = ((player.leftTrackSpeed || 0) + (player.rightTrackSpeed || 0)) / 2;
+      const speedRatio = Math.min(1, Math.abs(currentSpeed) / maxSpeed);
+      const innerTrackFactor = 0.6 + 0.25 * speedRatio;
+
       if (steering > 0) {
-        targetLeftSpeed *= 0.6;
+        targetLeftSpeed *= innerTrackFactor;
       } else if (steering < 0) {
-        targetRightSpeed *= 0.6;
+        targetRightSpeed *= innerTrackFactor;
       }
     } else if (steering !== 0) {
       const pivotSpeed = maxSpeed * 0.15;
@@ -115,10 +129,15 @@ function PlayerController() {
     else if (rightSpeed > targetRightSpeed) rightSpeed = Math.max(rightSpeed - accelRight * delta, targetRightSpeed);
 
     // Calculate tank movement from track speeds
-    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta, playerDef.trackWidth);
+    const prevRotSpeed = ((player.rightTrackSpeed || 0) - (player.leftTrackSpeed || 0)) / playerDef.trackWidth;
+    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta, playerDef.trackWidth, playerDef.turnRateLimit, prevRotSpeed, playerDef.rotationalInertia);
     const { forwardSpeed, rotationSpeed } = movement;
     let newRot = movement.rotation;
     let newPos = movement.position;
+
+    // Compensate camera yaw so hull rotation doesn't drag the viewpoint
+    const rotDelta = newRot - player.rotation;
+    input.cameraYaw.current -= rotDelta;
 
     // Snap to terrain
     newPos.y = getTerrainHeight(newPos.x, newPos.z);
@@ -172,6 +191,9 @@ function PlayerController() {
       currentGunElev: player.gunElevation,
       cameraYaw: input.cameraYaw.current,
       cameraPitch: input.cameraPitch.current,
+      hullRotation: newRot,
+      hullPitch: pitch,
+      hullRoll: roll,
       isAiming: input.isAiming.current,
       arrowKeys: {
         left: !!input.keys.current['ArrowLeft'],
@@ -223,6 +245,7 @@ function PlayerController() {
       aimGunPivotWorld: aimResult.aimGunPivotWorld,
       aimDir: aimResult.aimDir,
       shakeIntensity,
+      gunnerZoom: useGameStore.getState().gunnerZoom,
     });
 
     // Update burst fire (autocannon)
@@ -238,6 +261,8 @@ function PlayerController() {
       turretSwayOffset,
       gunSwayOffset,
       gunSightAimPoint: aimResult.gunSightAimPoint,
+      aimDir: aimResult.aimDir,
+      aimGunPivotWorld: aimResult.aimGunPivotWorld,
       speed: forwardSpeed,
       leftTrackSpeed: leftSpeed,
       rightTrackSpeed: rightSpeed,

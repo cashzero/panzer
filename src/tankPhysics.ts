@@ -105,11 +105,26 @@ export function computeTrackMovement(
   currentPosition: THREE.Vector3,
   currentRotation: number,
   delta: number,
-  trackWidth = 3.2
+  trackWidth = 3.2,
+  turnRateLimit = 99,
+  prevRotationSpeed = 0,
+  rotationalInertia = 99
 ): TrackMovementResult {
 
   const forwardSpeed = (leftSpeed + rightSpeed) / 2;
-  const rotationSpeed = (rightSpeed - leftSpeed) / trackWidth;
+  let targetRotationSpeed = (rightSpeed - leftSpeed) / trackWidth;
+
+  // Clamp to physical turn rate limit
+  targetRotationSpeed = Math.max(-turnRateLimit, Math.min(turnRateLimit, targetRotationSpeed));
+
+  // Rotational inertia: smoothly ramp toward target
+  const maxRotChange = rotationalInertia * delta;
+  let rotationSpeed = prevRotationSpeed;
+  if (targetRotationSpeed > rotationSpeed) {
+    rotationSpeed = Math.min(rotationSpeed + maxRotChange, targetRotationSpeed);
+  } else {
+    rotationSpeed = Math.max(rotationSpeed - maxRotChange, targetRotationSpeed);
+  }
 
   const rotation = currentRotation + rotationSpeed * delta;
   const position = currentPosition.clone();

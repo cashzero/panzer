@@ -1,4 +1,4 @@
-import { useGameStore } from './store';
+import { useGameStore, GUNNER_ZOOM_LEVELS, GUNNER_ZOOM_LABELS } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
@@ -117,11 +117,12 @@ function GunnerSightOverlay() {
   const calibrationDistance = useGameStore((state) => state.calibrationDistance);
   const ammoType = useGameStore((state) => state.ammoType);
   
+  const gunnerZoom = useGameStore((state) => state.gunnerZoom);
   const playerTankType = useGameStore((state) => state.playerTank.tankType);
   const playerDef = getTankDef(playerTankType);
   const velocity = (playerDef.weapons[ammoType] ?? playerDef.weapons.AP).velocity;
   const gravity = GAME_CONFIG.physics.gravity;
-  const fov = 20; // Camera FOV in degrees
+  const fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
 
   // Calculate elevation angle for a given distance using the same ballistic
   // formula as the actual gun aiming: θ = 0.5 * asin(d*g / v²)
@@ -196,6 +197,7 @@ function GunnerSightOverlay() {
 
       {/* Info panel */}
       <div className="absolute bottom-10 left-10 text-red-500 font-mono text-xl">
+        <div>ZOOM: {GUNNER_ZOOM_LABELS[gunnerZoom]}</div>
         <div>DIST: {calibrationDistance}m</div>
         <div>AMMO: {ammoType}</div>
         <div className="text-sm opacity-80">VEL: {velocity}m/s</div>
@@ -260,8 +262,8 @@ export function UI() {
         </div>
         <TrackHPDisplay />
         <div className="mt-4 text-xl">
-          Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : 'text-red-400 font-bold'}>{ammoType}</span>
-          {getTankDef(useGameStore.getState().playerTank.tankType).weapons.HE && (
+          Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : ammoType === 'APC' ? 'text-orange-400' : 'text-red-400 font-bold'}>{ammoType}</span>
+          {(getTankDef(useGameStore.getState().playerTank.tankType).weapons.APC || getTankDef(useGameStore.getState().playerTank.tankType).weapons.HE) && (
             <div className="text-sm text-gray-300 mt-1">Press R to switch</div>
           )}
         </div>
@@ -308,7 +310,8 @@ export function UI() {
         <div>R - Change Ammo</div>
         <div>V / Mid Click - Toggle View</div>
         <div>M - Toggle Map</div>
-        <div>PgUp/PgDn/Wheel - Calibrate Dist</div>
+        <div>PgUp/PgDn - Calibrate Dist</div>
+        <div>Scroll (Gunner) - Zoom</div>
       </div>
       
       {destroyed && (

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { useGameStore } from './store';
+import { useGameStore, GUNNER_ZOOM_LEVELS } from './store';
 import { GAME_CONFIG } from './config';
 import { type SwayState } from './tankPhysics';
 
@@ -64,7 +64,10 @@ export function useInput(onFire: () => void): InputRefs {
     const handleMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement === document.body) {
         const viewMode = useGameStore.getState().viewMode;
-        const sensitivity = viewMode === 'gunner' ? 0.001 : 0.003;
+        const gunnerZoom = useGameStore.getState().gunnerZoom;
+        const zoomFov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
+        // Scale sensitivity with FOV so higher zoom = slower camera
+        const sensitivity = viewMode === 'gunner' ? 0.001 * (zoomFov / 20) : 0.003;
         cameraYaw.current -= e.movementX * sensitivity;
         cameraPitch.current -= e.movementY * sensitivity;
         cameraPitch.current = THREE.MathUtils.clamp(cameraPitch.current, -Math.PI / 4, Math.PI / 4);
@@ -92,10 +95,12 @@ export function useInput(onFire: () => void): InputRefs {
       if (useGameStore.getState().isMapMode) return;
       if (useGameStore.getState().viewMode === 'gunner') {
         e.preventDefault();
-        const currentDist = useGameStore.getState().calibrationDistance;
-        const delta = e.deltaY > 0 ? -100 : 100;
-        const setCalibDist = useGameStore.getState().setCalibrationDistance;
-        setCalibDist(Math.max(Math.min(currentDist + delta, 2000), 0));
+        // Scroll = zoom, PageUp/PageDown = calibration distance
+        if (e.deltaY > 0) {
+          useGameStore.getState().zoomGunnerOut();
+        } else {
+          useGameStore.getState().zoomGunnerIn();
+        }
       }
     };
 

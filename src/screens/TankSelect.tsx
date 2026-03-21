@@ -135,9 +135,11 @@ function TankPreview({
     }
   });
 
-  const { HullComponent, TurretComponent, GunComponent } = def;
+  const { HullComponent, TracksComponent, TurretComponent, GunComponent } = def;
   const geoProps = { color: def.color, destroyedColor: '#555', destroyed: false };
   const gunProps = { destroyedColor: '#555', destroyed: false };
+  const trackMat = useRef(new THREE.MeshStandardMaterial({ color: '#222', roughness: 0.9, metalness: 0.1 })).current;
+  const trackProps = { trackMat, destroyedColor: '#555', destroyed: false };
 
   const hullPlates = def.plates.filter((p) => p.parent === 'hull');
   const turretPlates = def.plates.filter((p) => p.parent === 'turret');
@@ -146,6 +148,8 @@ function TankPreview({
   return (
     <group ref={groupRef}>
       <HullComponent {...geoProps} />
+      <TracksComponent isLeft={true} {...trackProps} />
+      <TracksComponent isLeft={false} {...trackProps} />
       {hullPlates.map((plate) => (
         <ArmorPlateMesh key={plate.name} plate={plate} onHover={onPlateHover} />
       ))}

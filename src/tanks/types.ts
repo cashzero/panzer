@@ -44,6 +44,8 @@ export interface TankDefinition {
   acceleration: number;    // m/s²
   deceleration: number;    // m/s²
   trackWidth: number;      // meters
+  turnRateLimit: number;   // rad/s — max hull rotation rate
+  rotationalInertia: number; // rad/s² — how fast rotation speed can change
 
   // Turret/gun traverse
   turretSpeed: number; // rad/s
@@ -56,6 +58,7 @@ export interface TankDefinition {
   burstInterval?: number; // ms between rounds within a burst
   weapons: {
     AP: { penetration: number; velocity: number; damage: number; drop: number; dispersion: number };
+    APC?: { penetration: number; velocity: number; damage: number; drop: number; dispersion: number };
     HE?: { penetration: number; velocity: number; damage: number; drop: number; dispersion: number };
   };
 

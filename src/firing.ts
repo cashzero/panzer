@@ -50,7 +50,8 @@ function fireOneRound(tank: TankData, def: TankDefinition, ammoType: AmmoType): 
   const velocity = dir.clone().multiplyScalar(ammoStats.velocity);
 
   useGameStore.getState().fireProjectile(pos, velocity, ammoType, ammoStats.penetration, ammoStats.damage, 'player', def.caliber);
-  useGameStore.getState().triggerCameraShake(def.burstCount ? 0.1 : 0.3);
+  const caliberScale = (def.caliber || 75) / 75;
+  useGameStore.getState().triggerCameraShake((def.burstCount ? 0.1 : 0.3) * caliberScale);
 
   if (def.burstCount) {
     playAutocannonSound();

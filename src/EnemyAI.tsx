@@ -92,7 +92,8 @@ export function EnemyAI() {
         forwardSpeed = 0;
         rotationSpeed = leftSpeed > 0 ? 0.5 : leftSpeed < 0 ? -0.5 : 0;
       } else {
-        const mov = computeTrackMovement(leftSpeed, rightSpeed, newPos, newRot, delta, enemyDef.trackWidth);
+        const prevRotSpeed = ((enemy.rightTrackSpeed || 0) - (enemy.leftTrackSpeed || 0)) / enemyDef.trackWidth;
+        const mov = computeTrackMovement(leftSpeed, rightSpeed, newPos, newRot, delta, enemyDef.trackWidth, enemyDef.turnRateLimit, prevRotSpeed, enemyDef.rotationalInertia);
         newPos = mov.position;
         newRot = mov.rotation;
         forwardSpeed = mov.forwardSpeed;

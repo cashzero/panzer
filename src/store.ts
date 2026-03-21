@@ -7,7 +7,11 @@ import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import type { TreeInstance } from './trees';
 
-export type AmmoType = 'AP' | 'HE';
+export type AmmoType = 'AP' | 'APC' | 'HE';
+
+// Gunner sight zoom levels: FOV values in degrees (lower = more zoom)
+export const GUNNER_ZOOM_LEVELS = [20, 10, 5, 2.5] as const;
+export const GUNNER_ZOOM_LABELS = ['1x', '2x', '4x', '8x'] as const;
 
 export interface Particle {
   id: string;
@@ -43,6 +47,8 @@ export interface TankData {
   turretSwayOffset: number;
   gunSwayOffset: number;
   gunSightAimPoint: Vector3; // 3D world position of the gun sight aim point
+  aimDir: Vector3; // Gun sight direction (unit vector)
+  aimGunPivotWorld: Vector3; // Gun pivot position in world space
   health: number;
   maxHealth: number;
   armor: {
@@ -82,6 +88,7 @@ interface GameState {
   viewMode: 'third-person' | 'gunner';
   isMapMode: boolean;
   calibrationDistance: number;
+  gunnerZoom: number; // index into GUNNER_ZOOM_LEVELS
   trees: TreeInstance[];
   cameraShake: number; // current shake intensity (decays over time)
   playerBurstRemaining: number;
@@ -101,6 +108,8 @@ interface GameState {
   toggleViewMode: () => void;
   toggleMapMode: () => void;
   setCalibrationDistance: (dist: number) => void;
+  zoomGunnerIn: () => void;
+  zoomGunnerOut: () => void;
   setLastFireTime: (time: number) => void;
   selectPlayerTank: (tankType: string) => void;
   setPlayerBurst: (remaining: number, nextTime: number) => void;
@@ -126,6 +135,8 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     turretSwayOffset: 0,
     gunSwayOffset: 0,
     gunSightAimPoint: new Vector3(0, 0, 500),
+    aimDir: new Vector3(0, 0, 1),
+    aimGunPivotWorld: new Vector3(0, 0, 0),
     health: def.health,
     maxHealth: def.health,
     armor: { ...def.armor },
@@ -159,6 +170,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       turretSwayOffset: 0,
       gunSwayOffset: 0,
       gunSightAimPoint: new Vector3(0, 0, 500),
+    aimDir: new Vector3(0, 0, 1),
+    aimGunPivotWorld: new Vector3(0, 0, 0),
       health: def.health,
       maxHealth: def.health,
       armor: { ...def.armor },
@@ -184,6 +197,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   viewMode: 'third-person',
   isMapMode: false,
   calibrationDistance: 0,
+  gunnerZoom: 1,
   trees: [],
   cameraShake: 0,
   playerBurstRemaining: 0,
@@ -199,7 +213,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
 
   decayCameraShake: (dt) => set((state) => ({
-    cameraShake: Math.max(0, state.cameraShake - dt * 4.0),
+    cameraShake: Math.max(0, state.cameraShake - dt * 0.5),
   })),
 
   initTrees: (trees) => set({ trees }),
@@ -231,12 +245,24 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   toggleAmmo: () => {
     const playerDef = getTankDef(get().playerTank.tankType);
-    if (!playerDef.weapons.HE) return; // no HE available
-    set((state) => ({ ammoType: state.ammoType === 'AP' ? 'HE' : 'AP' }));
+    const available: AmmoType[] = ['AP'];
+    if (playerDef.weapons.APC) available.push('APC');
+    if (playerDef.weapons.HE) available.push('HE');
+    if (available.length <= 1) return;
+    set((state) => {
+      const idx = available.indexOf(state.ammoType);
+      return { ammoType: available[(idx + 1) % available.length] };
+    });
   },
   toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'third-person' ? 'gunner' : 'third-person' })),
   toggleMapMode: () => set((state) => ({ isMapMode: !state.isMapMode })),
   setCalibrationDistance: (dist) => set({ calibrationDistance: dist }),
+  zoomGunnerIn: () => set((state) => ({
+    gunnerZoom: Math.min(state.gunnerZoom + 1, GUNNER_ZOOM_LEVELS.length - 1),
+  })),
+  zoomGunnerOut: () => set((state) => ({
+    gunnerZoom: Math.max(state.gunnerZoom - 1, 0),
+  })),
   setLastFireTime: (time) => set({ lastFireTime: time }),
 
   fireProjectile: (pos, vel, type, pen, dmg, firedBy, caliber) => {

@@ -2,7 +2,27 @@
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(sort -k2)",
+      "Bash(xargs ls:*)",
+      "Bash(wc -l /d/work/panzer/src/*.ts /d/work/panzer/src/*.tsx)",
+      "Bash(grep -r \"TODO\\\\|FIXME\\\\|XXX\\\\|HACK\" /d/work/panzer/src --include=*.ts --include=*.tsx)",
+      "Bash(wc -l D:/work/panzer/src/*.ts D:/work/panzer/src/*.tsx)",
+      "Bash(npx vite:*)",
+      "Bash(grep -r \"onPointer\\\\|onClick\\\\|useRaycaster\" D:workpanzersrc --include=*.tsx --include=*.ts)",
+      "Bash(find /d/work/panzer -type f \\\\\\(-name vite.config.* -o -name *.canvas -o -name *three* \\\\\\))",
+      "Bash(npm install:*)",
+      "Bash(git checkout:*)",
+      "Bash(grep -n \"grassColor\\\\|roadColor\\\\|meshStandardMaterial\\\\|vertexColors\" /d/work/panzer/src/*.tsx /d/work/panzer/src/*.ts)",
+      "Bash(grep:*)",
+      "WebSearch",
+      "WebFetch(domain:tanks-encyclopedia.com)",
+      "WebFetch(domain:old-wiki.warthunder.com)",
+      "WebFetch(domain:wiki.warthunder.com)",
+      "WebFetch(domain:tank-afv.com)",
+      "WebFetch(domain:en.wikipedia.org)"
     ]
   }
 }

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
+import { GUNNER_ZOOM_LEVELS } from './store';
 
 export interface CameraParams {
   camera: THREE.Camera;
@@ -9,10 +10,11 @@ export interface CameraParams {
   aimGunPivotWorld: THREE.Vector3;
   aimDir: THREE.Vector3;
   shakeIntensity?: number;
+  gunnerZoom?: number; // index into GUNNER_ZOOM_LEVELS
 }
 
 export function updateCamera(params: CameraParams): void {
-  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, shakeIntensity = 0 } = params;
+  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, shakeIntensity = 0, gunnerZoom = 0 } = params;
 
   if (viewMode === 'third-person') {
     camera.up.set(0, 1, 0);
@@ -31,12 +33,12 @@ export function updateCamera(params: CameraParams): void {
     const camPos = aimGunPivotWorld.clone().add(aimDir.clone().multiplyScalar(4.5));
     camera.position.copy(camPos);
     camera.lookAt(camPos.clone().add(aimDir.clone().multiplyScalar(100)));
-    (camera as THREE.PerspectiveCamera).fov = 20; // Zoomed in
+    (camera as THREE.PerspectiveCamera).fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
   }
 
   // Apply screen shake
   if (shakeIntensity > 0) {
-    const maxOffset = shakeIntensity * 0.15;
+    const maxOffset = shakeIntensity * 0.5;
     const shakeX = (Math.random() * 2 - 1) * maxOffset;
     const shakeY = (Math.random() * 2 - 1) * maxOffset;
     const shakeZ = (Math.random() * 2 - 1) * maxOffset * 0.5;

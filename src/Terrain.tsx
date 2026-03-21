@@ -29,6 +29,52 @@ export function getTerrainHeight(x: number, z: number): number {
   return baseHeight + (roadHeight - baseHeight) * road.influence;
 }
 
+/** Raycast a ray against the procedural terrain. Returns the hit point or null. */
+export function raycastTerrain(
+  origin: THREE.Vector3,
+  direction: THREE.Vector3,
+  maxDist: number = 2000,
+): THREE.Vector3 | null {
+  const step = 2; // metres per step
+  const steps = Math.ceil(maxDist / step);
+  let prevT = 0;
+  let prevAbove = origin.y - getTerrainHeight(origin.x, origin.z) > 0;
+
+  for (let i = 1; i <= steps; i++) {
+    const t = i * step;
+    const px = origin.x + direction.x * t;
+    const py = origin.y + direction.y * t;
+    const pz = origin.z + direction.z * t;
+    const terrainY = getTerrainHeight(px, pz);
+    const above = py > terrainY;
+
+    if (!above && prevAbove) {
+      // Crossed terrain between prevT and t — binary search for precision
+      let lo = prevT, hi = t;
+      for (let j = 0; j < 10; j++) {
+        const mid = (lo + hi) / 2;
+        const mx = origin.x + direction.x * mid;
+        const my = origin.y + direction.y * mid;
+        const mz = origin.z + direction.z * mid;
+        if (my > getTerrainHeight(mx, mz)) {
+          lo = mid;
+        } else {
+          hi = mid;
+        }
+      }
+      const ft = (lo + hi) / 2;
+      return new THREE.Vector3(
+        origin.x + direction.x * ft,
+        origin.y + direction.y * ft,
+        origin.z + direction.z * ft,
+      );
+    }
+    prevT = t;
+    prevAbove = above;
+  }
+  return null;
+}
+
 export function Terrain() {
   const { geometry, colors } = useMemo(() => {
     const geo = new THREE.PlaneGeometry(1000, 1000, 200, 200);
