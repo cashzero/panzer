@@ -74,6 +74,7 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       case 'dust': return GAME_CONFIG.particles.dust;
       case 'dust_low': return GAME_CONFIG.particles.dust_low;
       case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
+      case 'tree_hit': return GAME_CONFIG.particles.tree_hit;
       default: return GAME_CONFIG.particles.default;
     }
   }, [type]);
@@ -159,6 +160,15 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       // Occasional ember/fire glow
       if (Math.random() < 0.4) {
         subs.push({ type: 'fireball', pos: new THREE.Vector3((Math.random()-0.5)*0.8, 0.5, (Math.random()-0.5)*0.8), vel: new THREE.Vector3(0, 1 + Math.random(), 0), scale: 1.5 + Math.random(), color: '#ff3300', life: 0.4, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
+    } else if (type === 'tree_hit') {
+      // Wood debris and splinters
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 2.0, color: '#ffcc66', life: 0.15 });
+      for (let i = 0; i < 10; i++) {
+        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(6 + Math.random() * 6), scale: 0.15 + Math.random() * 0.2, color: i < 5 ? '#8b6914' : '#5c3a1e', life: 0.8 });
+      }
+      for (let i = 0; i < 4; i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar(1 + Math.random() * 2), scale: 1.5 + Math.random(), color: '#2d5a1e', life: 0.8, rotSpeed: (Math.random() - 0.5) * 2 });
       }
     } else if (type === 'dust') {
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5+0.5, (Math.random()-0.5)*2), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 2 });

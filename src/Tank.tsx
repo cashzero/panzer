@@ -88,7 +88,7 @@ export function Tank({ id, tankType }: TankProps) {
       const pitch = data.pitch || 0;
       const roll = data.roll || 0;
       const targetRotation = new THREE.Euler(pitch, data.rotation, roll, 'YXZ');
-      groupRef.current.quaternion.slerp(new THREE.Quaternion().setFromEuler(targetRotation), 0.2);
+      groupRef.current.quaternion.slerp(new THREE.Quaternion().setFromEuler(targetRotation), 0.35);
     }
     if (turretRef.current) {
       turretRef.current.rotation.y = data.turretRotation + (data.turretSwayOffset || 0);

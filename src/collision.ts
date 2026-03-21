@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { TankData } from './store';
 import { GAME_CONFIG } from './config';
+import type { TreeInstance } from './trees';
 
 const _tempVec = new THREE.Vector3();
 
@@ -34,4 +35,52 @@ export function resolveTankCollision(
   }
 
   return newPos;
+}
+
+export interface TreeCollisionResult {
+  knockedTreeIndex: number | null;
+}
+
+const _treeSep = new THREE.Vector3();
+
+/**
+ * Resolve tank-tree collisions.
+ * High speed knocks tree down; low speed blocks the tank.
+ */
+export function resolveTreeCollision(
+  newPos: THREE.Vector3,
+  speed: number,
+  trees: TreeInstance[]
+): TreeCollisionResult {
+  const tankRadius = GAME_CONFIG.tank.collisionRadius;
+  const treeRadius = GAME_CONFIG.trees.collisionRadius;
+  const minDist = tankRadius + treeRadius;
+  const knockdownSpeed = GAME_CONFIG.trees.knockdownSpeed;
+
+  for (let i = 0; i < trees.length; i++) {
+    const tree = trees[i];
+    if (tree.fallen) continue;
+
+    const dx = newPos.x - tree.position[0];
+    const dz = newPos.z - tree.position[2];
+    const dist = Math.sqrt(dx * dx + dz * dz);
+
+    if (dist < minDist && dist > 0.001) {
+      if (Math.abs(speed) > knockdownSpeed) {
+        // Knock tree down
+        const fallDir = Math.atan2(dx, dz);
+        return { knockedTreeIndex: i };
+      } else {
+        // Push tank out
+        const overlap = minDist - dist;
+        const nx = dx / dist;
+        const nz = dz / dist;
+        newPos.x += nx * overlap;
+        newPos.z += nz * overlap;
+        return { knockedTreeIndex: null };
+      }
+    }
+  }
+
+  return { knockedTreeIndex: null };
 }

@@ -5,12 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { GAME_CONFIG } from './config';
 import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef } from './tanks/registry';
+import type { TreeInstance } from './trees';
 
 export type AmmoType = 'AP' | 'HE';
 
 export interface Particle {
   id: string;
-  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke';
+  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'tree_hit';
   position: Vector3;
   normal?: Vector3;
   createdAt: number;
@@ -75,7 +76,8 @@ interface GameState {
   viewMode: 'third-person' | 'gunner';
   isMapMode: boolean;
   calibrationDistance: number;
-  
+  trees: TreeInstance[];
+
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string) => void;
   updateProjectiles: (dt: number) => void;
   updatePlayer: (updates: Partial<TankData>) => void;
@@ -90,6 +92,8 @@ interface GameState {
   toggleMapMode: () => void;
   setCalibrationDistance: (dist: number) => void;
   setLastFireTime: (time: number) => void;
+  initTrees: (trees: TreeInstance[]) => void;
+  updateTree: (index: number, updates: Partial<TreeInstance>) => void;
 }
 
 const GRAVITY = GAME_CONFIG.physics.gravity;
@@ -134,6 +138,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   viewMode: 'third-person',
   isMapMode: false,
   calibrationDistance: 0,
+  trees: [],
+
+  initTrees: (trees) => set({ trees }),
+
+  updateTree: (index, updates) => {
+    set((state) => {
+      const newTrees = [...state.trees];
+      newTrees[index] = { ...newTrees[index], ...updates };
+      return { trees: newTrees };
+    });
+  },
 
   spawnParticle: (type, position, normal) => {
     set((state) => ({

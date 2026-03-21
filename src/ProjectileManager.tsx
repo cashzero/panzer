@@ -6,6 +6,7 @@ import { getTerrainHeight } from './Terrain';
 import { testProjectileAgainstTank } from './armorModel';
 import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
+import { GAME_CONFIG } from './config';
 
 export function ProjectileManager() {
   const projectiles = useGameStore((state) => state.projectiles);
@@ -32,6 +33,37 @@ export function ProjectileManager() {
       if (nextPos.y <= terrainHeight) {
         handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0));
         return;
+      }
+
+      // Check collision with trees
+      const trees = useGameStore.getState().trees;
+      const treeRadius = GAME_CONFIG.trees.collisionRadius;
+      for (let ti = 0; ti < trees.length; ti++) {
+        const tree = trees[ti];
+        if (tree.fallen) continue;
+        const tx = tree.position[0];
+        const tz = tree.position[2];
+        const ty = tree.position[1];
+        // Simple cylinder test: check XZ distance and Y range
+        const dx = nextPos.x - tx;
+        const dz = nextPos.z - tz;
+        const distXZ = Math.sqrt(dx * dx + dz * dz);
+        const treeHeight = 8 * tree.scale;
+        if (distXZ < treeRadius + 0.2 && nextPos.y >= ty && nextPos.y <= ty + treeHeight) {
+          // Hit tree
+          const { spawnParticle, updateTree } = useGameStore.getState();
+          spawnParticle('tree_hit', nextPos.clone(), new THREE.Vector3(dx / distXZ, 0, dz / distXZ));
+          // Damage tree
+          const newHealth = tree.health - 50;
+          if (newHealth <= 0) {
+            const fallDir = Math.atan2(dx, dz);
+            updateTree(ti, { health: 0, fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
+          } else {
+            updateTree(ti, { health: newHealth });
+          }
+          handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0)); // consume projectile
+          return;
+        }
       }
 
       let closestHit: { tankId: string; hit: HitResult } | null = null;

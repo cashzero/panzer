@@ -12,16 +12,18 @@ import { useShallow } from 'zustand/react/shallow';
 import { initEngineSound, updateEngineSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
-import { resolveTankCollision } from './collision';
+import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
-import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState } from './tankPhysics';
+import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock } from './tankPhysics';
 import { useInput } from './useInput';
 import { fireTank } from './firing';
 import { computeTurretAiming } from './turretAiming';
 import { computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
+import { Trees } from './TreeRenderer';
+import { generateTrees } from './trees';
 
 function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
@@ -123,12 +125,25 @@ function PlayerController() {
     // Tank-tank collision
     const allTanks = [player, ...useGameStore.getState().enemies];
     resolveTankCollision('player', newPos, allTanks);
+
+    // Tree collision
+    const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);
+    if (treeResult.knockedTreeIndex !== null) {
+      const idx = treeResult.knockedTreeIndex;
+      const tree = useGameStore.getState().trees[idx];
+      const fallDir = Math.atan2(newPos.x - tree.position[0], newPos.z - tree.position[2]);
+      useGameStore.getState().updateTree(idx, { fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
+      useGameStore.getState().spawnParticle('tree_hit', new THREE.Vector3(tree.position[0], tree.position[1] + 2, tree.position[2]), new THREE.Vector3(0, 1, 0));
+    }
+
     newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
     // Calculate pitch and roll based on terrain
     const orientation = computeTerrainOrientation(newPos, newRot);
-    const { pitch, roll } = orientation;
-    newPos.y = orientation.adjustedY;
+    const bodyRock = computeBodyRock(forwardSpeed, maxSpeed, rotationSpeed, state.clock.elapsedTime);
+    const pitch = orientation.pitch + bodyRock.pitchOffset;
+    const roll = orientation.roll + bodyRock.rollOffset;
+    newPos.y = orientation.adjustedY + bodyRock.yOffset;
 
     // Engine Simulation
     const engine = computeEngineState(
@@ -235,6 +250,10 @@ export function GameScene() {
       spawnEnemy(new THREE.Vector3(-60, getTerrainHeight(-60, 200), 200), 'panzer3');
       spawnEnemy(new THREE.Vector3(0, getTerrainHeight(0, 250), 250), 'panzer3');
     }
+    // Initialize trees
+    if (useGameStore.getState().trees.length === 0) {
+      useGameStore.getState().initTrees(generateTrees());
+    }
   }, []);
 
   return (
@@ -257,6 +276,7 @@ export function GameScene() {
           />
 
           <Terrain />
+          <Trees />
           <PlayerController />
 
           {isMapMode ? (

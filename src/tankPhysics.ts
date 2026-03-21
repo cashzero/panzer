@@ -43,6 +43,53 @@ export function computeTerrainOrientation(
   return { pitch, roll, adjustedY };
 }
 
+// --- Body Rock (suspension bounce / track vibration) ---
+
+export interface BodyRockResult {
+  pitchOffset: number;
+  rollOffset: number;
+  yOffset: number;
+}
+
+export function computeBodyRock(
+  speed: number,
+  maxSpeed: number,
+  rotationSpeed: number,
+  time: number
+): BodyRockResult {
+  const rock = GAME_CONFIG.tank.bodyRock;
+  const speedRatio = Math.abs(speed) / maxSpeed;
+
+  if (speedRatio < 0.01) {
+    return { pitchOffset: 0, rollOffset: 0, yOffset: 0 };
+  }
+
+  const pf = rock.pitchFrequency;
+  const rf = rock.rollFrequency;
+  const yf = rock.yBounceFrequency;
+  const TAU = Math.PI * 2;
+
+  // Multi-frequency oscillation for organic, non-repeating feel
+  const pitchOffset = rock.pitchAmplitude * speedRatio * (
+    0.6 * Math.sin(time * pf * TAU) +
+    0.3 * Math.sin(time * pf * TAU * 1.73) +
+    0.1 * Math.sin(time * pf * TAU * 2.41)
+  );
+
+  const rollOffset = rock.rollAmplitude * speedRatio * (
+    0.7 * Math.sin(time * rf * TAU) +
+    0.3 * Math.sin(time * rf * TAU * 2.13)
+  ) + rotationSpeed * rock.turnRollGain; // centrifugal lean
+
+  const yOffset = rock.yBounceAmplitude * speedRatio * (
+    0.5 * Math.abs(Math.sin(time * yf * TAU)) +
+    0.3 * Math.abs(Math.sin(time * yf * TAU * 1.67)) +
+    0.2 * Math.abs(Math.sin(time * yf * TAU * 2.31))
+  );
+
+  return { pitchOffset, rollOffset, yOffset };
+}
+
 // --- Track Movement ---
 
 export interface TrackMovementResult {

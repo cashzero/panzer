@@ -31,6 +31,15 @@ export const GAME_CONFIG = {
       damping: 4.0,                       // damping coefficient
       maxSway: 0.06,                      // rad hard clamp
     },
+    bodyRock: {
+      pitchAmplitude: 0.015,   // rad (~0.9°) max pitch oscillation at full speed
+      rollAmplitude: 0.01,     // rad (~0.6°) max roll oscillation at full speed
+      yBounceAmplitude: 0.06,  // meters vertical bounce at full speed
+      pitchFrequency: 2.5,     // Hz — track link rhythm
+      rollFrequency: 1.7,      // Hz — lateral sway (different from pitch for organic feel)
+      yBounceFrequency: 3.2,   // Hz — suspension bounce
+      turnRollGain: 0.03,      // rad per rad/s of rotation speed (centrifugal lean)
+    },
     collisionRadius: 3.0, // meters, approximate circle for tank-tank collision
     idleRPM: 800,
     maxRPM: 2800,

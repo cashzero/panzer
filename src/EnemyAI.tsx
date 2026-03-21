@@ -7,7 +7,7 @@ import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { getTankDef } from './tanks/registry';
-import { computeTerrainOrientation, computeTrackMovement } from './tankPhysics';
+import { computeTerrainOrientation, computeTrackMovement, computeBodyRock } from './tankPhysics';
 
 // Gaussian-like random using sum of two uniform values
 function randGauss() {
@@ -116,8 +116,10 @@ export function EnemyAI() {
 
       // Calculate pitch and roll based on terrain
       const orientation = computeTerrainOrientation(newPos, newRot);
-      const { pitch, roll } = orientation;
-      newPos.y = orientation.adjustedY;
+      const bodyRock = computeBodyRock(forwardSpeed, GAME_CONFIG.tank.maxSpeed, rotationSpeed, state.clock.elapsedTime);
+      const pitch = orientation.pitch + bodyRock.pitchOffset;
+      const roll = orientation.roll + bodyRock.rollOffset;
+      newPos.y = orientation.adjustedY + bodyRock.yOffset;
 
       // Steady-aim tracking: accumulate time when both tanks are stationary
       const moveThresh = GAME_CONFIG.ai.movementThreshold;
