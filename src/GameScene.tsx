@@ -69,10 +69,11 @@ function PlayerController() {
     // Skip all tank physics in map mode — MapCameraController handles camera
     if (useGameStore.getState().isMapMode) return;
 
-    const maxSpeed = GAME_CONFIG.tank.maxSpeed;
-    const maxReverseSpeed = GAME_CONFIG.tank.maxReverseSpeed;
-    const acceleration = GAME_CONFIG.tank.acceleration;
-    const deceleration = GAME_CONFIG.tank.deceleration;
+    const playerDef = getTankDef(player.tankType);
+    const maxSpeed = playerDef.maxSpeed;
+    const maxReverseSpeed = playerDef.maxReverseSpeed;
+    const acceleration = playerDef.acceleration;
+    const deceleration = playerDef.deceleration;
 
     let throttle = (input.keys.current['KeyW'] ? 1 : 0) - (input.keys.current['KeyS'] ? 1 : 0);
     let steering = (input.keys.current['KeyA'] ? 1 : 0) - (input.keys.current['KeyD'] ? 1 : 0);
@@ -114,7 +115,7 @@ function PlayerController() {
     else if (rightSpeed > targetRightSpeed) rightSpeed = Math.max(rightSpeed - accelRight * delta, targetRightSpeed);
 
     // Calculate tank movement from track speeds
-    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta);
+    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta, playerDef.trackWidth);
     const { forwardSpeed, rotationSpeed } = movement;
     let newRot = movement.rotation;
     let newPos = movement.position;
@@ -139,7 +140,7 @@ function PlayerController() {
     newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
     // Calculate pitch and roll based on terrain
-    const orientation = computeTerrainOrientation(newPos, newRot);
+    const orientation = computeTerrainOrientation(newPos, newRot, playerDef.trackWidth);
     const bodyRock = computeBodyRock(forwardSpeed, maxSpeed, rotationSpeed, state.clock.elapsedTime);
     const pitch = orientation.pitch + bodyRock.pitchOffset;
     const roll = orientation.roll + bodyRock.rollOffset;
@@ -165,7 +166,7 @@ function PlayerController() {
     ).normalize();
 
     // Turret aiming
-    const ammoStats = GAME_CONFIG.weapons[useGameStore.getState().ammoType];
+    const ammoStats = playerDef.weapons[useGameStore.getState().ammoType]!;
     const aiming = computeTurretAiming({
       currentTurretRot: player.turretRotation,
       currentGunElev: player.gunElevation,
@@ -180,6 +181,8 @@ function PlayerController() {
       },
       calibrationDistance: useGameStore.getState().calibrationDistance,
       ammoVelocity: ammoStats.velocity,
+      turretSpeed: playerDef.turretSpeed,
+      gunSpeed: playerDef.gunSpeed,
       delta,
     });
 

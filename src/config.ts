@@ -3,13 +3,6 @@ export const GAME_CONFIG = {
     gravity: 9.81,
   },
   tank: {
-    maxSpeed: 12, // m/s
-    maxReverseSpeed: 5, // m/s
-    acceleration: 6, // m/s^2
-    deceleration: 10, // m/s^2
-    trackWidth: 3.2, // meters
-    turretSpeed: 0.1, // rad/s
-    gunSpeed: 0.1, // rad/s
     gunSway: {
       // Layer A: base harmonic (road/track vibration)
       baseAmplitude: 0.012,                // rad at full speed (~0.7 deg)
@@ -60,18 +53,13 @@ export const GAME_CONFIG = {
     engagementDistance: 200,
     turretSpeed: 0.05,
     gunSpeed: 0.1,
-    reloadTime: 5000, // ms
     aimDispersion: 0.03, // rad (~1.7°) — per-enemy aim offset that drifts over time
     fireDispersion: 0.015, // rad — additional random spread applied at fire time
     zeroInTime: 8, // seconds of steady aiming to reach minimum dispersion
     zeroInMinFactor: 0.15, // minimum dispersion multiplier (15% of base) when fully zeroed
     movementThreshold: 0.5, // m/s — speed below this counts as "stationary"
   },
-  weapons: {
-    AP: { damage: 300, penetration: 400, velocity: 300, drop: 0.1 },
-    HE: { damage: 500, penetration: 50, velocity: 80, drop: 0.5 },
-    enemy: { damage: 200, penetration: 150, velocity: 100, drop: 0.3 },
-    reloadTime: 4000, // ms
+  combat: {
     autoRicochetAngle: 70, // degrees
     penetrationVariance: 0.1, // +/- 10%
   },

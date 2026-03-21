@@ -137,7 +137,7 @@ export function Tank({ id, tankType }: TankProps) {
 
         const leftDustPos = data.position.clone().add(
           new THREE.Vector3(
-            -GAME_CONFIG.tank.trackWidth / 2 + (Math.random() - 0.5) * 0.5,
+            -def.trackWidth / 2 + (Math.random() - 0.5) * 0.5,
             (Math.random() * 0.5),
             -2 + (Math.random() - 0.5)
           ).applyAxisAngle(new THREE.Vector3(0, 1, 0), data.rotation)
@@ -146,7 +146,7 @@ export function Tank({ id, tankType }: TankProps) {
 
         const rightDustPos = data.position.clone().add(
           new THREE.Vector3(
-            GAME_CONFIG.tank.trackWidth / 2 + (Math.random() - 0.5) * 0.5,
+            def.trackWidth / 2 + (Math.random() - 0.5) * 0.5,
             (Math.random() * 0.5),
             -2 + (Math.random() - 0.5)
           ).applyAxisAngle(new THREE.Vector3(0, 1, 0), data.rotation)
@@ -159,7 +159,7 @@ export function Tank({ id, tankType }: TankProps) {
       if (now - lastLowDustSpawn.current > dustLowCfg.spawnInterval) {
         lastLowDustSpawn.current = now;
         const spawnParticle = useGameStore.getState().spawnParticle;
-        const side = (Math.random() < 0.5 ? -1 : 1) * GAME_CONFIG.tank.trackWidth / 2;
+        const side = (Math.random() < 0.5 ? -1 : 1) * def.trackWidth / 2;
         const dustPos = data.position.clone().add(
           new THREE.Vector3(
             side + (Math.random() - 0.5) * 0.3,

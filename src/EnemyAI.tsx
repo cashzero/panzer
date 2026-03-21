@@ -46,24 +46,32 @@ export function EnemyAI() {
       let leftSpeed = 0;
       let rightSpeed = 0;
 
-      if (dist > 50) {
-        // Move towards player
+      // Dynamic engagement range based on both tanks' characteristics
+      const enemyDef = getTankDef(enemy.tankType);
+      const playerDef = getTankDef(player.tankType);
+      const penRatio = enemyDef.weapons.AP.penetration / player.armor.front;
+      const armorRatio = enemyDef.armor.front / playerDef.weapons.AP.penetration;
+      const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
+      const rangeDeadzone = preferredRange * 0.15; // 15% deadzone to avoid jitter
+
+      if (dist > preferredRange + rangeDeadzone) {
+        // Too far — advance towards player
         const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
         let rotDiff = angleToPlayer - enemy.rotation;
         rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-        
+
         if (Math.abs(rotDiff) > 0.1) {
-          rotationSpeed = Math.sign(rotDiff) * 1.0; // Turn speed
-          leftSpeed = -rotationSpeed * GAME_CONFIG.tank.trackWidth / 2;
-          rightSpeed = rotationSpeed * GAME_CONFIG.tank.trackWidth / 2;
+          rotationSpeed = Math.sign(rotDiff) * 1.0;
+          leftSpeed = -rotationSpeed * enemyDef.trackWidth / 2;
+          rightSpeed = rotationSpeed * enemyDef.trackWidth / 2;
         } else {
-          forwardSpeed = GAME_CONFIG.tank.maxSpeed * 0.5; // Half speed
+          forwardSpeed = enemyDef.maxSpeed * 0.5;
           leftSpeed = forwardSpeed;
           rightSpeed = forwardSpeed;
         }
-      } else if (dist < 30) {
-        // Reverse
-        forwardSpeed = -GAME_CONFIG.tank.maxReverseSpeed * 0.5;
+      } else if (dist < preferredRange - rangeDeadzone) {
+        // Too close — reverse away
+        forwardSpeed = -enemyDef.maxReverseSpeed * 0.5;
         leftSpeed = forwardSpeed;
         rightSpeed = forwardSpeed;
       }
@@ -83,7 +91,7 @@ export function EnemyAI() {
         forwardSpeed = 0;
         rotationSpeed = leftSpeed > 0 ? 0.5 : leftSpeed < 0 ? -0.5 : 0;
       } else {
-        const mov = computeTrackMovement(leftSpeed, rightSpeed, newPos, newRot, delta);
+        const mov = computeTrackMovement(leftSpeed, rightSpeed, newPos, newRot, delta, enemyDef.trackWidth);
         newPos = mov.position;
         newRot = mov.rotation;
         forwardSpeed = mov.forwardSpeed;
@@ -115,8 +123,8 @@ export function EnemyAI() {
       newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
       // Calculate pitch and roll based on terrain
-      const orientation = computeTerrainOrientation(newPos, newRot);
-      const bodyRock = computeBodyRock(forwardSpeed, GAME_CONFIG.tank.maxSpeed, rotationSpeed, state.clock.elapsedTime);
+      const orientation = computeTerrainOrientation(newPos, newRot, enemyDef.trackWidth);
+      const bodyRock = computeBodyRock(forwardSpeed, enemyDef.maxSpeed, rotationSpeed, state.clock.elapsedTime);
       const pitch = orientation.pitch + bodyRock.pitchOffset;
       const roll = orientation.roll + bodyRock.rollOffset;
       newPos.y = orientation.adjustedY + bodyRock.yOffset;
@@ -170,7 +178,7 @@ export function EnemyAI() {
       }
 
       // Gun elevation (rough approximation for gravity drop)
-      const projVel = GAME_CONFIG.weapons.enemy.velocity;
+      const projVel = enemyDef.weapons.AP.velocity;
       const t = dist / projVel;
       const drop = 0.5 * GAME_CONFIG.physics.gravity * t * t;
       // Required elevation angle (negative because positive gunElevation means aiming down)
@@ -197,7 +205,7 @@ export function EnemyAI() {
       // Fire if aimed and reloaded
       if (Math.abs(normalizedDiff) < 0.1 && Math.abs(elevDiff) < 0.1) {
         const lastFire = lastFireTimes.current[enemy.id] || 0;
-        if (now - lastFire > GAME_CONFIG.ai.reloadTime + Math.random() * 3000) {
+        if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
           lastFireTimes.current[enemy.id] = now;
 
           const tankEuler = new THREE.Euler(pitch, newRot, roll, 'YXZ');
@@ -212,7 +220,6 @@ export function EnemyAI() {
           const worldTurretQuat = tankQuat.clone().multiply(turretQuat);
           const worldGunQuat = worldTurretQuat.clone().multiply(gunQuat);
           
-          const enemyDef = getTankDef(enemy.tankType);
           const turretPosWorld = newPos.clone().add(new THREE.Vector3(...enemyDef.turretOffset).applyQuaternion(tankQuat));
           const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(...enemyDef.gunPivotOffset).applyQuaternion(worldTurretQuat));
 
@@ -224,9 +231,8 @@ export function EnemyAI() {
           dir.applyQuaternion(dispYaw).applyQuaternion(dispPitch);
           const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(enemyDef.muzzleDistance));
 
-          const enemyWeapon = GAME_CONFIG.weapons.enemy;
-          const velocity = dir.clone().multiplyScalar(enemyWeapon.velocity);
-          fireProjectile(pos, velocity, 'AP', enemyWeapon.penetration, enemyWeapon.damage, enemy.id);
+          const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
+          fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id);
           updateEnemy(enemy.id, { lastFireTime: now });
           playFireSound();
         }

@@ -35,6 +35,24 @@ export interface TankDefinition {
   muzzleDistance: number;
   broadPhaseRadius: number;
 
+  // Mobility
+  maxSpeed: number;        // m/s
+  maxReverseSpeed: number; // m/s
+  acceleration: number;    // m/s²
+  deceleration: number;    // m/s²
+  trackWidth: number;      // meters
+
+  // Turret/gun traverse
+  turretSpeed: number; // rad/s
+  gunSpeed: number;    // rad/s
+
+  // Weapon stats per ammo type
+  reloadTime: number; // ms
+  weapons: {
+    AP: { penetration: number; velocity: number; damage: number; drop: number };
+    HE?: { penetration: number; velocity: number; damage: number; drop: number };
+  };
+
   // Armor plates
   plates: ArmorPlate[];
 

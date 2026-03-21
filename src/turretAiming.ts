@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { GAME_CONFIG } from './config';
 import { computeBallisticAngle } from './tankPhysics';
 
 export interface TurretAimingInput {
@@ -11,6 +10,8 @@ export interface TurretAimingInput {
   arrowKeys: { left: boolean; right: boolean; up: boolean; down: boolean };
   calibrationDistance: number;
   ammoVelocity: number;
+  turretSpeed: number;
+  gunSpeed: number;
   delta: number;
 }
 
@@ -21,8 +22,8 @@ export interface TurretAimingResult {
 }
 
 export function computeTurretAiming(input: TurretAimingInput): TurretAimingResult {
-  const turretSpeed = GAME_CONFIG.tank.turretSpeed * input.delta;
-  const gunSpeed = GAME_CONFIG.tank.gunSpeed * input.delta;
+  const turretSpeed = input.turretSpeed * input.delta;
+  const gunSpeed = input.gunSpeed * input.delta;
 
   const angleOffset = computeBallisticAngle(input.calibrationDistance, input.ammoVelocity);
 

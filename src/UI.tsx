@@ -1,6 +1,7 @@
 import { useGameStore } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
+import { getTankDef } from './tanks/registry';
 
 function ReloadIndicator() {
   const [progress, setProgress] = useState(100);
@@ -12,7 +13,8 @@ function ReloadIndicator() {
       const lastFireTime = useGameStore.getState().lastFireTime;
       const now = Date.now();
       const timeSinceFire = now - lastFireTime;
-      const reloadTime = 2000;
+      const playerTankType = useGameStore.getState().playerTank.tankType;
+      const reloadTime = getTankDef(playerTankType).reloadTime;
       
       let p = (timeSinceFire / reloadTime) * 100;
       if (p > 100) p = 100;
@@ -110,7 +112,9 @@ function GunnerSightOverlay() {
   const calibrationDistance = useGameStore((state) => state.calibrationDistance);
   const ammoType = useGameStore((state) => state.ammoType);
   
-  const velocity = GAME_CONFIG.weapons[ammoType].velocity;
+  const playerTankType = useGameStore((state) => state.playerTank.tankType);
+  const playerDef = getTankDef(playerTankType);
+  const velocity = playerDef.weapons[ammoType]!.velocity;
   const gravity = GAME_CONFIG.physics.gravity;
   const fov = 20; // Camera FOV in degrees
 

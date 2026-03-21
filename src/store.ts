@@ -245,7 +245,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const angleDeg = (angleRad * 180) / Math.PI;
 
     // Auto-ricochet
-    if (angleDeg > GAME_CONFIG.weapons.autoRicochetAngle) {
+    if (angleDeg > GAME_CONFIG.combat.autoRicochetAngle) {
       get().spawnParticle('hit_bounce', projectile.position, hitNormal);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
       return;
@@ -254,7 +254,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const effectiveArmor = baseArmor / Math.cos(angleRad);
 
     // Randomize penetration
-    const variance = GAME_CONFIG.weapons.penetrationVariance;
+    const variance = GAME_CONFIG.combat.penetrationVariance;
     const actualPen = projectile.penetration * ((1 - variance) + Math.random() * (variance * 2));
 
     if (actualPen > effectiveArmor) {

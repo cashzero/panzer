@@ -79,6 +79,21 @@ The game uses a **multi-plate oriented bounding box (OBB)** collision system. Ea
 - Procedural terrain with sine wave height formula (flattened center)
 - Tank-tank collision model (circle-based XZ-plane collision preventing tanks from overlapping)
 - PlayerController refactored into extracted modules: `useInput.ts` (input handling), `firing.ts` (fire logic), `turretAiming.ts` (turret/gun aiming), `aimPoint.ts` (aim point calculation), `CameraController.ts` (camera placement), `tankPhysics.ts` (movement, terrain, sway, engine)
+- Tank hull scaled to realistic proportions relative to turrets
+- Low-speed track-level dust particles for visible tank movement
+- Road network (N-S and E-W crossroads) with height blending and 1.15× speed bonus
+- Tree system: 300 trees with jittered grid placement, collision, health, and knockdown physics
+- Enemy AI aim dispersion with per-enemy random offset drift
+- Enemy AI steady-aim zeroing (8s stationary → dispersion reduced to 15%)
+- Three playable tank types: Sherman (player), Tiger I, Panzer III (enemies) with per-tank armor profiles
+- 11 particle effect types (fire, hit_penetrate, hit_bounce, hit_ground, he_hit_ground, he_hit_penetrate, tank_explosion, dust, dust_low, tree_hit, burning_smoke)
+- Procedural engine sound with dynamic RPM/gear frequency mapping
+- AP and HE ammunition toggle (R key) with distinct ballistic properties
+- Gun sway system with 4 vibration layers (base harmonic, terrain, inertial, centrifugal)
+- Body rock oscillation (pitch, roll, vertical bounce) at speed
+- Engine RPM/gear simulation (idle 800 → max 2800 RPM, gears N/D1-D3/R)
+- Tank-tree collision: low speed push, high speed knockdown with falling animation
+- Projectile-tree collision with damage (50 HP per hit)
 
 ## Map Mode
 

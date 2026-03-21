@@ -12,9 +12,9 @@ export interface TerrainOrientation {
 
 export function computeTerrainOrientation(
   position: THREE.Vector3,
-  rotation: number
+  rotation: number,
+  trackWidth = 3.2
 ): TerrainOrientation {
-  const trackWidth = GAME_CONFIG.tank.trackWidth;
   const tankLength = 5.0;
 
   const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, rotation, 0));
@@ -104,9 +104,9 @@ export function computeTrackMovement(
   rightSpeed: number,
   currentPosition: THREE.Vector3,
   currentRotation: number,
-  delta: number
+  delta: number,
+  trackWidth = 3.2
 ): TrackMovementResult {
-  const trackWidth = GAME_CONFIG.tank.trackWidth;
 
   const forwardSpeed = (leftSpeed + rightSpeed) / 2;
   const rotationSpeed = (rightSpeed - leftSpeed) / trackWidth;
