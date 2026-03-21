@@ -52,6 +52,11 @@ export const GAME_CONFIG = {
     turretSpeed: 0.05,
     gunSpeed: 0.1,
     reloadTime: 5000, // ms
+    aimDispersion: 0.03, // rad (~1.7°) — per-enemy aim offset that drifts over time
+    fireDispersion: 0.015, // rad — additional random spread applied at fire time
+    zeroInTime: 8, // seconds of steady aiming to reach minimum dispersion
+    zeroInMinFactor: 0.15, // minimum dispersion multiplier (15% of base) when fully zeroed
+    movementThreshold: 0.5, // m/s — speed below this counts as "stationary"
   },
   weapons: {
     AP: { damage: 300, penetration: 400, velocity: 300, drop: 0.1 },
@@ -60,6 +65,25 @@ export const GAME_CONFIG = {
     reloadTime: 4000, // ms
     autoRicochetAngle: 70, // degrees
     penetrationVariance: 0.1, // +/- 10%
+  },
+  roads: {
+    halfWidth: 4,
+    blendMargin: 2,
+    speedBonus: 1.15,
+    color: 0x8b7355,
+    grassColor: 0x556b2f,
+  },
+  trees: {
+    count: 300,
+    minSpacing: 8,
+    trunkRadius: 0.3,
+    collisionRadius: 1.0,
+    knockdownSpeed: 5,
+    health: 100,
+    exclusionFromRoad: 5,
+    exclusionFromCenter: 60,
+    maxPlacementRadius: 450,
+    seed: 42,
   },
   map: {
     defaultZoom: 150,
@@ -95,6 +119,7 @@ export const GAME_CONFIG = {
     burning_smoke: { lifetime: 3000, color: '#111111', size: 3.5, expand: true,
       spawnInterval: 150,  // ms between smoke puffs
     },
+    tree_hit: { lifetime: 800, color: '#8b6914', size: 2, expand: true },
     default: { lifetime: 500, color: '#ffffff', size: 1, expand: true },
   },
 };

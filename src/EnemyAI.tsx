@@ -5,12 +5,19 @@ import { useRef } from 'react';
 import { playFireSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
-import { resolveTankCollision } from './collision';
+import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement } from './tankPhysics';
 
+// Gaussian-like random using sum of two uniform values
+function randGauss() {
+  return (Math.random() - 0.5) + (Math.random() - 0.5);
+}
+
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
+  const aimOffsets = useRef<{ [id: string]: { azimuth: number; elevation: number; nextChangeTime: number } }>({});
+  const steadyAim = useRef<{ [id: string]: { time: number; lastEnemyPos: THREE.Vector3; lastPlayerPos: THREE.Vector3 } }>({});
 
   useFrame((state, delta) => {
     const { playerTank: player, enemies, updateEnemy, fireProjectile } = useGameStore.getState();
@@ -94,6 +101,17 @@ export function EnemyAI() {
       // Tank-tank collision
       const allTanks = [player, ...enemies];
       resolveTankCollision(enemy.id, newPos, allTanks);
+
+      // Tree collision
+      const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);
+      if (treeResult.knockedTreeIndex !== null) {
+        const idx = treeResult.knockedTreeIndex;
+        const tree = useGameStore.getState().trees[idx];
+        const fallDir = Math.atan2(newPos.x - tree.position[0], newPos.z - tree.position[2]);
+        useGameStore.getState().updateTree(idx, { fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
+        useGameStore.getState().spawnParticle('tree_hit', new THREE.Vector3(tree.position[0], tree.position[1] + 2, tree.position[2]), new THREE.Vector3(0, 1, 0));
+      }
+
       newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
       // Calculate pitch and roll based on terrain
@@ -101,8 +119,42 @@ export function EnemyAI() {
       const { pitch, roll } = orientation;
       newPos.y = orientation.adjustedY;
 
+      // Steady-aim tracking: accumulate time when both tanks are stationary
+      const moveThresh = GAME_CONFIG.ai.movementThreshold;
+      const sa = steadyAim.current[enemy.id];
+      const enemySpeed = Math.abs(forwardSpeed);
+      const playerSpeed = Math.abs(player.speed || 0);
+      const bothStationary = enemySpeed < moveThresh && playerSpeed < moveThresh;
+
+      if (!sa) {
+        steadyAim.current[enemy.id] = { time: 0, lastEnemyPos: newPos.clone(), lastPlayerPos: player.position.clone() };
+      } else if (bothStationary) {
+        sa.time += delta;
+        sa.lastEnemyPos.copy(newPos);
+        sa.lastPlayerPos.copy(player.position);
+      } else {
+        sa.time = 0;
+        sa.lastEnemyPos.copy(newPos);
+        sa.lastPlayerPos.copy(player.position);
+      }
+
+      // Zeroing factor: 1.0 at start, decays to zeroInMinFactor over zeroInTime seconds
+      const aimTime = steadyAim.current[enemy.id].time;
+      const zeroProgress = Math.min(aimTime / GAME_CONFIG.ai.zeroInTime, 1);
+      const zeroFactor = 1 - zeroProgress * (1 - GAME_CONFIG.ai.zeroInMinFactor);
+
+      // Aim dispersion: per-enemy offset that drifts, scaled by zeroing factor
+      if (!aimOffsets.current[enemy.id] || now > aimOffsets.current[enemy.id].nextChangeTime) {
+        aimOffsets.current[enemy.id] = {
+          azimuth: randGauss() * GAME_CONFIG.ai.aimDispersion * zeroFactor,
+          elevation: randGauss() * GAME_CONFIG.ai.aimDispersion * zeroFactor,
+          nextChangeTime: now + 1000 + Math.random() * 2000,
+        };
+      }
+      const aimOff = aimOffsets.current[enemy.id];
+
       // Simple aiming: rotate hull towards player slowly, turret faster
-      const targetRotation = Math.atan2(dirToPlayer.x, dirToPlayer.z);
+      const targetRotation = Math.atan2(dirToPlayer.x, dirToPlayer.z) + aimOff.azimuth;
       
       // Rotate turret
       let newTurretRot = enemy.turretRotation;
@@ -120,7 +172,7 @@ export function EnemyAI() {
       const t = dist / projVel;
       const drop = 0.5 * GAME_CONFIG.physics.gravity * t * t;
       // Required elevation angle (negative because positive gunElevation means aiming down)
-      const targetElev = -Math.atan2(player.position.y + 1.5 + drop - (enemy.position.y + 1.6), dist);
+      const targetElev = -Math.atan2(player.position.y + 1.5 + drop - (enemy.position.y + 1.6), dist) + aimOff.elevation;
       
       let newGunElev = enemy.gunElevation;
       const elevDiff = targetElev - enemy.gunElevation;
@@ -163,6 +215,11 @@ export function EnemyAI() {
           const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(...enemyDef.gunPivotOffset).applyQuaternion(worldTurretQuat));
 
           const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldGunQuat);
+          // Apply fire-time dispersion (reduced by zeroing)
+          const fireDisp = GAME_CONFIG.ai.fireDispersion * zeroFactor;
+          const dispYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), randGauss() * fireDisp);
+          const dispPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), randGauss() * fireDisp);
+          dir.applyQuaternion(dispYaw).applyQuaternion(dispPitch);
           const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(enemyDef.muzzleDistance));
 
           const enemyWeapon = GAME_CONFIG.weapons.enemy;
