@@ -68,8 +68,11 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       case 'hit_penetrate': return GAME_CONFIG.particles.hit_penetrate;
       case 'hit_bounce': return GAME_CONFIG.particles.hit_bounce;
       case 'hit_ground': return GAME_CONFIG.particles.hit_ground;
+      case 'he_hit_ground': return GAME_CONFIG.particles.he_hit_ground;
+      case 'he_hit_penetrate': return GAME_CONFIG.particles.he_hit_penetrate;
       case 'tank_explosion': return GAME_CONFIG.particles.tank_explosion;
       case 'dust': return GAME_CONFIG.particles.dust;
+      case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
       default: return GAME_CONFIG.particles.default;
     }
   }, [type]);
@@ -111,6 +114,28 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       for (let i=0; i<15; i++) {
         subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(10 + Math.random() * 10), scale: 0.4, color: '#ffaa00', life: 0.3 + Math.random() * 0.3 });
       }
+    } else if (type === 'he_hit_ground') {
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0, color: '#ffffff', life: 0.15 });
+      for (let i=0; i<4; i++) {
+        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(2 + Math.random() * 3), scale: 3.0 + Math.random() * 2, color: '#ff5500', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
+      for (let i=0; i<8; i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(2 + Math.random() * 2), scale: 2.5 + Math.random() * 2.5, color: '#5a4020', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
+      for (let i=0; i<20; i++) {
+        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(10 + Math.random() * 8), scale: 0.2 + Math.random() * 0.25, color: '#3d2e15', life: 0.8 });
+      }
+    } else if (type === 'he_hit_penetrate') {
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0, color: '#ffffff', life: 0.15 });
+      for (let i=0; i<3; i++) {
+        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.2).multiplyScalar(2 + Math.random() * 2), scale: 2.5 + Math.random() * 2, color: '#ff4400', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
+      for (let i=0; i<15; i++) {
+        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(12 + Math.random() * 12), scale: 0.5, color: '#ffdd44', life: 0.4 + Math.random() * 0.4 });
+      }
+      for (let i=0; i<8; i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar(1 + Math.random() * 2), scale: 2.0 + Math.random() * 2, color: '#333333', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
     } else if (type === 'tank_explosion') {
       subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 8.0, color: '#ffffff', life: 0.2 });
       for (let i=0; i<8; i++) {
@@ -125,6 +150,15 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
     } else if (type === 'fire') {
       subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.0, color: '#ffaa00', life: 0.2 });
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: n.clone().multiplyScalar(4), scale: 2.0, color: '#888888', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+    } else if (type === 'burning_smoke') {
+      // Large black smoke column rising from destroyed tank
+      for (let i = 0; i < 3; i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3((Math.random()-0.5)*1.5, Math.random()*0.5, (Math.random()-0.5)*1.5), vel: new THREE.Vector3((Math.random()-0.5)*0.8, 2 + Math.random()*2, (Math.random()-0.5)*0.8), scale: config.size * (0.7 + Math.random()*0.6), color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 1.5 });
+      }
+      // Occasional ember/fire glow
+      if (Math.random() < 0.4) {
+        subs.push({ type: 'fireball', pos: new THREE.Vector3((Math.random()-0.5)*0.8, 0.5, (Math.random()-0.5)*0.8), vel: new THREE.Vector3(0, 1 + Math.random(), 0), scale: 1.5 + Math.random(), color: '#ff3300', life: 0.4, rotSpeed: (Math.random() - 0.5) * 2 });
+      }
     } else if (type === 'dust') {
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5+0.5, (Math.random()-0.5)*2), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
     }

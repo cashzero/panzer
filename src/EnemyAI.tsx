@@ -5,6 +5,9 @@ import { useRef } from 'react';
 import { playFireSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
+import { resolveTankCollision } from './collision';
+import { getTankDef } from './tanks/registry';
+import { computeTerrainOrientation, computeTrackMovement } from './tankPhysics';
 
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
@@ -58,38 +61,45 @@ export function EnemyAI() {
         rightSpeed = forwardSpeed;
       }
 
-      newRot += rotationSpeed * delta;
-      const moveDir = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), newRot);
-      newPos.add(moveDir.clone().multiplyScalar(forwardSpeed * delta));
+      // Track damage: destroyed tracks cannot move
+      if (enemy.trackDestroyed?.left) leftSpeed = 0;
+      if (enemy.trackDestroyed?.right) rightSpeed = 0;
+
+      // Derive actual movement from track speeds
+      if (enemy.trackDestroyed?.left && enemy.trackDestroyed?.right) {
+        forwardSpeed = 0;
+        rotationSpeed = 0;
+      } else if (enemy.trackDestroyed?.left) {
+        forwardSpeed = 0;
+        rotationSpeed = rightSpeed > 0 ? -0.5 : rightSpeed < 0 ? 0.5 : 0;
+      } else if (enemy.trackDestroyed?.right) {
+        forwardSpeed = 0;
+        rotationSpeed = leftSpeed > 0 ? 0.5 : leftSpeed < 0 ? -0.5 : 0;
+      } else {
+        const mov = computeTrackMovement(leftSpeed, rightSpeed, newPos, newRot, delta);
+        newPos = mov.position;
+        newRot = mov.rotation;
+        forwardSpeed = mov.forwardSpeed;
+        rotationSpeed = mov.rotationSpeed;
+      }
+
+      if (enemy.trackDestroyed?.left || enemy.trackDestroyed?.right) {
+        // Single/no track: apply manual rotation only
+        newRot += rotationSpeed * delta;
+      }
 
       // Snap to terrain
-      const currentHeight = getTerrainHeight(newPos.x, newPos.z);
-      newPos.y = currentHeight;
+      newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
-      // Calculate pitch and roll based on terrain using tank dimensions
-      const forward = new THREE.Vector3(0, 0, 1).applyEuler(new THREE.Euler(0, newRot, 0));
-      const right = new THREE.Vector3(1, 0, 0).applyEuler(new THREE.Euler(0, newRot, 0));
-      
-      // Tank is roughly 5 units long and 3.2 units wide
-      const frontPos = newPos.clone().add(forward.clone().multiplyScalar(2.5));
-      const backPos = newPos.clone().sub(forward.clone().multiplyScalar(2.5));
-      const rightPos = newPos.clone().add(right.clone().multiplyScalar(1.6));
-      const leftPos = newPos.clone().sub(right.clone().multiplyScalar(1.6));
-      
-      const frontHeight = getTerrainHeight(frontPos.x, frontPos.z);
-      const backHeight = getTerrainHeight(backPos.x, backPos.z);
-      const rightHeight = getTerrainHeight(rightPos.x, rightPos.z);
-      const leftHeight = getTerrainHeight(leftPos.x, leftPos.z);
-      
-      const slope = (frontHeight - backHeight) / 5;
-      const rollSlope = (rightHeight - leftHeight) / 3.2;
-      
-      const pitch = -Math.atan(slope);
-      const roll = Math.atan(rollSlope);
+      // Tank-tank collision
+      const allTanks = [player, ...enemies];
+      resolveTankCollision(enemy.id, newPos, allTanks);
+      newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
-      // Adjust center height to prevent clipping on hills/valleys
-      const avgHeight = (frontHeight + backHeight + rightHeight + leftHeight) / 4;
-      newPos.y = Math.max(currentHeight, avgHeight);
+      // Calculate pitch and roll based on terrain
+      const orientation = computeTerrainOrientation(newPos, newRot);
+      const { pitch, roll } = orientation;
+      newPos.y = orientation.adjustedY;
 
       // Simple aiming: rotate hull towards player slowly, turret faster
       const targetRotation = Math.atan2(dirToPlayer.x, dirToPlayer.z);
@@ -148,12 +158,12 @@ export function EnemyAI() {
           const worldTurretQuat = tankQuat.clone().multiply(turretQuat);
           const worldGunQuat = worldTurretQuat.clone().multiply(gunQuat);
           
-          // Match the visual model: turret is at [0, 1.2, 0.2] relative to tank, gun is at [0, 0.4, 1.5] relative to turret
-          const turretPosWorld = newPos.clone().add(new THREE.Vector3(0, 1.2, 0.2).applyQuaternion(tankQuat));
-          const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(0, 0.4, 1.5).applyQuaternion(worldTurretQuat));
-          
+          const enemyDef = getTankDef(enemy.tankType);
+          const turretPosWorld = newPos.clone().add(new THREE.Vector3(...enemyDef.turretOffset).applyQuaternion(tankQuat));
+          const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(...enemyDef.gunPivotOffset).applyQuaternion(worldTurretQuat));
+
           const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldGunQuat);
-          const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(4));
+          const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(enemyDef.muzzleDistance));
 
           const enemyWeapon = GAME_CONFIG.weapons.enemy;
           const velocity = dir.clone().multiplyScalar(enemyWeapon.velocity);

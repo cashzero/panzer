@@ -114,53 +114,68 @@ function GunnerSightOverlay() {
   const gravity = GAME_CONFIG.physics.gravity;
   const fov = 20; // Camera FOV in degrees
 
-  // Calculate vertical drop in viewport height (vh)
-  const getDropVh = (d: number, v: number) => {
+  // Calculate elevation angle for a given distance using the same ballistic
+  // formula as the actual gun aiming: θ = 0.5 * asin(d*g / v²)
+  const getElevationAngle = (d: number, v: number) => {
     if (d === 0) return 0;
-    const tanFovHalf = Math.tan((fov / 2) * (Math.PI / 180));
-    const drop = 0.5 * gravity * Math.pow(d / v, 2);
-    const tanTheta = drop / d;
-    return 50 * (tanTheta / tanFovHalf);
+    const sin2Theta = (d * gravity) / (v * v);
+    if (sin2Theta > 1) return null; // Beyond max range
+    return 0.5 * Math.asin(sin2Theta);
   };
 
-  // Generate distance markings dynamically based on projectile speed
+  // Convert elevation angle to viewport height offset (vh units)
+  const angleToVh = (angle: number) => {
+    const tanFovHalf = Math.tan((fov / 2) * (Math.PI / 180));
+    return 50 * (Math.tan(angle) / tanFovHalf);
+  };
+
+  // Max range for this ammo type: v² / g
+  const maxRange = (velocity * velocity) / gravity;
+
+  // Generate distance markings dynamically based on projectile ballistics
   const markings = [];
   for (let d = 0; d <= 5000; d += 200) {
-    const vh = getDropVh(d, velocity);
+    if (d > maxRange) break; // Can't reach beyond max range
+    const angle = getElevationAngle(d, velocity);
+    if (angle === null) break;
+    const vh = angleToVh(angle);
     if (vh > 150) break; // Stop generating if it goes way off screen
     markings.push({ dist: d, vh });
   }
 
-  // Calculate the drop offset for the reticle based on calibration distance
-  // Negative offset moves the reticle UP, so the lower distance marks move to the center
-  const dropOffsetVh = -getDropVh(calibrationDistance, velocity);
+  // The camera follows the bore axis (gun barrel direction).
+  // The reticle center = screen center = bore axis.
+  // Distance markings show shell drop below center — the user lines up
+  // the calibrated distance mark with the target to aim correctly.
 
   return (
     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
       {/* Black vignette/mask */}
       <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_40%,black_70%)]" />
-      
-      {/* Reticle container */}
-      <div 
-        className="relative w-full h-full flex items-center justify-center transition-transform duration-200"
-        style={{ transform: `translateY(${dropOffsetVh}vh)` }}
+
+      {/* Reticle container — no vertical shift, bore axis stays at center */}
+      <div
+        className="relative w-full h-full flex items-center justify-center"
       >
         {/* Main horizontal line */}
         <div className="absolute w-1/2 h-0.5 bg-red-500/80" />
         {/* Main vertical line */}
         <div className="absolute h-[200%] w-0.5 bg-red-500/80" />
         
-        {/* Distance markings */}
+        {/* Distance markings — calibrated distance mark is highlighted */}
         <div className="absolute top-1/2 left-1/2">
-          {markings.map(({ dist, vh }) => (
-            <div 
-              key={dist} 
-              className="absolute w-12 border-b border-red-500/80"
-              style={{ top: `${vh}vh`, left: '-24px' }}
-            >
-              <span className="absolute left-14 text-sm font-bold text-red-500/80 -translate-y-1/2">{dist}</span>
-            </div>
-          ))}
+          {markings.map(({ dist, vh }) => {
+            const isCalibrated = dist === calibrationDistance;
+            return (
+              <div
+                key={dist}
+                className={`absolute border-b ${isCalibrated ? 'w-16 border-yellow-400' : 'w-12 border-red-500/80'}`}
+                style={{ top: `${vh}vh`, left: isCalibrated ? '-32px' : '-24px' }}
+              >
+                <span className={`absolute left-[68px] text-sm font-bold -translate-y-1/2 ${isCalibrated ? 'text-yellow-400' : 'text-red-500/80'}`}>{dist}</span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Center dot */}
@@ -176,6 +191,34 @@ function GunnerSightOverlay() {
         <div>AMMO: {ammoType}</div>
         <div className="text-sm opacity-80">VEL: {velocity}m/s</div>
       </div>
+    </div>
+  );
+}
+
+function TrackHPDisplay() {
+  const trackHealth = useGameStore((state) => state.playerTank.trackHealth);
+  const trackMaxHealth = useGameStore((state) => state.playerTank.trackMaxHealth);
+  const trackDestroyed = useGameStore((state) => state.playerTank.trackDestroyed);
+
+  const renderBar = (label: string, hp: number, maxHp: number, dead: boolean) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs text-gray-400 w-16">{label}</span>
+      <div className="w-32 h-3 bg-gray-800 border border-gray-600">
+        <div
+          className={`h-full transition-all duration-300 ${dead ? 'bg-red-700' : 'bg-amber-500'}`}
+          style={{ width: `${Math.max(0, (hp / maxHp) * 100)}%` }}
+        />
+      </div>
+      <span className={`text-xs ${dead ? 'text-red-500 font-bold' : 'text-gray-300'}`}>
+        {dead ? 'DESTROYED' : `${Math.round(hp)}/${maxHp}`}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="mt-2 flex flex-col gap-1">
+      {renderBar('L TRACK', trackHealth.left, trackMaxHealth.left, trackDestroyed.left)}
+      {renderBar('R TRACK', trackHealth.right, trackMaxHealth.right, trackDestroyed.right)}
     </div>
   );
 }
@@ -206,6 +249,7 @@ export function UI() {
             />
           </div>
         </div>
+        <TrackHPDisplay />
         <div className="mt-4 text-xl">
           Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : 'text-red-400 font-bold'}>{ammoType}</span>
           <div className="text-sm text-gray-300 mt-1">Press R to switch</div>
@@ -214,6 +258,9 @@ export function UI() {
         {isMapMode && (
           <div className="mt-4 text-xl font-bold text-yellow-400 animate-pulse">
             MAP MODE ACTIVE
+            <div className="text-sm text-gray-300 font-normal mt-1">
+              WASD/Drag - Pan | Scroll - Zoom | M - Exit
+            </div>
           </div>
         )}
       </div>
@@ -238,7 +285,7 @@ export function UI() {
         ))}
       </div>
 
-      <PhysicsHUD />
+      {!isMapMode && <PhysicsHUD />}
 
       {/* Controls Help */}
       <div className="absolute bottom-4 right-4 text-right text-sm text-gray-300 bg-black/50 p-2 rounded">
