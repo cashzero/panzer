@@ -31,11 +31,11 @@
 - [ ] Add real-time kill counter in `UI.tsx`
 - [ ] Display detailed stats in `MissionResult.tsx`
 
-### 1.3 Tank Selection Screen [M]
-- [ ] Modify `store.ts` — dynamic `playerTank` initialization from selected tank type
-- [ ] Export `getAllTankDefs()` from `tanks/registry.ts`
-- [ ] Add `description`, `nationality`, `year` fields to `TankDefinition` in `tanks/types.ts`
-- [ ] Create `src/screens/TankSelect.tsx` — 3D tank preview with stat bars
+### 1.3 Tank Selection Screen [M] ✅
+- [x] Modify `store.ts` — dynamic `playerTank` initialization from selected tank type
+- [x] Export `getAllTankDefs()` from `tanks/registry.ts`
+- [x] Add `description`, `nationality`, `year` fields to `TankDefinition` in `tanks/types.ts`
+- [x] Create `src/screens/TankSelect.tsx` — 3D tank preview with stat bars
 
 ### 2.4 Impact / Ricochet Sound Effects [M]
 - [ ] Add `playImpactSound('penetrate' | 'ricochet' | 'ground')` to `audio.ts`

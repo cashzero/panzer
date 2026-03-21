@@ -239,6 +239,9 @@ function makePz3Plates(): ArmorPlate[] {
 export const panzer3Def: TankDefinition = {
   id: 'panzer3',
   displayName: 'Panzer III',
+  description: 'Germany\'s workhorse medium tank of the early war. Fast and agile with a rapid-firing 50mm gun, but lightly armored. Best used to flank heavier opponents rather than face them head-on.',
+  nationality: 'Germany',
+  year: 1939,
   health: 350,
   trackHealth: 80,
   armor: { front: 50, side: 30, rear: 20, turret: 57 },

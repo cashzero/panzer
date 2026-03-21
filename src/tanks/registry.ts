@@ -18,3 +18,7 @@ export function getTankDef(tankType: string): TankDefinition {
   if (!def) throw new Error(`Unknown tank type: ${tankType}`);
   return def;
 }
+
+export function getAllTankDefs(): TankDefinition[] {
+  return Array.from(TANK_REGISTRY.values());
+}

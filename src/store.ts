@@ -65,7 +65,10 @@ export interface TankData {
   rightTrackSpeed: number;
 }
 
+export type GameScreen = 'tank-select' | 'playing';
+
 interface GameState {
+  gameScreen: GameScreen;
   playerTank: TankData;
   enemies: TankData[];
   projectiles: Projectile[];
@@ -77,6 +80,7 @@ interface GameState {
   isMapMode: boolean;
   calibrationDistance: number;
   trees: TreeInstance[];
+  cameraShake: number; // current shake intensity (decays over time)
 
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string) => void;
   updateProjectiles: (dt: number) => void;
@@ -92,13 +96,48 @@ interface GameState {
   toggleMapMode: () => void;
   setCalibrationDistance: (dist: number) => void;
   setLastFireTime: (time: number) => void;
+  selectPlayerTank: (tankType: string) => void;
+  triggerCameraShake: (intensity: number) => void;
+  decayCameraShake: (dt: number) => void;
   initTrees: (trees: TreeInstance[]) => void;
   updateTree: (index: number, updates: Partial<TreeInstance>) => void;
 }
 
 const GRAVITY = GAME_CONFIG.physics.gravity;
 
+function createTankData(tankType: string, isPlayer: boolean): TankData {
+  const def = getTankDef(tankType);
+  return {
+    id: isPlayer ? 'player' : uuidv4(),
+    tankType,
+    position: new Vector3(0, 0, 0),
+    rotation: isPlayer ? 0 : Math.random() * Math.PI * 2,
+    pitch: 0,
+    roll: 0,
+    turretRotation: 0,
+    gunElevation: 0,
+    turretSwayOffset: 0,
+    gunSwayOffset: 0,
+    gunSightAimPoint: new Vector3(0, 0, 500),
+    health: def.health,
+    maxHealth: def.health,
+    armor: { ...def.armor },
+    isPlayer,
+    destroyed: false,
+    lastFireTime: 0,
+    trackHealth: { left: def.trackHealth, right: def.trackHealth },
+    trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
+    trackDestroyed: { left: false, right: false },
+    speed: 0,
+    engineRPM: GAME_CONFIG.tank.idleRPM,
+    gear: 0,
+    leftTrackSpeed: 0,
+    rightTrackSpeed: 0,
+  };
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
+  gameScreen: 'tank-select',
   playerTank: (() => {
     const def = getTankDef('sherman');
     return {
@@ -139,6 +178,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   isMapMode: false,
   calibrationDistance: 0,
   trees: [],
+  cameraShake: 0,
+
+  selectPlayerTank: (tankType) => {
+    const newTank = createTankData(tankType, true);
+    set({ playerTank: newTank, gameScreen: 'playing' });
+  },
+
+  triggerCameraShake: (intensity) => set((state) => ({
+    cameraShake: Math.max(state.cameraShake, intensity),
+  })),
+
+  decayCameraShake: (dt) => set((state) => ({
+    cameraShake: Math.max(0, state.cameraShake - dt * 4.0),
+  })),
 
   initTrees: (trees) => set({ trees }),
 
@@ -248,6 +301,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (angleDeg > GAME_CONFIG.combat.autoRicochetAngle) {
       get().spawnParticle('hit_bounce', projectile.position, hitNormal);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
+      if (hitTankId === 'player') get().triggerCameraShake(0.4);
       return;
     }
 
@@ -270,6 +324,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (hitTankId === 'player') {
           get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().triggerCameraShake(0.7);
         } else {
           get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         }
@@ -293,6 +348,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (hitTankId === 'player') {
           get().updatePlayer({ health: newHealth, destroyed });
+          get().triggerCameraShake(1.0);
         } else {
           get().updateEnemy(hitTankId, { health: newHealth, destroyed });
         }
@@ -306,6 +362,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     } else {
       // Non-penetration
       get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_bounce', projectile.position, hitNormal);
+      if (hitTankId === 'player') get().triggerCameraShake(0.5);
 
       if (isTrackHit && trackSide && projectile.type === 'HE') {
         // HE splash on track
@@ -344,38 +401,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   spawnEnemy: (position, tankType = 'tiger') => {
-    const def = getTankDef(tankType);
+    const enemy = createTankData(tankType, false);
+    enemy.position = position;
     set((state) => ({
-      enemies: [
-        ...state.enemies,
-        {
-          id: uuidv4(),
-          tankType,
-          position,
-          rotation: Math.random() * Math.PI * 2,
-          pitch: 0,
-          roll: 0,
-          turretRotation: 0,
-          gunElevation: 0,
-          turretSwayOffset: 0,
-          gunSwayOffset: 0,
-          gunSightAimPoint: new Vector3(0, 0, 500),
-          health: def.health,
-          maxHealth: def.health,
-          armor: { ...def.armor },
-          isPlayer: false,
-          destroyed: false,
-          lastFireTime: 0,
-          trackHealth: { left: def.trackHealth, right: def.trackHealth },
-          trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
-          trackDestroyed: { left: false, right: false },
-          speed: 0,
-          engineRPM: GAME_CONFIG.tank.idleRPM,
-          gear: 0,
-          leftTrackSpeed: 0,
-          rightTrackSpeed: 0,
-        },
-      ],
+      enemies: [...state.enemies, enemy],
     }));
   },
 }));

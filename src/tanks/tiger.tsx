@@ -241,6 +241,9 @@ function makeTigerPlates(): ArmorPlate[] {
 export const tigerDef: TankDefinition = {
   id: 'tiger',
   displayName: 'Tiger I',
+  description: 'The feared heavy tank of the Wehrmacht. Its legendary 88mm gun can penetrate almost anything at range, and thick flat armor provides excellent protection. Slow but devastating.',
+  nationality: 'Germany',
+  year: 1942,
   health: 500,
   trackHealth: 100,
   armor: { front: 80, side: 40, rear: 20, turret: 100 },

@@ -211,6 +211,9 @@ function makeShermanPlates(): ArmorPlate[] {
 export const shermanDef: TankDefinition = {
   id: 'sherman',
   displayName: 'M4 Sherman',
+  description: 'The backbone of Allied armored forces. Well-rounded with good mobility, reliable mechanics, and a versatile 75mm gun. What it lacks in raw firepower it makes up for in speed and rate of fire.',
+  nationality: 'USA',
+  year: 1942,
   health: 1000,
   trackHealth: 150,
   armor: { front: 100, side: 50, rear: 30, turret: 120 },

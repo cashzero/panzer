@@ -94,6 +94,7 @@ The game uses a **multi-plate oriented bounding box (OBB)** collision system. Ea
 - Engine RPM/gear simulation (idle 800 → max 2800 RPM, gears N/D1-D3/R)
 - Tank-tree collision: low speed push, high speed knockdown with falling animation
 - Projectile-tree collision with damage (50 HP per hit)
+- Tank selection screen: 3D rotating preview, stat bars (HP, armor, speed, penetration, reload), tank description/nationality/year, deploy button transitions to gameplay
 
 ## Map Mode
 

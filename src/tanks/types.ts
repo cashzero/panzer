@@ -22,6 +22,9 @@ export interface TankGunProps {
 export interface TankDefinition {
   id: string;
   displayName: string;
+  description: string;
+  nationality: string;
+  year: number;
 
   // Stats
   health: number;
