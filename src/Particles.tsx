@@ -72,6 +72,7 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       case 'he_hit_penetrate': return GAME_CONFIG.particles.he_hit_penetrate;
       case 'tank_explosion': return GAME_CONFIG.particles.tank_explosion;
       case 'dust': return GAME_CONFIG.particles.dust;
+      case 'dust_low': return GAME_CONFIG.particles.dust_low;
       case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
       default: return GAME_CONFIG.particles.default;
     }
@@ -161,6 +162,8 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
       }
     } else if (type === 'dust') {
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5+0.5, (Math.random()-0.5)*2), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+    } else if (type === 'dust_low') {
+      subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*1, Math.random()*0.3+0.1, (Math.random()-0.5)*1), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 1 });
     }
     
     return subs;

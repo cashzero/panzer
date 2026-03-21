@@ -10,7 +10,7 @@ export type AmmoType = 'AP' | 'HE';
 
 export interface Particle {
   id: string;
-  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'hit_ground' | 'tank_explosion' | 'dust' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke';
+  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke';
   position: Vector3;
   normal?: Vector3;
   createdAt: number;

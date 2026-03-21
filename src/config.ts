@@ -84,6 +84,14 @@ export const GAME_CONFIG = {
       spawnSpeedScale: 8,     // interval reduction per m/s above threshold
       allowReverse: false,    // whether reversing generates dust
     },
+    dust_low: {
+      lifetime: 1000,
+      color: '#c2b280',
+      size: 1.0,
+      expand: true,
+      speedThreshold: 0.5,
+      spawnInterval: 350,
+    },
     burning_smoke: { lifetime: 3000, color: '#111111', size: 3.5, expand: true,
       spawnInterval: 150,  // ms between smoke puffs
     },

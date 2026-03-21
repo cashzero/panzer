@@ -41,6 +41,7 @@ export function Tank({ id, tankType }: TankProps) {
   const gunBarrelRef = useRef<THREE.Group>(null);
 
   const lastDustSpawn = useRef<number>(0);
+  const lastLowDustSpawn = useRef<number>(0);
 
   const leftTrackTexture = useMemo(() => createTrackTexture(), []);
   const rightTrackTexture = useMemo(() => createTrackTexture(), []);
@@ -151,6 +152,22 @@ export function Tank({ id, tankType }: TankProps) {
           ).applyAxisAngle(new THREE.Vector3(0, 1, 0), data.rotation)
         );
         spawnParticle('dust', rightDustPos, new THREE.Vector3(0, 1, 0));
+      }
+    } else if (speed > GAME_CONFIG.particles.dust_low.speedThreshold || turnSpeed > 1) {
+      // Low-speed track-level dust
+      const dustLowCfg = GAME_CONFIG.particles.dust_low;
+      if (now - lastLowDustSpawn.current > dustLowCfg.spawnInterval) {
+        lastLowDustSpawn.current = now;
+        const spawnParticle = useGameStore.getState().spawnParticle;
+        const side = (Math.random() < 0.5 ? -1 : 1) * GAME_CONFIG.tank.trackWidth / 2;
+        const dustPos = data.position.clone().add(
+          new THREE.Vector3(
+            side + (Math.random() - 0.5) * 0.3,
+            Math.random() * 0.2,
+            -1.5 + (Math.random() - 0.5) * 0.5
+          ).applyAxisAngle(new THREE.Vector3(0, 1, 0), data.rotation)
+        );
+        spawnParticle('dust_low', dustPos, new THREE.Vector3(0, 1, 0));
       }
     }
   });
