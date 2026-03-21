@@ -155,16 +155,20 @@ const ShermanGun = ({ destroyedColor, destroyed }: TankGunProps) => {
 
   return (
     <group>
-      <Box args={[0.7, 0.55, 0.7]} position={[0, 0, 0.15]} castShadow receiveShadow>
+      {/* Mantlet */}
+      <Box args={[0.5, 0.4, 0.5]} position={[0, 0, 0.15]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
-      <Cylinder args={[0.1, 0.12, 3.2]} position={[0, 0, 1.6]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* 76mm barrel */}
+      <Cylinder args={[0.06, 0.08, 2.4]} position={[0, 0, 1.2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {barrelMat}
       </Cylinder>
-      <Cylinder args={[0.13, 0.13, 0.15]} position={[0, 0, 3.2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* Muzzle tip */}
+      <Cylinder args={[0.09, 0.09, 0.15]} position={[0, 0, 2.4]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
-      <Cylinder args={[0.02, 0.02, 0.8]} position={[0.2, -0.1, 0.8]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
+      {/* Coaxial MG */}
+      <Cylinder args={[0.015, 0.015, 0.8]} position={[0.15, -0.08, 0.8]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
     </group>
@@ -212,7 +216,7 @@ export const shermanDef: TankDefinition = {
   color: '#4a5d23',
   turretOffset: [0, 1.2, 0.2],
   gunPivotOffset: [0, 0.4, 1.5],
-  muzzleDistance: 4,
+  muzzleDistance: 3,
   broadPhaseRadius: 4.5,
   plates: makeShermanPlates(),
   HullComponent: ShermanHull,

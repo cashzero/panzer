@@ -179,25 +179,25 @@ const Pz3Gun = ({ destroyedColor, destroyed }: TankGunProps) => {
   return (
     <group>
       {/* Mantlet — internal type, smaller */}
-      <Box args={[0.55, 0.45, 0.55]} position={[0, 0, 0.12]} castShadow receiveShadow>
+      <Box args={[0.4, 0.32, 0.4]} position={[0, 0, 0.12]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
 
       {/* Main Barrel — 50mm KwK 39 L/60 (thinner, shorter than 88mm) */}
-      <Cylinder args={[0.06, 0.08, 2.8]} position={[0, 0, 1.4]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      <Cylinder args={[0.035, 0.05, 2.0]} position={[0, 0, 1.0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {barrelMat}
       </Cylinder>
 
       {/* Muzzle brake — single baffle */}
-      <Cylinder args={[0.1, 0.1, 0.18]} position={[0, 0, 2.8]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      <Cylinder args={[0.065, 0.065, 0.18]} position={[0, 0, 2.0]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
-      <Box args={[0.22, 0.06, 0.15]} position={[0, 0, 2.8]} castShadow receiveShadow>
+      <Box args={[0.15, 0.04, 0.15]} position={[0, 0, 2.0]} castShadow receiveShadow>
         {darkMat}
       </Box>
 
       {/* Coaxial MG */}
-      <Cylinder args={[0.015, 0.015, 0.6]} position={[0.15, -0.08, 0.6]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
+      <Cylinder args={[0.012, 0.012, 0.6]} position={[0.12, -0.06, 0.6]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
     </group>
@@ -243,9 +243,9 @@ export const panzer3Def: TankDefinition = {
   trackHealth: 80,
   armor: { front: 50, side: 30, rear: 20, turret: 57 },
   color: '#8a8463',  // field gray-tan
-  turretOffset: [0, 1.2, 0.2],
+  turretOffset: [0, 0.85, 0.2],
   gunPivotOffset: [0, 0.4, 1.5],
-  muzzleDistance: 3.5,
+  muzzleDistance: 2.5,
   broadPhaseRadius: 3.8,
   plates: makePz3Plates(),
   HullComponent: Pz3Hull,

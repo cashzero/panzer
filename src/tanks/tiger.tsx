@@ -175,25 +175,30 @@ const TigerGun = ({ destroyedColor, destroyed }: TankGunProps) => {
 
   return (
     <group>
-      <Box args={[1.0, 0.7, 0.8]} position={[0, 0, 0.2]} castShadow receiveShadow>
+      {/* Mantlet */}
+      <Box args={[0.7, 0.5, 0.6]} position={[0, 0, 0.2]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
-      <Cylinder args={[0.12, 0.14, 4.2]} position={[0, 0, 2.1]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* 88mm barrel */}
+      <Cylinder args={[0.07, 0.09, 4.2]} position={[0, 0, 2.1]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {barrelMat}
       </Cylinder>
-      <Cylinder args={[0.17, 0.17, 0.7]} position={[0, 0, 2.8]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* Barrel reinforcement */}
+      <Cylinder args={[0.11, 0.11, 0.7]} position={[0, 0, 2.8]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {barrelMat}
       </Cylinder>
-      <Cylinder args={[0.16, 0.16, 0.3]} position={[0, 0, 4.2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
+      {/* Muzzle brake */}
+      <Cylinder args={[0.10, 0.10, 0.3]} position={[0, 0, 4.2]} rotation={[Math.PI / 2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
-      <Box args={[0.4, 0.08, 0.25]} position={[0, 0, 4.15]} castShadow receiveShadow>
+      <Box args={[0.28, 0.06, 0.25]} position={[0, 0, 4.15]} castShadow receiveShadow>
         {darkMat}
       </Box>
-      <Box args={[0.4, 0.08, 0.12]} position={[0, 0, 4.3]} castShadow receiveShadow>
+      <Box args={[0.28, 0.06, 0.12]} position={[0, 0, 4.3]} castShadow receiveShadow>
         {darkMat}
       </Box>
-      <Cylinder args={[0.02, 0.02, 0.9]} position={[0.25, -0.1, 0.8]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
+      {/* Coaxial MG */}
+      <Cylinder args={[0.02, 0.02, 0.9]} position={[0.18, -0.08, 0.8]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>
         {darkMat}
       </Cylinder>
     </group>
@@ -239,7 +244,7 @@ export const tigerDef: TankDefinition = {
   trackHealth: 100,
   armor: { front: 80, side: 40, rear: 20, turret: 100 },
   color: '#b8a04a',
-  turretOffset: [0, 1.2, 0.2],
+  turretOffset: [0, 0.9, 0.2],
   gunPivotOffset: [0, 0.4, 1.5],
   muzzleDistance: 4,
   broadPhaseRadius: 4.5,
