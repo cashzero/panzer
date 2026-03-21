@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
-import { playFireSound } from './audio';
+import { playFireSound, playAutocannonSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
@@ -18,6 +18,7 @@ export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
   const aimOffsets = useRef<{ [id: string]: { azimuth: number; elevation: number; nextChangeTime: number } }>({});
   const steadyAim = useRef<{ [id: string]: { time: number; lastEnemyPos: THREE.Vector3; lastPlayerPos: THREE.Vector3 } }>({});
+  const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
     const { playerTank: player, enemies, updateEnemy, fireProjectile } = useGameStore.getState();
@@ -202,39 +203,70 @@ export function EnemyAI() {
         rightTrackSpeed: rightSpeed,
       });
 
-      // Fire if aimed and reloaded
-      if (Math.abs(normalizedDiff) < 0.1 && Math.abs(elevDiff) < 0.1) {
+      // Helper: fire one round from this enemy
+      const fireEnemyRound = () => {
+        const tankEuler = new THREE.Euler(pitch, newRot, roll, 'YXZ');
+        const tankQuat = new THREE.Quaternion().setFromEuler(tankEuler);
+
+        const turretEuler = new THREE.Euler(0, newTurretRot, 0, 'YXZ');
+        const turretQuat = new THREE.Quaternion().setFromEuler(turretEuler);
+
+        const gunEuler = new THREE.Euler(newGunElev, 0, 0, 'YXZ');
+        const gunQuat = new THREE.Quaternion().setFromEuler(gunEuler);
+
+        const worldTurretQuat = tankQuat.clone().multiply(turretQuat);
+        const worldGunQuat = worldTurretQuat.clone().multiply(gunQuat);
+
+        const turretPosWorld = newPos.clone().add(new THREE.Vector3(...enemyDef.turretOffset).applyQuaternion(tankQuat));
+        const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(...enemyDef.gunPivotOffset).applyQuaternion(worldTurretQuat));
+
+        const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldGunQuat);
+        // Apply fire-time dispersion (reduced by zeroing) + inherent gun dispersion
+        const gunDisp = enemyDef.weapons.AP.dispersion || 0;
+        const fireDisp = GAME_CONFIG.ai.fireDispersion * zeroFactor + gunDisp;
+        const dispYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), randGauss() * fireDisp);
+        const dispPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), randGauss() * fireDisp);
+        dir.applyQuaternion(dispYaw).applyQuaternion(dispPitch);
+        const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(enemyDef.muzzleDistance));
+
+        const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
+        fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
+        updateEnemy(enemy.id, { lastFireTime: now });
+
+        if (enemyDef.burstCount) {
+          playAutocannonSound();
+        } else {
+          playFireSound();
+        }
+      };
+
+      // Continue active burst
+      const burst = burstStates.current[enemy.id];
+      if (burst && burst.remaining > 0) {
+        if (now >= burst.nextFireTime) {
+          fireEnemyRound();
+          burst.remaining--;
+          if (burst.remaining > 0) {
+            burst.nextFireTime = now + (enemyDef.burstInterval || 125);
+          } else {
+            lastFireTimes.current[enemy.id] = now;
+          }
+        }
+      } else if (Math.abs(normalizedDiff) < 0.1 && Math.abs(elevDiff) < 0.1) {
+        // Fire if aimed and reloaded
         const lastFire = lastFireTimes.current[enemy.id] || 0;
         if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
-          lastFireTimes.current[enemy.id] = now;
+          fireEnemyRound();
 
-          const tankEuler = new THREE.Euler(pitch, newRot, roll, 'YXZ');
-          const tankQuat = new THREE.Quaternion().setFromEuler(tankEuler);
-          
-          const turretEuler = new THREE.Euler(0, newTurretRot, 0, 'YXZ');
-          const turretQuat = new THREE.Quaternion().setFromEuler(turretEuler);
-          
-          const gunEuler = new THREE.Euler(newGunElev, 0, 0, 'YXZ');
-          const gunQuat = new THREE.Quaternion().setFromEuler(gunEuler);
-          
-          const worldTurretQuat = tankQuat.clone().multiply(turretQuat);
-          const worldGunQuat = worldTurretQuat.clone().multiply(gunQuat);
-          
-          const turretPosWorld = newPos.clone().add(new THREE.Vector3(...enemyDef.turretOffset).applyQuaternion(tankQuat));
-          const gunPivotWorld = turretPosWorld.clone().add(new THREE.Vector3(...enemyDef.gunPivotOffset).applyQuaternion(worldTurretQuat));
-
-          const dir = new THREE.Vector3(0, 0, 1).applyQuaternion(worldGunQuat);
-          // Apply fire-time dispersion (reduced by zeroing)
-          const fireDisp = GAME_CONFIG.ai.fireDispersion * zeroFactor;
-          const dispYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), randGauss() * fireDisp);
-          const dispPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), randGauss() * fireDisp);
-          dir.applyQuaternion(dispYaw).applyQuaternion(dispPitch);
-          const pos = gunPivotWorld.clone().add(dir.clone().multiplyScalar(enemyDef.muzzleDistance));
-
-          const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
-          fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id);
-          updateEnemy(enemy.id, { lastFireTime: now });
-          playFireSound();
+          if (enemyDef.burstCount && enemyDef.burstCount > 1 && enemyDef.burstInterval) {
+            // Start burst — schedule remaining rounds
+            burstStates.current[enemy.id] = {
+              remaining: enemyDef.burstCount - 1,
+              nextFireTime: now + enemyDef.burstInterval,
+            };
+          } else {
+            lastFireTimes.current[enemy.id] = now;
+          }
         }
       }
     });

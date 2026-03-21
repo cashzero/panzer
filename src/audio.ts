@@ -125,3 +125,75 @@ export function playFireSound() {
   osc.start(t);
   osc.stop(t + punchDuration);
 }
+
+export function playAutocannonSound() {
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const t = audioCtx.currentTime;
+
+  // 1. Sharp high-frequency crack (shorter and higher than cannon)
+  const crackDuration = 0.05;
+  const crackBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * crackDuration, audioCtx.sampleRate);
+  const crackData = crackBuffer.getChannelData(0);
+  for (let i = 0; i < crackBuffer.length; i++) {
+    crackData[i] = Math.random() * 2 - 1;
+  }
+  const crackSource = audioCtx.createBufferSource();
+  crackSource.buffer = crackBuffer;
+
+  const crackFilter = audioCtx.createBiquadFilter();
+  crackFilter.type = 'highpass';
+  crackFilter.frequency.value = 2000;
+
+  const crackGain = audioCtx.createGain();
+  crackGain.gain.setValueAtTime(0.6, t);
+  crackGain.gain.exponentialRampToValueAtTime(0.01, t + crackDuration);
+
+  crackSource.connect(crackFilter);
+  crackFilter.connect(crackGain);
+  crackGain.connect(audioCtx.destination);
+  crackSource.start(t);
+
+  // 2. Brief mid-frequency pop (no deep boom for 20mm)
+  const popDuration = 0.3;
+  const popBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * popDuration, audioCtx.sampleRate);
+  const popData = popBuffer.getChannelData(0);
+  for (let i = 0; i < popBuffer.length; i++) {
+    const white = Math.random() * 2 - 1;
+    popData[i] = (white + (popData[i - 1] || 0) * 0.85) / 1.85;
+  }
+  const popSource = audioCtx.createBufferSource();
+  popSource.buffer = popBuffer;
+
+  const popFilter = audioCtx.createBiquadFilter();
+  popFilter.type = 'bandpass';
+  popFilter.frequency.setValueAtTime(400, t);
+  popFilter.Q.value = 1.0;
+
+  const popGain = audioCtx.createGain();
+  popGain.gain.setValueAtTime(0.5, t);
+  popGain.gain.exponentialRampToValueAtTime(0.01, t + popDuration);
+
+  popSource.connect(popFilter);
+  popFilter.connect(popGain);
+  popGain.connect(audioCtx.destination);
+  popSource.start(t);
+
+  // 3. Minimal low punch (small caliber)
+  const punchDuration = 0.15;
+  const osc = audioCtx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, t);
+  osc.frequency.exponentialRampToValueAtTime(50, t + punchDuration);
+
+  const oscGain = audioCtx.createGain();
+  oscGain.gain.setValueAtTime(0.4, t);
+  oscGain.gain.exponentialRampToValueAtTime(0.01, t + punchDuration);
+
+  osc.connect(oscGain);
+  oscGain.connect(audioCtx.destination);
+  osc.start(t);
+  osc.stop(t + punchDuration);
+}

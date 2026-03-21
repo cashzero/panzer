@@ -5,40 +5,45 @@ import { getTankDef } from './tanks/registry';
 
 function ReloadIndicator() {
   const [progress, setProgress] = useState(100);
-  
+  const [burstRemaining, setBurstRemaining] = useState(0);
+
   useEffect(() => {
     let animationFrameId: number;
-    
+
     const updateProgress = () => {
-      const lastFireTime = useGameStore.getState().lastFireTime;
+      const store = useGameStore.getState();
+      const lastFireTime = store.lastFireTime;
       const now = Date.now();
       const timeSinceFire = now - lastFireTime;
-      const playerTankType = useGameStore.getState().playerTank.tankType;
-      const reloadTime = getTankDef(playerTankType).reloadTime;
-      
-      let p = (timeSinceFire / reloadTime) * 100;
+      const playerTankType = store.playerTank.tankType;
+      const def = getTankDef(playerTankType);
+
+      setBurstRemaining(store.playerBurstRemaining);
+
+      let p = (timeSinceFire / def.reloadTime) * 100;
       if (p > 100) p = 100;
-      
+
       setProgress(p);
       animationFrameId = requestAnimationFrame(updateProgress);
     };
-    
+
     updateProgress();
-    
+
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  const isReady = progress === 100;
+  const isBursting = burstRemaining > 0;
+  const isReady = progress === 100 && !isBursting;
 
   return (
     <div className="mt-4">
       <div className="text-sm text-gray-300 mb-1 font-bold">
-        {isReady ? 'READY TO FIRE' : 'RELOADING...'}
+        {isBursting ? `FIRING (${burstRemaining})` : isReady ? 'READY TO FIRE' : 'RELOADING...'}
       </div>
       <div className="w-64 h-4 bg-gray-800 border border-gray-600 overflow-hidden">
-        <div 
-          className={`h-full transition-all duration-75 ${isReady ? 'bg-green-500' : 'bg-yellow-500'}`}
-          style={{ width: `${progress}%` }}
+        <div
+          className={`h-full transition-all duration-75 ${isBursting ? 'bg-orange-500' : isReady ? 'bg-green-500' : 'bg-yellow-500'}`}
+          style={{ width: `${isBursting ? 100 : progress}%` }}
         />
       </div>
     </div>
@@ -114,7 +119,7 @@ function GunnerSightOverlay() {
   
   const playerTankType = useGameStore((state) => state.playerTank.tankType);
   const playerDef = getTankDef(playerTankType);
-  const velocity = playerDef.weapons[ammoType]!.velocity;
+  const velocity = (playerDef.weapons[ammoType] ?? playerDef.weapons.AP).velocity;
   const gravity = GAME_CONFIG.physics.gravity;
   const fov = 20; // Camera FOV in degrees
 
@@ -256,7 +261,9 @@ export function UI() {
         <TrackHPDisplay />
         <div className="mt-4 text-xl">
           Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : 'text-red-400 font-bold'}>{ammoType}</span>
-          <div className="text-sm text-gray-300 mt-1">Press R to switch</div>
+          {getTankDef(useGameStore.getState().playerTank.tankType).weapons.HE && (
+            <div className="text-sm text-gray-300 mt-1">Press R to switch</div>
+          )}
         </div>
         <ReloadIndicator />
         {isMapMode && (

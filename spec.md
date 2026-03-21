@@ -95,6 +95,8 @@ The game uses a **multi-plate oriented bounding box (OBB)** collision system. Ea
 - Tank-tree collision: low speed push, high speed knockdown with falling animation
 - Projectile-tree collision with damage (50 HP per hit)
 - Tank selection screen: 3D rotating preview, stat bars (HP, armor, speed, penetration, reload), tank description/nationality/year, deploy button transitions to gameplay
+- Armor plate hover tooltips on tank selection 3D preview: invisible OBB meshes per plate with pointer events, shows plate name/zone/thickness/slope angle, highlights hovered plate, pauses auto-rotation while hovering
+- Per-gun dispersion: each weapon has an inherent `dispersion` (radians) applied as random yaw/pitch spread at fire time. Larger high-velocity guns (Tiger 88mm, 0.003 rad) are tightest; autocannons (Panzer II 20mm, 0.012 rad) are widest. Applies to both player and enemy fire.
 
 ## Map Mode
 

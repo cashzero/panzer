@@ -1,9 +1,10 @@
-import { useState, useRef, Suspense } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { useState, useRef, useCallback, Suspense } from 'react';
+import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { getAllTankDefs } from '../tanks/registry';
 import type { TankDefinition } from '../tanks/types';
+import type { ArmorPlate } from '../armorModel';
 import { useGameStore } from '../store';
 
 const allTanks = getAllTankDefs();
@@ -29,14 +30,107 @@ function StatBar({ label, value, max, unit }: { label: string; value: number; ma
 }
 
 /* ------------------------------------------------------------------ */
-/*  Spinning 3D tank preview                                          */
+/*  Plate hover info                                                  */
 /* ------------------------------------------------------------------ */
 
-function TankPreview({ def }: { def: TankDefinition }) {
+interface PlateHoverInfo {
+  name: string;
+  zone: string;
+  armorThickness: number;
+  slopeAngleDeg: number;
+  mouseX: number;
+  mouseY: number;
+}
+
+function plateSlopeAngle(plate: ArmorPlate): number {
+  const ax = Math.abs(plate.rotation[0]);
+  const ay = Math.abs(plate.rotation[1]);
+  const az = Math.abs(plate.rotation[2]);
+  const maxRad = Math.max(ax, ay, az);
+  return Math.round(maxRad * (180 / Math.PI));
+}
+
+/* ------------------------------------------------------------------ */
+/*  Invisible armor plate mesh with hover detection                   */
+/* ------------------------------------------------------------------ */
+
+function ArmorPlateMesh({
+  plate,
+  onHover,
+}: {
+  plate: ArmorPlate;
+  onHover: (info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+
+  const handleEnter = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    setHovered(true);
+    onHover({
+      name: plate.name,
+      zone: plate.zone,
+      armorThickness: plate.armorThickness,
+      slopeAngleDeg: plateSlopeAngle(plate),
+      mouseX: e.nativeEvent.clientX,
+      mouseY: e.nativeEvent.clientY,
+    }, e);
+  }, [plate, onHover]);
+
+  const handleMove = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    onHover({
+      name: plate.name,
+      zone: plate.zone,
+      armorThickness: plate.armorThickness,
+      slopeAngleDeg: plateSlopeAngle(plate),
+      mouseX: e.nativeEvent.clientX,
+      mouseY: e.nativeEvent.clientY,
+    }, e);
+  }, [plate, onHover]);
+
+  const handleLeave = useCallback((e: ThreeEvent<PointerEvent>) => {
+    e.stopPropagation();
+    setHovered(false);
+    onHover(null, e);
+  }, [onHover]);
+
+  return (
+    <mesh
+      position={plate.position}
+      rotation={plate.rotation}
+      onPointerEnter={handleEnter}
+      onPointerMove={handleMove}
+      onPointerLeave={handleLeave}
+    >
+      <boxGeometry args={[plate.halfExtents[0] * 2, plate.halfExtents[1] * 2, plate.halfExtents[2] * 2]} />
+      <meshBasicMaterial
+        transparent
+        opacity={hovered ? 0.18 : 0}
+        color={hovered ? '#c9b458' : '#000'}
+        depthWrite={false}
+        side={THREE.DoubleSide}
+      />
+    </mesh>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Spinning 3D tank preview with armor plate overlays                */
+/* ------------------------------------------------------------------ */
+
+function TankPreview({
+  def,
+  paused,
+  onPlateHover,
+}: {
+  def: TankDefinition;
+  paused: boolean;
+  onPlateHover: (info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => void;
+}) {
   const groupRef = useRef<THREE.Group>(null!);
 
   useFrame((_, dt) => {
-    if (groupRef.current) {
+    if (groupRef.current && !paused) {
       groupRef.current.rotation.y += dt * 0.4;
     }
   });
@@ -45,13 +139,26 @@ function TankPreview({ def }: { def: TankDefinition }) {
   const geoProps = { color: def.color, destroyedColor: '#555', destroyed: false };
   const gunProps = { destroyedColor: '#555', destroyed: false };
 
+  const hullPlates = def.plates.filter((p) => p.parent === 'hull');
+  const turretPlates = def.plates.filter((p) => p.parent === 'turret');
+  const gunPlates = def.plates.filter((p) => p.parent === 'gunGroup');
+
   return (
     <group ref={groupRef}>
       <HullComponent {...geoProps} />
+      {hullPlates.map((plate) => (
+        <ArmorPlateMesh key={plate.name} plate={plate} onHover={onPlateHover} />
+      ))}
       <group position={def.turretOffset}>
         <TurretComponent {...geoProps} />
+        {turretPlates.map((plate) => (
+          <ArmorPlateMesh key={plate.name} plate={plate} onHover={onPlateHover} />
+        ))}
         <group position={def.gunPivotOffset}>
           <GunComponent {...gunProps} />
+          {gunPlates.map((plate) => (
+            <ArmorPlateMesh key={plate.name} plate={plate} onHover={onPlateHover} />
+          ))}
         </group>
       </group>
     </group>
@@ -75,12 +182,28 @@ const minReload = Math.min(...allTanks.map((t) => t.reloadTime));
 
 export function TankSelect() {
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const selectPlayerTank = useGameStore((s) => s.selectPlayerTank);
   const def = allTanks[selectedIdx];
 
   const handleConfirm = () => {
     selectPlayerTank(def.id);
   };
+
+  const handlePlateHover = useCallback((info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => {
+    if (!info) {
+      setHoveredPlate(null);
+      return;
+    }
+    const rect = canvasContainerRef.current?.getBoundingClientRect();
+    if (!rect || !e) return;
+    setHoveredPlate({
+      ...info,
+      mouseX: e.nativeEvent.clientX - rect.left,
+      mouseY: e.nativeEvent.clientY - rect.top,
+    });
+  }, []);
 
   // Reload "score" inverted so faster reload = longer bar
   const reloadScore = maxReload - def.reloadTime + minReload;
@@ -98,7 +221,7 @@ export function TankSelect() {
       {/* Body: 3D preview left, info right */}
       <div className="flex-1 flex min-h-0">
         {/* 3D Canvas */}
-        <div className="flex-1 relative">
+        <div className="flex-1 relative" ref={canvasContainerRef}>
           <Canvas
             camera={{ position: [8, 5, 8], fov: 40 }}
             gl={{ antialias: true }}
@@ -107,7 +230,12 @@ export function TankSelect() {
             <directionalLight position={[10, 10, 5]} intensity={1.2} />
             <directionalLight position={[-5, 3, -5]} intensity={0.3} />
             <Suspense fallback={null}>
-              <TankPreview key={def.id} def={def} />
+              <TankPreview
+                key={def.id}
+                def={def}
+                paused={hoveredPlate !== null}
+                onPlateHover={handlePlateHover}
+              />
             </Suspense>
             <OrbitControls
               enablePan={false}
@@ -122,6 +250,40 @@ export function TankSelect() {
               <meshStandardMaterial color="#2a2a20" roughness={1} />
             </mesh>
           </Canvas>
+
+          {/* Armor plate tooltip */}
+          {hoveredPlate && (
+            <div
+              className="absolute pointer-events-none z-10"
+              style={{
+                left: hoveredPlate.mouseX,
+                top: hoveredPlate.mouseY,
+                transform: 'translate(12px, -50%)',
+              }}
+            >
+              <div
+                className="bg-black/90 p-3 font-mono text-sm min-w-48"
+                style={{ border: '1px solid #6b7a3d' }}
+              >
+                <div className="text-xs uppercase tracking-widest mb-1" style={{ color: '#6b7a3d' }}>
+                  {hoveredPlate.zone}
+                </div>
+                <div className="text-base font-bold" style={{ color: '#c9b458' }}>
+                  {hoveredPlate.name}
+                </div>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <span className="text-xs text-gray-400 uppercase">Thickness</span>
+                  <span className="text-lg font-bold text-white">{hoveredPlate.armorThickness} mm</span>
+                </div>
+                {hoveredPlate.slopeAngleDeg > 0 && (
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xs text-gray-400 uppercase">Slope</span>
+                    <span className="text-sm text-gray-300">{hoveredPlate.slopeAngleDeg}&deg;</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Info Panel */}

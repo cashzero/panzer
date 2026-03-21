@@ -50,10 +50,13 @@ export interface TankDefinition {
   gunSpeed: number;    // rad/s
 
   // Weapon stats per ammo type
+  caliber: number;    // mm, used for visual effect scaling
   reloadTime: number; // ms
+  burstCount?: number;    // rounds per trigger pull (undefined = single shot)
+  burstInterval?: number; // ms between rounds within a burst
   weapons: {
-    AP: { penetration: number; velocity: number; damage: number; drop: number };
-    HE?: { penetration: number; velocity: number; damage: number; drop: number };
+    AP: { penetration: number; velocity: number; damage: number; drop: number; dispersion: number };
+    HE?: { penetration: number; velocity: number; damage: number; drop: number; dispersion: number };
   };
 
   // Armor plates

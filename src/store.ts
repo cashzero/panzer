@@ -14,6 +14,7 @@ export interface Particle {
   type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'tree_hit';
   position: Vector3;
   normal?: Vector3;
+  scale?: number;
   createdAt: number;
 }
 
@@ -24,7 +25,9 @@ export interface Projectile {
   type: AmmoType;
   penetration: number;
   damage: number;
+  caliber: number;
   firedBy: string;
+  ricochet?: boolean;
   createdAt: number;
 }
 
@@ -81,15 +84,18 @@ interface GameState {
   calibrationDistance: number;
   trees: TreeInstance[];
   cameraShake: number; // current shake intensity (decays over time)
+  playerBurstRemaining: number;
+  playerBurstNextFireTime: number;
 
-  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string) => void;
+  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string, caliber: number) => void;
+  removeProjectile: (id: string) => void;
   updateProjectiles: (dt: number) => void;
   updatePlayer: (updates: Partial<TankData>) => void;
   updateEnemy: (id: string, updates: Partial<TankData>) => void;
   addMessage: (text: string, color: string) => void;
   handleHit: (projectileId: string, hitTankId: string, hitNormal: Vector3, plateInfo?: ArmorPlateHitInfo) => void;
   spawnEnemy: (position: Vector3, tankType?: string) => void;
-  spawnParticle: (type: Particle['type'], position: Vector3, normal?: Vector3) => void;
+  spawnParticle: (type: Particle['type'], position: Vector3, normal?: Vector3, scale?: number) => void;
   removeParticle: (id: string) => void;
   toggleAmmo: () => void;
   toggleViewMode: () => void;
@@ -97,6 +103,7 @@ interface GameState {
   setCalibrationDistance: (dist: number) => void;
   setLastFireTime: (time: number) => void;
   selectPlayerTank: (tankType: string) => void;
+  setPlayerBurst: (remaining: number, nextTime: number) => void;
   triggerCameraShake: (intensity: number) => void;
   decayCameraShake: (dt: number) => void;
   initTrees: (trees: TreeInstance[]) => void;
@@ -179,10 +186,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   calibrationDistance: 0,
   trees: [],
   cameraShake: 0,
+  playerBurstRemaining: 0,
+  playerBurstNextFireTime: 0,
 
   selectPlayerTank: (tankType) => {
     const newTank = createTankData(tankType, true);
-    set({ playerTank: newTank, gameScreen: 'playing' });
+    set({ playerTank: newTank, gameScreen: 'playing', ammoType: 'AP', playerBurstRemaining: 0, playerBurstNextFireTime: 0 });
   },
 
   triggerCameraShake: (intensity) => set((state) => ({
@@ -203,11 +212,11 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
-  spawnParticle: (type, position, normal) => {
+  spawnParticle: (type, position, normal, scale) => {
     set((state) => ({
       particles: [
         ...state.particles,
-        { id: uuidv4(), type, position, normal, createdAt: Date.now() },
+        { id: uuidv4(), type, position, normal, scale, createdAt: Date.now() },
       ],
     }));
   },
@@ -218,20 +227,33 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 
-  toggleAmmo: () => set((state) => ({ ammoType: state.ammoType === 'AP' ? 'HE' : 'AP' })),
+  setPlayerBurst: (remaining, nextTime) => set({ playerBurstRemaining: remaining, playerBurstNextFireTime: nextTime }),
+
+  toggleAmmo: () => {
+    const playerDef = getTankDef(get().playerTank.tankType);
+    if (!playerDef.weapons.HE) return; // no HE available
+    set((state) => ({ ammoType: state.ammoType === 'AP' ? 'HE' : 'AP' }));
+  },
   toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'third-person' ? 'gunner' : 'third-person' })),
   toggleMapMode: () => set((state) => ({ isMapMode: !state.isMapMode })),
   setCalibrationDistance: (dist) => set({ calibrationDistance: dist }),
   setLastFireTime: (time) => set({ lastFireTime: time }),
 
-  fireProjectile: (pos, vel, type, pen, dmg, firedBy) => {
+  fireProjectile: (pos, vel, type, pen, dmg, firedBy, caliber) => {
+    const scale = caliber / 75;
     set((state) => ({
       projectiles: [
         ...state.projectiles,
-        { id: uuidv4(), position: pos, velocity: vel, type, penetration: pen, damage: dmg, firedBy, createdAt: Date.now() },
+        { id: uuidv4(), position: pos, velocity: vel, type, penetration: pen, damage: dmg, caliber, firedBy, createdAt: Date.now() },
       ],
     }));
-    get().spawnParticle('fire', pos, vel.clone().normalize());
+    get().spawnParticle('fire', pos, vel.clone().normalize(), scale);
+  },
+
+  removeProjectile: (id) => {
+    set((state) => ({
+      projectiles: state.projectiles.filter((p) => p.id !== id),
+    }));
   },
 
   updateProjectiles: (dt) => {
@@ -275,11 +297,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     const projectile = state.projectiles.find((p) => p.id === projectileId);
     if (!projectile) return;
 
+    const scale = (projectile.caliber || 75) / 75;
+
     // Remove projectile
     set((s) => ({ projectiles: s.projectiles.filter((p) => p.id !== projectileId) }));
 
     if (hitTankId === 'ground') {
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_ground' : 'hit_ground', projectile.position, hitNormal);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_ground' : 'hit_ground', projectile.position, hitNormal, scale);
       return;
     }
 
@@ -297,11 +321,23 @@ export const useGameStore = create<GameState>((set, get) => ({
     const angleRad = projDir.clone().negate().angleTo(hitNormal);
     const angleDeg = (angleRad * 180) / Math.PI;
 
-    // Auto-ricochet
+    // Auto-ricochet — spawn visible bouncing shell
     if (angleDeg > GAME_CONFIG.combat.autoRicochetAngle) {
-      get().spawnParticle('hit_bounce', projectile.position, hitNormal);
+      get().spawnParticle('hit_bounce', projectile.position, hitNormal, scale);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
-      if (hitTankId === 'player') get().triggerCameraShake(0.4);
+      if (hitTankId === 'player') get().triggerCameraShake(0.4 * scale);
+
+      // Create reflected projectile so the shell visibly bounces away
+      const vel = projectile.velocity.clone();
+      const n = hitNormal.clone().normalize();
+      const reflected = vel.sub(n.multiplyScalar(2 * vel.dot(n))).multiplyScalar(0.3);
+      set((s) => ({
+        projectiles: [...s.projectiles, {
+          id: uuidv4(), position: projectile.position.clone(), velocity: reflected,
+          type: projectile.type, penetration: 0, damage: 0, caliber: projectile.caliber,
+          firedBy: projectile.firedBy, ricochet: true, createdAt: Date.now(),
+        }],
+      }));
       return;
     }
 
@@ -313,7 +349,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     if (actualPen > effectiveArmor) {
       // Penetration!
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_penetrate', projectile.position, hitNormal);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_penetrate', projectile.position, hitNormal, scale);
 
       if (isTrackHit && trackSide) {
         // Track hit — damage track HP, not main HP
@@ -324,7 +360,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (hitTankId === 'player') {
           get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
-          get().triggerCameraShake(0.7);
+          get().triggerCameraShake(0.7 * scale);
         } else {
           get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         }
@@ -348,7 +384,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (hitTankId === 'player') {
           get().updatePlayer({ health: newHealth, destroyed });
-          get().triggerCameraShake(1.0);
+          get().triggerCameraShake(1.0 * scale);
         } else {
           get().updateEnemy(hitTankId, { health: newHealth, destroyed });
         }
@@ -361,8 +397,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     } else {
       // Non-penetration
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_bounce', projectile.position, hitNormal);
-      if (hitTankId === 'player') get().triggerCameraShake(0.5);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_bounce', projectile.position, hitNormal, scale);
+      if (hitTankId === 'player') get().triggerCameraShake(0.5 * scale);
 
       if (isTrackHit && trackSide && projectile.type === 'HE') {
         // HE splash on track

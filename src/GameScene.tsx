@@ -18,7 +18,7 @@ import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock } from './tankPhysics';
 import { useInput } from './useInput';
-import { fireTank } from './firing';
+import { fireTank, updatePlayerBurst } from './firing';
 import { computeTurretAiming } from './turretAiming';
 import { computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
@@ -210,15 +210,23 @@ function PlayerController() {
       tankType: useGameStore.getState().playerTank.tankType,
     });
 
+    // Camera shake decay
+    useGameStore.getState().decayCameraShake(delta);
+
     // Camera placement
     const viewMode = useGameStore.getState().viewMode;
+    const shakeIntensity = useGameStore.getState().cameraShake;
     updateCamera({
       camera, viewMode,
       playerPos: newPos,
       lookDir,
       aimGunPivotWorld: aimResult.aimGunPivotWorld,
       aimDir: aimResult.aimDir,
+      shakeIntensity,
     });
+
+    // Update burst fire (autocannon)
+    updatePlayerBurst();
 
     updatePlayer({
       position: newPos,
@@ -252,6 +260,7 @@ export function GameScene() {
       spawnEnemy(new THREE.Vector3(40, getTerrainHeight(40, 150), 150), 'tiger');
       spawnEnemy(new THREE.Vector3(-60, getTerrainHeight(-60, 200), 200), 'panzer3');
       spawnEnemy(new THREE.Vector3(0, getTerrainHeight(0, 250), 250), 'panzer3');
+      spawnEnemy(new THREE.Vector3(-30, getTerrainHeight(-30, 180), 180), 'panzer2');
     }
     // Initialize trees
     if (useGameStore.getState().trees.length === 0) {

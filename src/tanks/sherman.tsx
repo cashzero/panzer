@@ -229,10 +229,11 @@ export const shermanDef: TankDefinition = {
   gunPivotOffset: [0, 0.4, 1.5],
   muzzleDistance: 3,
   broadPhaseRadius: 5.2,
+  caliber: 75,
   reloadTime: 4000,
   weapons: {
-    AP: { penetration: 150, velocity: 300, damage: 200, drop: 0.1 },
-    HE: { penetration: 30, velocity: 200, damage: 400, drop: 0.25 },
+    AP: { penetration: 150, velocity: 300, damage: 200, drop: 0.1, dispersion: 0.005 },
+    HE: { penetration: 30, velocity: 200, damage: 400, drop: 0.25, dispersion: 0.006 },
   },
   plates: makeShermanPlates(),
   HullComponent: ShermanHull,

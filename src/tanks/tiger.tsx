@@ -259,10 +259,11 @@ export const tigerDef: TankDefinition = {
   gunPivotOffset: [0, 0.4, 1.5],
   muzzleDistance: 4,
   broadPhaseRadius: 5.2,
+  caliber: 88,
   reloadTime: 7000,
   weapons: {
-    AP: { penetration: 200, velocity: 380, damage: 250, drop: 0.08 },
-    HE: { penetration: 30, velocity: 250, damage: 400, drop: 0.2 },
+    AP: { penetration: 200, velocity: 380, damage: 250, drop: 0.08, dispersion: 0.003 },
+    HE: { penetration: 30, velocity: 250, damage: 400, drop: 0.2, dispersion: 0.004 },
   },
   plates: makeTigerPlates(),
   HullComponent: TigerHull,

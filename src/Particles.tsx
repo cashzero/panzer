@@ -59,7 +59,7 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
   const removeParticle = useGameStore((state) => state.removeParticle);
   const groupRef = useRef<THREE.Group>(null);
   
-  const { type, position, normal, createdAt } = particle;
+  const { type, position, normal, scale: effectScale = 1, createdAt } = particle;
   
   // Configuration per type
   const config = useMemo(() => {
@@ -82,63 +82,67 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
   const subParticles = useMemo(() => {
     const subs: SubParticle[] = [];
     const n = normal ? new THREE.Vector3(normal.x, normal.y, normal.z).normalize() : new THREE.Vector3(0, 1, 0);
-    
+    const s = effectScale;
+    const sc = (count: number) => Math.max(1, Math.floor(count * s));
+    const sv = Math.sqrt(s); // velocity scale (energy scales sub-linearly)
+
     const randomConeVector = (spread: number) => {
       const dir = n.clone();
       const tangent = Math.abs(dir.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
       const bitangent = dir.clone().cross(tangent).normalize();
       const realTangent = bitangent.clone().cross(dir).normalize();
-      
+
       const angle = Math.random() * Math.PI * 2;
       const radius = Math.random() * spread;
-      
+
       return dir.add(realTangent.multiplyScalar(Math.cos(angle) * radius)).add(bitangent.multiplyScalar(Math.sin(angle) * radius)).normalize();
     };
 
     if (type === 'hit_ground') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.5, color: '#ffaa00', life: 0.15 });
-      for (let i=0; i<6; i++) {
-        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.2).multiplyScalar(2 + Math.random() * 3), scale: 2.0 + Math.random() * 2, color: '#6b5428', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.5 * s, color: '#ffaa00', life: 0.15 });
+      for (let i=0; i<sc(6); i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.2).multiplyScalar((2 + Math.random() * 3) * sv), scale: (2.0 + Math.random() * 2) * s, color: '#6b5428', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
       }
-      for (let i=0; i<15; i++) {
-        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(8 + Math.random() * 8), scale: 0.15 + Math.random() * 0.2, color: '#3d2e15', life: 0.8 });
+      for (let i=0; i<sc(15); i++) {
+        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar((8 + Math.random() * 8) * sv), scale: (0.15 + Math.random() * 0.2) * s, color: '#3d2e15', life: 0.8 });
       }
     } else if (type === 'hit_penetrate') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.0, color: '#ffffff', life: 0.15 });
-      for (let i=0; i<25; i++) {
-        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(12 + Math.random() * 12), scale: 0.5, color: '#ffdd44', life: 0.4 + Math.random() * 0.4 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.0 * s, color: '#ffffff', life: 0.15 });
+      for (let i=0; i<sc(25); i++) {
+        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar((12 + Math.random() * 12) * sv), scale: 0.5 * s, color: '#ffdd44', life: 0.4 + Math.random() * 0.4 });
       }
-      for (let i=0; i<5; i++) {
-        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(0.8).multiplyScalar(1 + Math.random() * 2), scale: 1.5 + Math.random() * 1.5, color: '#444444', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      for (let i=0; i<sc(5); i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(0.8).multiplyScalar((1 + Math.random() * 2) * sv), scale: (1.5 + Math.random() * 1.5) * s, color: '#444444', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
       }
     } else if (type === 'hit_bounce') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 1.5, color: '#ffcc00', life: 0.15 });
-      for (let i=0; i<15; i++) {
-        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(10 + Math.random() * 10), scale: 0.4, color: '#ffaa00', life: 0.3 + Math.random() * 0.3 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 1.5 * s, color: '#ffcc00', life: 0.15 });
+      for (let i=0; i<sc(15); i++) {
+        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar((10 + Math.random() * 10) * sv), scale: 0.4 * s, color: '#ffaa00', life: 0.3 + Math.random() * 0.3 });
       }
     } else if (type === 'he_hit_ground') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0, color: '#ffffff', life: 0.15 });
-      for (let i=0; i<4; i++) {
-        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(2 + Math.random() * 3), scale: 3.0 + Math.random() * 2, color: '#ff5500', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0 * s, color: '#ffffff', life: 0.15 });
+      for (let i=0; i<sc(4); i++) {
+        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar((2 + Math.random() * 3) * sv), scale: (3.0 + Math.random() * 2) * s, color: '#ff5500', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
       }
-      for (let i=0; i<8; i++) {
-        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(2 + Math.random() * 2), scale: 2.5 + Math.random() * 2.5, color: '#5a4020', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      for (let i=0; i<sc(8); i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar((2 + Math.random() * 2) * sv), scale: (2.5 + Math.random() * 2.5) * s, color: '#5a4020', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
       }
-      for (let i=0; i<20; i++) {
-        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(10 + Math.random() * 8), scale: 0.2 + Math.random() * 0.25, color: '#3d2e15', life: 0.8 });
+      for (let i=0; i<sc(20); i++) {
+        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar((10 + Math.random() * 8) * sv), scale: (0.2 + Math.random() * 0.25) * s, color: '#3d2e15', life: 0.8 });
       }
     } else if (type === 'he_hit_penetrate') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0, color: '#ffffff', life: 0.15 });
-      for (let i=0; i<3; i++) {
-        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.2).multiplyScalar(2 + Math.random() * 2), scale: 2.5 + Math.random() * 2, color: '#ff4400', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 5.0 * s, color: '#ffffff', life: 0.15 });
+      for (let i=0; i<sc(3); i++) {
+        subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(1.2).multiplyScalar((2 + Math.random() * 2) * sv), scale: (2.5 + Math.random() * 2) * s, color: '#ff4400', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
       }
-      for (let i=0; i<15; i++) {
-        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar(12 + Math.random() * 12), scale: 0.5, color: '#ffdd44', life: 0.4 + Math.random() * 0.4 });
+      for (let i=0; i<sc(15); i++) {
+        subs.push({ type: 'spark', pos: new THREE.Vector3(), vel: randomConeVector(1.5).multiplyScalar((12 + Math.random() * 12) * sv), scale: 0.5 * s, color: '#ffdd44', life: 0.4 + Math.random() * 0.4 });
       }
-      for (let i=0; i<8; i++) {
-        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar(1 + Math.random() * 2), scale: 2.0 + Math.random() * 2, color: '#333333', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      for (let i=0; i<sc(8); i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar((1 + Math.random() * 2) * sv), scale: (2.0 + Math.random() * 2) * s, color: '#333333', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
       }
     } else if (type === 'tank_explosion') {
+      // Tank explosion is always full size — not scaled by caliber
       subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 8.0, color: '#ffffff', life: 0.2 });
       for (let i=0; i<8; i++) {
         subs.push({ type: 'fireball', pos: new THREE.Vector3(), vel: randomConeVector(2).multiplyScalar(3 + Math.random() * 5), scale: 4.5 + Math.random() * 4, color: '#ff5500', life: 0.5, rotSpeed: (Math.random() - 0.5) * 2 });
@@ -150,10 +154,10 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
         subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.5).multiplyScalar(15 + Math.random() * 20), scale: 0.3 + Math.random() * 0.5, color: '#111111', life: 0.9 });
       }
     } else if (type === 'fire') {
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.0, color: '#ffaa00', life: 0.2 });
-      subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: n.clone().multiplyScalar(4), scale: 2.0, color: '#888888', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 3.0 * s, color: '#ffaa00', life: 0.2 });
+      subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: n.clone().multiplyScalar(4 * sv), scale: 2.0 * s, color: '#888888', life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
     } else if (type === 'burning_smoke') {
-      // Large black smoke column rising from destroyed tank
+      // Large black smoke column rising from destroyed tank — not scaled
       for (let i = 0; i < 3; i++) {
         subs.push({ type: 'smoke', pos: new THREE.Vector3((Math.random()-0.5)*1.5, Math.random()*0.5, (Math.random()-0.5)*1.5), vel: new THREE.Vector3((Math.random()-0.5)*0.8, 2 + Math.random()*2, (Math.random()-0.5)*0.8), scale: config.size * (0.7 + Math.random()*0.6), color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 1.5 });
       }
@@ -162,22 +166,22 @@ const ParticleEffect = ({ particle }: { particle: Particle }) => {
         subs.push({ type: 'fireball', pos: new THREE.Vector3((Math.random()-0.5)*0.8, 0.5, (Math.random()-0.5)*0.8), vel: new THREE.Vector3(0, 1 + Math.random(), 0), scale: 1.5 + Math.random(), color: '#ff3300', life: 0.4, rotSpeed: (Math.random() - 0.5) * 2 });
       }
     } else if (type === 'tree_hit') {
-      // Wood debris and splinters
-      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 2.0, color: '#ffcc66', life: 0.15 });
-      for (let i = 0; i < 10; i++) {
-        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar(6 + Math.random() * 6), scale: 0.15 + Math.random() * 0.2, color: i < 5 ? '#8b6914' : '#5c3a1e', life: 0.8 });
+      // Wood debris and splinters — scaled by caliber
+      subs.push({ type: 'flash', pos: new THREE.Vector3(), vel: new THREE.Vector3(), scale: 2.0 * s, color: '#ffcc66', life: 0.15 });
+      for (let i = 0; i < sc(10); i++) {
+        subs.push({ type: 'debris', pos: new THREE.Vector3(), vel: randomConeVector(2.0).multiplyScalar((6 + Math.random() * 6) * sv), scale: (0.15 + Math.random() * 0.2) * s, color: i < 5 ? '#8b6914' : '#5c3a1e', life: 0.8 });
       }
-      for (let i = 0; i < 4; i++) {
-        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar(1 + Math.random() * 2), scale: 1.5 + Math.random(), color: '#2d5a1e', life: 0.8, rotSpeed: (Math.random() - 0.5) * 2 });
+      for (let i = 0; i < sc(4); i++) {
+        subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: randomConeVector(1.0).multiplyScalar((1 + Math.random() * 2) * sv), scale: (1.5 + Math.random()) * s, color: '#2d5a1e', life: 0.8, rotSpeed: (Math.random() - 0.5) * 2 });
       }
     } else if (type === 'dust') {
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*2, Math.random()*1.5+0.5, (Math.random()-0.5)*2), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 2 });
     } else if (type === 'dust_low') {
       subs.push({ type: 'smoke', pos: new THREE.Vector3(), vel: new THREE.Vector3((Math.random()-0.5)*1, Math.random()*0.3+0.1, (Math.random()-0.5)*1), scale: config.size, color: config.color, life: 1, rotSpeed: (Math.random() - 0.5) * 1 });
     }
-    
+
     return subs;
-  }, [type, normal, config]);
+  }, [type, normal, config, effectScale]);
 
   const subParticlesData = useRef(subParticles.map(sp => ({ ...sp, currentPos: sp.pos.clone(), currentVel: sp.vel.clone() })));
 

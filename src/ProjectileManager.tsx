@@ -17,7 +17,16 @@ export function ProjectileManager() {
     const { projectiles: currentProjectiles, playerTank, enemies } = useGameStore.getState();
     const allTanks = [playerTank, ...enemies].filter(t => !t.destroyed);
 
+    const now = Date.now();
     currentProjectiles.forEach((p) => {
+      // Ricochet projectiles: skip collision, auto-expire after 1.5s
+      if (p.ricochet) {
+        if (now - p.createdAt > 1500) {
+          useGameStore.getState().removeProjectile(p.id);
+        }
+        return;
+      }
+
       const prevPos = p.position.clone();
       const nextPos = p.position.clone().add(p.velocity.clone().multiplyScalar(delta));
       const rayDir = nextPos.clone().sub(prevPos);
@@ -89,11 +98,14 @@ export function ProjectileManager() {
 
   return (
     <group>
-      {projectiles.map((p) => (
-        <Sphere key={p.id} args={[0.1, 8, 8]} position={p.position}>
-          <meshBasicMaterial color={'#ffaa00'} />
-        </Sphere>
-      ))}
+      {projectiles.map((p) => {
+        const radius = 0.05 + 0.05 * ((p.caliber || 75) / 75);
+        return (
+          <Sphere key={p.id} args={[radius, 8, 8]} position={p.position}>
+            <meshBasicMaterial color={p.ricochet ? '#cc6600' : '#ffaa00'} />
+          </Sphere>
+        );
+      })}
     </group>
   );
 }

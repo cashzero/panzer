@@ -257,10 +257,11 @@ export const panzer3Def: TankDefinition = {
   gunPivotOffset: [0, 0.4, 1.5],
   muzzleDistance: 2.5,
   broadPhaseRadius: 4.5,
+  caliber: 50,
   reloadTime: 3000,
   weapons: {
-    AP: { penetration: 100, velocity: 250, damage: 150, drop: 0.15 },
-    HE: { penetration: 20, velocity: 160, damage: 300, drop: 0.35 },
+    AP: { penetration: 100, velocity: 250, damage: 150, drop: 0.15, dispersion: 0.006 },
+    HE: { penetration: 20, velocity: 160, damage: 300, drop: 0.35, dispersion: 0.007 },
   },
   plates: makePz3Plates(),
   HullComponent: Pz3Hull,

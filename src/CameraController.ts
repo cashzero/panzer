@@ -8,10 +8,11 @@ export interface CameraParams {
   lookDir: THREE.Vector3;
   aimGunPivotWorld: THREE.Vector3;
   aimDir: THREE.Vector3;
+  shakeIntensity?: number;
 }
 
 export function updateCamera(params: CameraParams): void {
-  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir } = params;
+  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, shakeIntensity = 0 } = params;
 
   if (viewMode === 'third-person') {
     camera.up.set(0, 1, 0);
@@ -32,5 +33,17 @@ export function updateCamera(params: CameraParams): void {
     camera.lookAt(camPos.clone().add(aimDir.clone().multiplyScalar(100)));
     (camera as THREE.PerspectiveCamera).fov = 20; // Zoomed in
   }
+
+  // Apply screen shake
+  if (shakeIntensity > 0) {
+    const maxOffset = shakeIntensity * 0.15;
+    const shakeX = (Math.random() * 2 - 1) * maxOffset;
+    const shakeY = (Math.random() * 2 - 1) * maxOffset;
+    const shakeZ = (Math.random() * 2 - 1) * maxOffset * 0.5;
+    camera.position.x += shakeX;
+    camera.position.y += shakeY;
+    camera.position.z += shakeZ;
+  }
+
   (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
 }
