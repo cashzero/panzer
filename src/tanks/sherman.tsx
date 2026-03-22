@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import * as THREE from 'three';
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
@@ -12,16 +14,36 @@ const ShermanHull = ({ color, destroyedColor, destroyed }: TankGeometryProps) =>
   const darkMat = <meshStandardMaterial color={destroyed ? destroyedColor : '#222'} roughness={0.9} metalness={0.1} />;
   const grilleMat = <meshStandardMaterial color={destroyed ? destroyedColor : '#111'} roughness={0.9} />;
 
+  // Side plate polygon — matches Sherman's hull profile with glacis angle at front
+  // Shape defined in local XY: shapeX = -worldZ, shapeY = worldY
+  // rotation=[0, -PI/2, 0] maps localZ → world +X (extrusion direction)
+  const sideShape = useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(2.95, 0.75);   // rear bottom (above tracks)
+    s.lineTo(2.95, 1.50);   // rear top
+    s.lineTo(1.50, 1.70);   // engine deck transition
+    s.lineTo(-2.00, 1.70);  // hull roof front
+    s.lineTo(-3.15, 0.55);  // glacis front
+    s.lineTo(-2.50, 0.75);  // front bottom (above tracks)
+    s.closePath();
+    return s;
+  }, []);
+  const sideExtrudeSettings = useMemo(() => ({ depth: 0.15, bevelEnabled: false }), []);
+
   return (
     <group>
-      {/* Central Block — narrower, taller, longer than before */}
-      <Box args={[2.62, 1.5, 4.5]} position={[0, 0.95, 0]} castShadow receiveShadow>{mat}</Box>
+      {/* Central Block — sits above tracks */}
+      <Box args={[2.62, 0.95, 4.5]} position={[0, 1.225, 0]} castShadow receiveShadow>{mat}</Box>
+      {/* Lower Central Body — between tracks, narrower */}
+      <Box args={[1.78, 0.60, 4.5]} position={[0, 0.45, 0]} castShadow receiveShadow>{mat}</Box>
 
-      {/* Upper Glacis — steep ~47° slope (Sherman's characteristic front) */}
-      <Box args={[2.62, 0.15, 1.6]} position={[0, 1.15, 2.7]} rotation={[0.82, 0, 0]} castShadow receiveShadow>{mat}</Box>
+      {/* Upper Glacis — upper portion, full tank width (extends down to track level) */}
+      <Box args={[2.62, 0.15, 1.2]} position={[0, 1.296, 2.564]} rotation={[0.82, 0, 0]} castShadow receiveShadow>{mat}</Box>
+      {/* Upper Glacis — bottom strip, narrower (between tracks) */}
+      <Box args={[1.78, 0.15, 0.4]} position={[0, 0.711, 3.109]} rotation={[0.82, 0, 0]} castShadow receiveShadow>{mat}</Box>
 
-      {/* Lower Glacis — curved belly */}
-      <Box args={[2.62, 0.22, 1.2]} position={[0, 0.28, 2.9]} rotation={[-0.3, 0, 0]} castShadow receiveShadow>{mat}</Box>
+      {/* Lower Glacis — slopes backward under hull, ~50° from horizontal */}
+      <Box args={[1.78, 0.15, 0.48]} position={[0, 0.383, 3.092]} rotation={[2.27, 0, 0]} castShadow receiveShadow>{mat}</Box>
 
       {/* Engine Deck (rear raised section) */}
       <Box args={[2.62, 0.28, 2.5]} position={[0, 1.65, -2.0]} rotation={[-0.05, 0, 0]} castShadow receiveShadow>{mat}</Box>
@@ -29,9 +51,15 @@ const ShermanHull = ({ color, destroyedColor, destroyed }: TankGeometryProps) =>
       {/* Rear Plate — slightly angled */}
       <Box args={[2.62, 1.2, 0.4]} position={[0, 0.85, -2.95]} rotation={[-0.15, 0, 0]} castShadow receiveShadow>{mat}</Box>
 
-      {/* Thin side armor (no Schürzen — Allied style) */}
-      <Box args={[0.15, 1.2, 5.8]} position={[1.31, 0.95, -0.1]} castShadow receiveShadow>{mat}</Box>
-      <Box args={[0.15, 1.2, 5.8]} position={[-1.31, 0.95, -0.1]} castShadow receiveShadow>{mat}</Box>
+      {/* Side armor — polygonal profile following glacis angle */}
+      <mesh position={[1.235, 0, 0]} rotation={[0, -Math.PI / 2, 0]} castShadow receiveShadow>
+        <extrudeGeometry args={[sideShape, sideExtrudeSettings]} />
+        {mat}
+      </mesh>
+      <mesh position={[-1.235, 0, 0]} rotation={[0, Math.PI / 2, 0]} castShadow receiveShadow>
+        <extrudeGeometry args={[sideShape, sideExtrudeSettings]} />
+        {mat}
+      </mesh>
 
       {/* Hull MG port (right front — Sherman signature) */}
       <Cylinder args={[0.08, 0.08, 0.25]} position={[0.7, 1.2, 3.3]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>{darkMat}</Cylinder>
@@ -134,33 +162,33 @@ const ShermanTurret = ({ color, destroyedColor, destroyed }: TankGeometryProps) 
   return (
     <group>
       {/* Main turret body */}
-      <Box args={[1.64, 0.75, 2.2]} position={[0, 0.38, -0.1]} castShadow receiveShadow>{mat}</Box>
+      <Box args={[1.64, 0.75, 1.4]} position={[0, 0.38, 0.1]} castShadow receiveShadow>{mat}</Box>
       {/* Front face */}
-      <Box args={[1.3, 0.75, 1.2]} position={[0, 0.38, 0.9]} castShadow receiveShadow>{mat}</Box>
+      <Box args={[1.3, 0.75, 0.8]} position={[0, 0.38, 0.8]} castShadow receiveShadow>{mat}</Box>
       {/* Cheek armor (angled) */}
-      <Box args={[0.65, 0.7, 1.0]} position={[-0.62, 0.38, 0.7]} rotation={[0, -0.45, 0]} castShadow receiveShadow>{mat}</Box>
-      <Box args={[0.65, 0.7, 1.0]} position={[0.62, 0.38, 0.7]} rotation={[0, 0.45, 0]} castShadow receiveShadow>{mat}</Box>
+      <Box args={[0.65, 0.7, 0.7]} position={[-0.62, 0.38, 0.65]} rotation={[0, -0.45, 0]} castShadow receiveShadow>{mat}</Box>
+      <Box args={[0.65, 0.7, 0.7]} position={[0.62, 0.38, 0.65]} rotation={[0, 0.45, 0]} castShadow receiveShadow>{mat}</Box>
       {/* Rear bustle */}
-      <Box args={[1.64, 0.65, 0.8]} position={[0, 0.38, -1.4]} castShadow receiveShadow>{mat}</Box>
+      <Box args={[1.64, 0.65, 0.5]} position={[0, 0.38, -0.9]} castShadow receiveShadow>{mat}</Box>
 
       {/* Commander's cupola */}
-      <Cylinder args={[0.35, 0.35, 0.25, 16]} position={[0.4, 0.83, -0.3]} castShadow receiveShadow>{mat}</Cylinder>
-      <Cylinder args={[0.3, 0.3, 0.06, 16]} position={[0.4, 0.98, -0.3]} castShadow receiveShadow>{darkMat}</Cylinder>
+      <Cylinder args={[0.35, 0.35, 0.25, 16]} position={[0.4, 0.83, -0.1]} castShadow receiveShadow>{mat}</Cylinder>
+      <Cylinder args={[0.3, 0.3, 0.06, 16]} position={[0.4, 0.98, -0.1]} castShadow receiveShadow>{darkMat}</Cylinder>
       {/* Loader's hatch */}
-      <Cylinder args={[0.24, 0.24, 0.05, 12]} position={[-0.4, 0.77, -0.3]} castShadow receiveShadow>{mat}</Cylinder>
+      <Cylinder args={[0.24, 0.24, 0.05, 12]} position={[-0.4, 0.77, -0.1]} castShadow receiveShadow>{mat}</Cylinder>
 
       {/* AA MG mount */}
-      <group position={[0.4, 1.08, -0.3]}>
+      <group position={[0.4, 1.08, -0.1]}>
         <Cylinder args={[0.03, 0.03, 0.5]} position={[0, 0.15, 0]} castShadow receiveShadow>{darkMat}</Cylinder>
         <Box args={[0.08, 0.12, 0.5]} position={[0, 0.4, 0.15]} castShadow receiveShadow>{darkMat}</Box>
         <Cylinder args={[0.02, 0.02, 0.7]} position={[0, 0.42, 0.3]} rotation={[Math.PI/2, 0, 0]} castShadow receiveShadow>{darkMat}</Cylinder>
       </group>
 
       {/* Antenna */}
-      <Cylinder args={[0.01, 0.015, 2.2]} position={[-0.65, 1.6, -1.2]} castShadow receiveShadow>{darkMat}</Cylinder>
+      <Cylinder args={[0.01, 0.015, 2.2]} position={[-0.65, 1.6, -0.8]} castShadow receiveShadow>{darkMat}</Cylinder>
       {/* Side grab handles */}
-      <Box args={[0.04, 0.04, 0.5]} position={[0.86, 0.5, -0.1]} castShadow receiveShadow>{darkMat}</Box>
-      <Box args={[0.04, 0.04, 0.5]} position={[-0.86, 0.5, -0.1]} castShadow receiveShadow>{darkMat}</Box>
+      <Box args={[0.04, 0.04, 0.4]} position={[0.86, 0.5, 0.0]} castShadow receiveShadow>{darkMat}</Box>
+      <Box args={[0.04, 0.04, 0.4]} position={[-0.86, 0.5, 0.0]} castShadow receiveShadow>{darkMat}</Box>
     </group>
   );
 };
@@ -197,20 +225,23 @@ const ShermanGun = ({ destroyedColor, destroyed }: TankGunProps) => {
 
 function makeShermanPlates(): ArmorPlate[] {
   return [
-    { name: 'Hull Upper Glacis', zone: 'hull', halfExtents: [1.31, 0.1, 0.8], position: [0, 1.15, 2.7], rotation: [0.82, 0, 0], armorThickness: 120, parent: 'hull' },
-    { name: 'Hull Lower Glacis', zone: 'hull', halfExtents: [1.31, 0.1, 0.6], position: [0, 0.28, 2.9], rotation: [-0.3, 0, 0], armorThickness: 80, parent: 'hull' },
-    { name: 'Hull Side Left', zone: 'hull', halfExtents: [0.1, 0.6, 2.9], position: [-1.31, 0.95, -0.1], rotation: [0, 0, 0], armorThickness: 50, parent: 'hull' },
-    { name: 'Hull Side Right', zone: 'hull', halfExtents: [0.1, 0.6, 2.9], position: [1.31, 0.95, -0.1], rotation: [0, 0, 0], armorThickness: 50, parent: 'hull' },
+    { name: 'Hull Upper Glacis Top', zone: 'hull', halfExtents: [1.31, 0.1, 0.6], position: [0, 1.296, 2.564], rotation: [0.82, 0, 0], armorThickness: 120, parent: 'hull' },
+    { name: 'Hull Upper Glacis Bottom', zone: 'hull', halfExtents: [0.89, 0.1, 0.2], position: [0, 0.711, 3.109], rotation: [0.82, 0, 0], armorThickness: 120, parent: 'hull' },
+    { name: 'Hull Lower Glacis', zone: 'hull', halfExtents: [0.89, 0.1, 0.24], position: [0, 0.383, 3.092], rotation: [2.27, 0, 0], armorThickness: 80, parent: 'hull' },
+    { name: 'Hull Side Left', zone: 'hull', halfExtents: [0.1, 0.6, 2.25], position: [-1.31, 1.0, -0.5], rotation: [0, 0, 0], armorThickness: 50, parent: 'hull' },
+    { name: 'Hull Side Right', zone: 'hull', halfExtents: [0.1, 0.6, 2.25], position: [1.31, 1.0, -0.5], rotation: [0, 0, 0], armorThickness: 50, parent: 'hull' },
+    { name: 'Hull Side Front Left', zone: 'hull', halfExtents: [0.1, 0.1, 0.8], position: [-1.31, 1.15, 2.55], rotation: [0.82, 0, 0], armorThickness: 50, parent: 'hull' },
+    { name: 'Hull Side Front Right', zone: 'hull', halfExtents: [0.1, 0.1, 0.8], position: [1.31, 1.15, 2.55], rotation: [0.82, 0, 0], armorThickness: 50, parent: 'hull' },
     { name: 'Hull Rear', zone: 'hull', halfExtents: [1.31, 0.6, 0.2], position: [0, 0.85, -2.95], rotation: [-0.15, 0, 0], armorThickness: 30, parent: 'hull' },
     { name: 'Hull Roof', zone: 'hull', halfExtents: [1.31, 0.1, 1.25], position: [0, 1.7, 0.0], rotation: [0, 0, 0], armorThickness: 15, parent: 'hull' },
     { name: 'Hull Engine Deck', zone: 'hull', halfExtents: [1.31, 0.1, 1.25], position: [0, 1.65, -2.0], rotation: [-0.05, 0, 0], armorThickness: 15, parent: 'hull' },
-    { name: 'Turret Front', zone: 'turret', halfExtents: [0.65, 0.375, 0.1], position: [0, 0.38, 1.5], rotation: [0, 0, 0], armorThickness: 120, parent: 'turret' },
-    { name: 'Turret Cheek Left', zone: 'turret', halfExtents: [0.325, 0.35, 0.5], position: [-0.62, 0.38, 0.7], rotation: [0, -0.45, 0], armorThickness: 140, parent: 'turret' },
-    { name: 'Turret Cheek Right', zone: 'turret', halfExtents: [0.325, 0.35, 0.5], position: [0.62, 0.38, 0.7], rotation: [0, 0.45, 0], armorThickness: 140, parent: 'turret' },
-    { name: 'Turret Side Left', zone: 'turret', halfExtents: [0.1, 0.375, 1.1], position: [-0.82, 0.38, -0.1], rotation: [0, 0, 0], armorThickness: 60, parent: 'turret' },
-    { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.1, 0.375, 1.1], position: [0.82, 0.38, -0.1], rotation: [0, 0, 0], armorThickness: 60, parent: 'turret' },
-    { name: 'Turret Bustle', zone: 'turret', halfExtents: [0.82, 0.325, 0.4], position: [0, 0.38, -1.4], rotation: [0, 0, 0], armorThickness: 40, parent: 'turret' },
-    { name: 'Turret Roof', zone: 'turret', halfExtents: [0.82, 0.1, 1.1], position: [0, 0.755, -0.1], rotation: [0, 0, 0], armorThickness: 20, parent: 'turret' },
+    { name: 'Turret Front', zone: 'turret', halfExtents: [0.65, 0.375, 0.1], position: [0, 0.38, 1.2], rotation: [0, 0, 0], armorThickness: 120, parent: 'turret' },
+    { name: 'Turret Cheek Left', zone: 'turret', halfExtents: [0.325, 0.35, 0.35], position: [-0.62, 0.38, 0.65], rotation: [0, -0.45, 0], armorThickness: 140, parent: 'turret' },
+    { name: 'Turret Cheek Right', zone: 'turret', halfExtents: [0.325, 0.35, 0.35], position: [0.62, 0.38, 0.65], rotation: [0, 0.45, 0], armorThickness: 140, parent: 'turret' },
+    { name: 'Turret Side Left', zone: 'turret', halfExtents: [0.1, 0.375, 0.7], position: [-0.82, 0.38, 0.1], rotation: [0, 0, 0], armorThickness: 60, parent: 'turret' },
+    { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.1, 0.375, 0.7], position: [0.82, 0.38, 0.1], rotation: [0, 0, 0], armorThickness: 60, parent: 'turret' },
+    { name: 'Turret Bustle', zone: 'turret', halfExtents: [0.82, 0.325, 0.25], position: [0, 0.38, -0.9], rotation: [0, 0, 0], armorThickness: 40, parent: 'turret' },
+    { name: 'Turret Roof', zone: 'turret', halfExtents: [0.82, 0.1, 0.7], position: [0, 0.755, 0.1], rotation: [0, 0, 0], armorThickness: 20, parent: 'turret' },
     { name: 'Mantlet', zone: 'gun', halfExtents: [0.25, 0.2, 0.25], position: [0, 0, 0.15], rotation: [0, 0, 0], armorThickness: 220, parent: 'gunGroup' },
     { name: 'Track Left', zone: 'track', halfExtents: [0.25, 0.35, 3.0], position: [-1.1, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'left', parent: 'hull' },
     { name: 'Track Right', zone: 'track', halfExtents: [0.25, 0.35, 3.0], position: [1.1, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'right', parent: 'hull' },
