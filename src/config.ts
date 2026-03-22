@@ -53,8 +53,8 @@ export const GAME_CONFIG = {
     engagementDistance: 200,
     turretSpeed: 0.05,
     gunSpeed: 0.1,
-    aimDispersion: 0.03, // rad (~1.7°) — per-enemy aim offset that drifts over time
-    fireDispersion: 0.015, // rad — additional random spread applied at fire time
+    aimDispersion: 0.012, // rad (~0.7°) — per-enemy aim offset that drifts over time
+    fireDispersion: 0.006, // rad — additional random spread applied at fire time
     zeroInTime: 8, // seconds of steady aiming to reach minimum dispersion
     zeroInMinFactor: 0.15, // minimum dispersion multiplier (15% of base) when fully zeroed
     movementThreshold: 0.5, // m/s — speed below this counts as "stationary"
@@ -85,7 +85,7 @@ export const GAME_CONFIG = {
   map: {
     defaultZoom: 150,
     minZoom: 30,
-    maxZoom: 400,
+    maxZoom: 800,
     zoomStep: 10,
     panSpeed: 0.5,
   },

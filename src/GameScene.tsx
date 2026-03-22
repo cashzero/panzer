@@ -7,6 +7,7 @@ import { Terrain } from './Terrain';
 import { ProjectileManager } from './ProjectileManager';
 import { Particles } from './Particles';
 import { EnemyAI } from './EnemyAI';
+import { AllyAI } from './AllyAI';
 import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { initEngineSound, updateEngineSound } from './audio';
@@ -16,17 +17,24 @@ import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
-import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock } from './tankPhysics';
+import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock, computeTrackTargets, accelerateTrackSpeeds } from './tankPhysics';
 import { useInput } from './useInput';
 import { fireTank, updatePlayerBurst } from './firing';
 import { computeTurretAiming } from './turretAiming';
 import { computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees } from './TreeRenderer';
+import { BurningWrecks } from './BurningWrecks';
 import { generateTrees } from './trees';
+import { MAP_SIZE_VALUES } from './store';
 
 function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
+  return <Tank id={id} tankType={tankType} />;
+}
+
+function AllyTank({ id }: { id: string }) {
+  const tankType = useGameStore(state => state.allies.find(a => a.id === id)?.tankType ?? 'sherman');
   return <Tank id={id} tankType={tankType} />;
 }
 
@@ -66,6 +74,19 @@ function GunAimPoint() {
   );
 }
 
+function PlayerSky() {
+  const groupRef = useRef<THREE.Group>(null!);
+  const { camera } = useThree();
+  useFrame(() => {
+    groupRef.current.position.copy(camera.position);
+  });
+  return (
+    <group ref={groupRef}>
+      <Sky sunPosition={[100, 20, 100]} distance={50000} />
+    </group>
+  );
+}
+
 function PlayerController() {
   const { camera } = useThree();
   const updatePlayer = useGameStore((state) => state.updatePlayer);
@@ -79,54 +100,31 @@ function PlayerController() {
     if (useGameStore.getState().isMapMode) return;
 
     const playerDef = getTankDef(player.tankType);
-    const maxSpeed = playerDef.maxSpeed;
-    const maxReverseSpeed = playerDef.maxReverseSpeed;
-    const acceleration = playerDef.acceleration;
-    const deceleration = playerDef.deceleration;
 
-    let throttle = (input.keys.current['KeyW'] ? 1 : 0) - (input.keys.current['KeyS'] ? 1 : 0);
-    let steering = (input.keys.current['KeyA'] ? 1 : 0) - (input.keys.current['KeyD'] ? 1 : 0);
+    const throttle = (input.keys.current['KeyW'] ? 1 : 0) - (input.keys.current['KeyS'] ? 1 : 0);
+    const steering = (input.keys.current['KeyA'] ? 1 : 0) - (input.keys.current['KeyD'] ? 1 : 0);
 
-    let targetLeftSpeed = 0;
-    let targetRightSpeed = 0;
+    const trackTargets = computeTrackTargets({
+      throttle, steering,
+      maxSpeed: playerDef.maxSpeed,
+      maxReverseSpeed: playerDef.maxReverseSpeed,
+      currentLeftTrackSpeed: player.leftTrackSpeed || 0,
+      currentRightTrackSpeed: player.rightTrackSpeed || 0,
+      trackDestroyed: player.trackDestroyed ?? { left: false, right: false },
+    });
 
-    if (throttle !== 0) {
-      const baseSpeed = throttle > 0 ? maxSpeed : -maxReverseSpeed;
-      targetLeftSpeed = baseSpeed;
-      targetRightSpeed = baseSpeed;
+    const trackSpeeds = accelerateTrackSpeeds({
+      currentLeft: player.leftTrackSpeed || 0,
+      currentRight: player.rightTrackSpeed || 0,
+      targetLeft: trackTargets.left,
+      targetRight: trackTargets.right,
+      acceleration: playerDef.acceleration,
+      deceleration: playerDef.deceleration,
+      delta,
+    });
 
-      // Speed-dependent inner track factor: less differential at higher speeds
-      const currentSpeed = ((player.leftTrackSpeed || 0) + (player.rightTrackSpeed || 0)) / 2;
-      const speedRatio = Math.min(1, Math.abs(currentSpeed) / maxSpeed);
-      const innerTrackFactor = 0.6 + 0.25 * speedRatio;
-
-      if (steering > 0) {
-        targetLeftSpeed *= innerTrackFactor;
-      } else if (steering < 0) {
-        targetRightSpeed *= innerTrackFactor;
-      }
-    } else if (steering !== 0) {
-      const pivotSpeed = maxSpeed * 0.15;
-      targetLeftSpeed = -steering * pivotSpeed;
-      targetRightSpeed = steering * pivotSpeed;
-    }
-
-    // Track damage: destroyed tracks cannot move
-    if (player.trackDestroyed?.left) targetLeftSpeed = 0;
-    if (player.trackDestroyed?.right) targetRightSpeed = 0;
-
-    // Accelerate tracks towards target speed
-    const accelLeft = (targetLeftSpeed === 0) ? deceleration : acceleration;
-    const accelRight = (targetRightSpeed === 0) ? deceleration : acceleration;
-
-    let leftSpeed = player.leftTrackSpeed || 0;
-    let rightSpeed = player.rightTrackSpeed || 0;
-
-    if (leftSpeed < targetLeftSpeed) leftSpeed = Math.min(leftSpeed + accelLeft * delta, targetLeftSpeed);
-    else if (leftSpeed > targetLeftSpeed) leftSpeed = Math.max(leftSpeed - accelLeft * delta, targetLeftSpeed);
-
-    if (rightSpeed < targetRightSpeed) rightSpeed = Math.min(rightSpeed + accelRight * delta, targetRightSpeed);
-    else if (rightSpeed > targetRightSpeed) rightSpeed = Math.max(rightSpeed - accelRight * delta, targetRightSpeed);
+    const leftSpeed = trackSpeeds.left;
+    const rightSpeed = trackSpeeds.right;
 
     // Calculate tank movement from track speeds
     const prevRotSpeed = ((player.rightTrackSpeed || 0) - (player.leftTrackSpeed || 0)) / playerDef.trackWidth;
@@ -143,7 +141,7 @@ function PlayerController() {
     newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
     // Tank-tank collision
-    const allTanks = [player, ...useGameStore.getState().enemies];
+    const allTanks = [player, ...useGameStore.getState().enemies, ...useGameStore.getState().allies];
     resolveTankCollision('player', newPos, allTanks);
 
     // Tree collision
@@ -160,14 +158,14 @@ function PlayerController() {
 
     // Calculate pitch and roll based on terrain
     const orientation = computeTerrainOrientation(newPos, newRot, playerDef.trackWidth);
-    const bodyRock = computeBodyRock(forwardSpeed, maxSpeed, rotationSpeed, state.clock.elapsedTime);
+    const bodyRock = computeBodyRock(forwardSpeed, playerDef.maxSpeed, rotationSpeed, state.clock.elapsedTime);
     const pitch = orientation.pitch + bodyRock.pitchOffset;
     const roll = orientation.roll + bodyRock.rollOffset;
     newPos.y = orientation.adjustedY + bodyRock.yOffset;
 
     // Engine Simulation
     const engine = computeEngineState(
-      forwardSpeed, maxSpeed,
+      forwardSpeed, playerDef.maxSpeed,
       player.engineRPM || GAME_CONFIG.tank.idleRPM,
       throttle !== 0 || steering !== 0, delta
     );
@@ -210,7 +208,7 @@ function PlayerController() {
 
     // Gun sway
     const { turretSwayOffset, gunSwayOffset } = updateGunSway(input.swayState.current, {
-      forwardSpeed, rotationSpeed, maxSpeed,
+      forwardSpeed, rotationSpeed, maxSpeed: playerDef.maxSpeed,
       pitch, roll,
       prevPitch: input.swayPrev.current.pitch,
       prevRoll: input.swayPrev.current.roll,
@@ -248,6 +246,12 @@ function PlayerController() {
       gunnerZoom: useGameStore.getState().gunnerZoom,
     });
 
+    // Update direction indicator with actual camera yaw
+    const actualCamYaw = viewMode === 'gunner'
+      ? Math.atan2(aimResult.aimDir.x, aimResult.aimDir.z)
+      : camYawAbs;
+    useGameStore.getState().setCameraYawAbs(actualCamYaw);
+
     // Update burst fire (autocannon)
     updatePlayerBurst();
 
@@ -276,20 +280,29 @@ function PlayerController() {
 
 export function GameScene() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
+  const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
   const spawnEnemy = useGameStore((state) => state.spawnEnemy);
+  const spawnAlly = useGameStore((state) => state.spawnAlly);
 
   useEffect(() => {
+    const mapScale = MAP_SIZE_VALUES[useGameStore.getState().mapSize] / 1000;
     // Spawn some enemies only if none exist (prevents double spawn in Strict Mode)
     if (useGameStore.getState().enemies.length === 0) {
-      spawnEnemy(new THREE.Vector3(40, getTerrainHeight(40, 150), 150), 'tiger');
-      spawnEnemy(new THREE.Vector3(-60, getTerrainHeight(-60, 200), 200), 'panzer3');
-      spawnEnemy(new THREE.Vector3(0, getTerrainHeight(0, 250), 250), 'panzer3');
-      spawnEnemy(new THREE.Vector3(-30, getTerrainHeight(-30, 180), 180), 'panzer2');
+      const s = mapScale;
+      spawnEnemy(new THREE.Vector3(80 * s, getTerrainHeight(80 * s, 300 * s), 300 * s), 'tiger');
+      spawnEnemy(new THREE.Vector3(-120 * s, getTerrainHeight(-120 * s, 400 * s), 400 * s), 'panzer3');
+      spawnEnemy(new THREE.Vector3(0, getTerrainHeight(0, 500 * s), 500 * s), 'panzer3');
+      spawnEnemy(new THREE.Vector3(-60 * s, getTerrainHeight(-60 * s, 360 * s), 360 * s), 'panzer2');
+    }
+    // Spawn allies near player
+    if (useGameStore.getState().allies.length === 0) {
+      spawnAlly(new THREE.Vector3(20, getTerrainHeight(20, 10), 10), 'sherman');
+      spawnAlly(new THREE.Vector3(-20, getTerrainHeight(-20, 15), 15), 'sherman');
     }
     // Initialize trees
     if (useGameStore.getState().trees.length === 0) {
-      useGameStore.getState().initTrees(generateTrees());
+      useGameStore.getState().initTrees(generateTrees(mapScale));
     }
   }, []);
 
@@ -297,7 +310,7 @@ export function GameScene() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas shadows camera={{ position: [0, 5, -10], fov: 60 }}>
         <Suspense fallback={null}>
-          <Sky sunPosition={[100, 20, 100]} />
+          <PlayerSky />
           <ambientLight intensity={0.3} />
           <directionalLight
             castShadow
@@ -322,6 +335,9 @@ export function GameScene() {
               {enemyIds.map((id) => (
                 <MapMarker key={id} id={id} />
               ))}
+              {allyIds.map((id) => (
+                <MapMarker key={id} id={id} isAlly />
+              ))}
               <MapCameraController />
             </>
           ) : (
@@ -330,13 +346,18 @@ export function GameScene() {
               {enemyIds.map((id) => (
                 <EnemyTank key={id} id={id} />
               ))}
+              {allyIds.map((id) => (
+                <AllyTank key={id} id={id} />
+              ))}
               <GunAimPoint />
             </>
           )}
 
           <ProjectileManager />
           <Particles />
+          <BurningWrecks />
           <EnemyAI />
+          <AllyAI />
         </Suspense>
       </Canvas>
     </div>

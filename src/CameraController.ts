@@ -38,7 +38,7 @@ export function updateCamera(params: CameraParams): void {
 
   // Apply screen shake
   if (shakeIntensity > 0) {
-    const maxOffset = shakeIntensity * 0.5;
+    const maxOffset = shakeIntensity * 1.2;
     const shakeX = (Math.random() * 2 - 1) * maxOffset;
     const shakeY = (Math.random() * 2 - 1) * maxOffset;
     const shakeZ = (Math.random() * 2 - 1) * maxOffset * 0.5;
@@ -47,5 +47,7 @@ export function updateCamera(params: CameraParams): void {
     camera.position.z += shakeZ;
   }
 
+  (camera as THREE.PerspectiveCamera).near = 0.5;
+  (camera as THREE.PerspectiveCamera).far = 100000;
   (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
 }

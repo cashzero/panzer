@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { getRoadInfluence } from './roads';
 import { GAME_CONFIG } from './config';
+import { useGameStore, MAP_SIZE_VALUES } from './store';
 
 function getRawTerrainHeight(x: number, z: number): number {
   const scale1 = 0.02;
@@ -76,8 +77,11 @@ export function raycastTerrain(
 }
 
 export function Terrain() {
+  const mapSize = useGameStore((s) => s.mapSize);
+  const terrainSize = MAP_SIZE_VALUES[mapSize];
+  const segments = Math.round(200 * (terrainSize / 1000));
   const { geometry, colors } = useMemo(() => {
-    const geo = new THREE.PlaneGeometry(1000, 1000, 200, 200);
+    const geo = new THREE.PlaneGeometry(terrainSize, terrainSize, segments, segments);
     geo.rotateX(-Math.PI / 2);
 
     const pos = geo.attributes.position;
@@ -103,7 +107,7 @@ export function Terrain() {
     geo.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
     geo.computeVertexNormals();
     return { geometry: geo, colors: true };
-  }, []);
+  }, [terrainSize, segments]);
 
   return (
     <mesh geometry={geometry} receiveShadow>

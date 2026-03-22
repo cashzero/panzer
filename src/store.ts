@@ -6,6 +6,8 @@ import { GAME_CONFIG } from './config';
 import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import type { TreeInstance } from './trees';
+import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
+import { stepProjectile } from './projectilePhysics';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
 
@@ -59,6 +61,7 @@ export interface TankData {
   };
   isPlayer: boolean;
   destroyed: boolean;
+  destroyedAt: number; // timestamp when tank was destroyed (0 if alive)
   lastFireTime: number;
 
   // Track state
@@ -75,11 +78,15 @@ export interface TankData {
 }
 
 export type GameScreen = 'tank-select' | 'playing';
+export type MapSize = 'small' | 'medium' | 'large';
+export const MAP_SIZE_VALUES: Record<MapSize, number> = { small: 1000, medium: 2000, large: 4000 };
 
 interface GameState {
   gameScreen: GameScreen;
+  mapSize: MapSize;
   playerTank: TankData;
   enemies: TankData[];
+  allies: TankData[];
   projectiles: Projectile[];
   particles: Particle[];
   messages: { id: string; text: string; color: string; time: number }[];
@@ -93,6 +100,7 @@ interface GameState {
   cameraShake: number; // current shake intensity (decays over time)
   playerBurstRemaining: number;
   playerBurstNextFireTime: number;
+  cameraYawAbs: number; // absolute camera yaw (hull rotation + mouse yaw)
 
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string, caliber: number) => void;
   removeProjectile: (id: string) => void;
@@ -102,6 +110,8 @@ interface GameState {
   addMessage: (text: string, color: string) => void;
   handleHit: (projectileId: string, hitTankId: string, hitNormal: Vector3, plateInfo?: ArmorPlateHitInfo) => void;
   spawnEnemy: (position: Vector3, tankType?: string) => void;
+  spawnAlly: (position: Vector3, tankType?: string) => void;
+  updateAlly: (id: string, updates: Partial<TankData>) => void;
   spawnParticle: (type: Particle['type'], position: Vector3, normal?: Vector3, scale?: number) => void;
   removeParticle: (id: string) => void;
   toggleAmmo: () => void;
@@ -111,10 +121,12 @@ interface GameState {
   zoomGunnerIn: () => void;
   zoomGunnerOut: () => void;
   setLastFireTime: (time: number) => void;
+  setMapSize: (size: MapSize) => void;
   selectPlayerTank: (tankType: string) => void;
   setPlayerBurst: (remaining: number, nextTime: number) => void;
   triggerCameraShake: (intensity: number) => void;
   decayCameraShake: (dt: number) => void;
+  setCameraYawAbs: (yaw: number) => void;
   initTrees: (trees: TreeInstance[]) => void;
   updateTree: (index: number, updates: Partial<TreeInstance>) => void;
 }
@@ -142,6 +154,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     armor: { ...def.armor },
     isPlayer,
     destroyed: false,
+    destroyedAt: 0,
     lastFireTime: 0,
     trackHealth: { left: def.trackHealth, right: def.trackHealth },
     trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
@@ -156,6 +169,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
 
 export const useGameStore = create<GameState>((set, get) => ({
   gameScreen: 'tank-select',
+  mapSize: 'medium',
   playerTank: (() => {
     const def = getTankDef('sherman');
     return {
@@ -177,6 +191,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       armor: { ...def.armor },
       isPlayer: true,
       destroyed: false,
+      destroyedAt: 0,
       lastFireTime: 0,
       trackHealth: { left: def.trackHealth, right: def.trackHealth },
       trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
@@ -189,6 +204,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     };
   })(),
   enemies: [],
+  allies: [],
   projectiles: [],
   particles: [],
   messages: [],
@@ -202,6 +218,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   cameraShake: 0,
   playerBurstRemaining: 0,
   playerBurstNextFireTime: 0,
+  cameraYawAbs: 0,
+
+  setCameraYawAbs: (yaw) => set({ cameraYawAbs: yaw }),
+
+  setMapSize: (size) => set({ mapSize: size }),
 
   selectPlayerTank: (tankType) => {
     const newTank = createTankData(tankType, true);
@@ -213,7 +234,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
 
   decayCameraShake: (dt) => set((state) => ({
-    cameraShake: Math.max(0, state.cameraShake - dt * 0.5),
+    cameraShake: Math.max(0, state.cameraShake - dt * 2.5),
   })),
 
   initTrees: (trees) => set({ trees }),
@@ -287,12 +308,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       const now = Date.now();
       const newProjectiles = state.projectiles
         .map((p) => {
-          const newPos = p.position.clone().add(p.velocity.clone().multiplyScalar(dt));
-          const newVel = p.velocity.clone();
-          newVel.y -= GRAVITY * dt; // Apply gravity
-          return { ...p, position: newPos, velocity: newVel };
+          const { position, velocity } = stepProjectile(p.position, p.velocity, dt, GRAVITY);
+          return { ...p, position, velocity };
         })
-        .filter((p) => p.position.y > -1 && now - p.createdAt < 10000); // Remove if below ground or too old
+        .filter((p) => now - p.createdAt < 10000); // Remove if too old (terrain collision handled by ProjectileManager)
 
       return { projectiles: newProjectiles };
     });
@@ -333,7 +352,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
-    const target = hitTankId === 'player' ? state.playerTank : state.enemies.find((e) => e.id === hitTankId);
+    const target = hitTankId === 'player' ? state.playerTank : (state.enemies.find((e) => e.id === hitTankId) ?? state.allies.find((a) => a.id === hitTankId));
     if (!target || target.destroyed) return;
 
     // Plate info carries armor thickness and zone directly
@@ -343,20 +362,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     const trackSide = plateInfo?.isTrack;
 
     // Calculate impact angle
-    const projDir = projectile.velocity.clone().normalize();
-    const angleRad = projDir.clone().negate().angleTo(hitNormal);
-    const angleDeg = (angleRad * 180) / Math.PI;
+    const { angleRad, angleDeg, isAutoRicochet } = analyzeImpact(projectile.velocity, hitNormal);
 
     // Auto-ricochet — spawn visible bouncing shell
-    if (angleDeg > GAME_CONFIG.combat.autoRicochetAngle) {
+    if (isAutoRicochet) {
       get().spawnParticle('hit_bounce', projectile.position, hitNormal, scale);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
       if (hitTankId === 'player') get().triggerCameraShake(0.4 * scale);
 
       // Create reflected projectile so the shell visibly bounces away
-      const vel = projectile.velocity.clone();
-      const n = hitNormal.clone().normalize();
-      const reflected = vel.sub(n.multiplyScalar(2 * vel.dot(n))).multiplyScalar(0.3);
+      const reflected = computeReflectedVelocity(projectile.velocity, hitNormal);
       set((s) => ({
         projectiles: [...s.projectiles, {
           id: uuidv4(), position: projectile.position.clone(), velocity: reflected,
@@ -367,11 +382,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       return;
     }
 
-    const effectiveArmor = baseArmor / Math.cos(angleRad);
-
-    // Randomize penetration
-    const variance = GAME_CONFIG.combat.penetrationVariance;
-    const actualPen = projectile.penetration * ((1 - variance) + Math.random() * (variance * 2));
+    const effectiveArmor = computeEffectiveArmor(baseArmor, angleRad);
+    const actualPen = rollPenetration(projectile.penetration);
 
     if (actualPen > effectiveArmor) {
       // Penetration!
@@ -387,6 +399,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         if (hitTankId === 'player') {
           get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
           get().triggerCameraShake(0.7 * scale);
+        } else if (state.allies.some(a => a.id === hitTankId)) {
+          get().updateAlly(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         } else {
           get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         }
@@ -398,21 +412,18 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       } else {
         // Normal armor hit — damage main HP
-        const overmatch = actualPen / effectiveArmor;
-        let damageMult = 1.0;
-        if (projectile.type === 'AP') {
-          damageMult = Math.min(1.5, Math.max(0.5, overmatch));
-        }
-
-        const actualDamage = projectile.damage * damageMult;
-        const newHealth = Math.max(0, target.health - actualDamage);
-        const destroyed = newHealth <= 0;
+        const { damage: actualDamage, newHealth, destroyed } = computeDamage(
+          projectile.type, projectile.damage, actualPen, effectiveArmor, target.health
+        );
+        const destroyedAt = destroyed ? Date.now() : target.destroyedAt;
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ health: newHealth, destroyed });
+          get().updatePlayer({ health: newHealth, destroyed, destroyedAt });
           get().triggerCameraShake(1.0 * scale);
+        } else if (state.allies.some(a => a.id === hitTankId)) {
+          get().updateAlly(hitTankId, { health: newHealth, destroyed, destroyedAt });
         } else {
-          get().updateEnemy(hitTankId, { health: newHealth, destroyed });
+          get().updateEnemy(hitTankId, { health: newHealth, destroyed, destroyedAt });
         }
 
         get().addMessage(`Penetration! ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#00ff00');
@@ -428,7 +439,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       if (isTrackHit && trackSide && projectile.type === 'HE') {
         // HE splash on track
-        const splashDamage = projectile.damage * 0.2;
+        const splashDamage = computeHESplashDamage(projectile.damage);
         const newTrackHealth = Math.max(0, target.trackHealth[trackSide] - splashDamage);
         const trackDead = newTrackHealth <= 0;
         const updatedTrackHealth = { ...target.trackHealth, [trackSide]: newTrackHealth };
@@ -436,20 +447,25 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         if (hitTankId === 'player') {
           get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+        } else if (state.allies.some(a => a.id === hitTankId)) {
+          get().updateAlly(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         } else {
           get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
         }
         get().addMessage(`HE Splash on ${faceName}! (-${Math.round(splashDamage)} track HP)`, '#ffaa00');
       } else if (projectile.type === 'HE' && !isTrackHit) {
         // HE splash on armor
-        const splashDamage = projectile.damage * 0.2;
+        const splashDamage = computeHESplashDamage(projectile.damage);
         const newHealth = Math.max(0, target.health - splashDamage);
         const destroyed = newHealth <= 0;
+        const destroyedAt = destroyed ? Date.now() : target.destroyedAt;
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ health: newHealth, destroyed });
+          get().updatePlayer({ health: newHealth, destroyed, destroyedAt });
+        } else if (state.allies.some(a => a.id === hitTankId)) {
+          get().updateAlly(hitTankId, { health: newHealth, destroyed, destroyedAt });
         } else {
-          get().updateEnemy(hitTankId, { health: newHealth, destroyed });
+          get().updateEnemy(hitTankId, { health: newHealth, destroyed, destroyedAt });
         }
         get().addMessage(`HE Splash! ${faceName} (-${Math.round(splashDamage)} HP)`, '#ffaa00');
         if (destroyed) {
@@ -467,6 +483,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     enemy.position = position;
     set((state) => ({
       enemies: [...state.enemies, enemy],
+    }));
+  },
+
+  spawnAlly: (position, tankType = 'sherman') => {
+    const ally = createTankData(tankType, false);
+    ally.position = position;
+    set((state) => ({
+      allies: [...state.allies, ally],
+    }));
+  },
+
+  updateAlly: (id, updates) => {
+    set((state) => ({
+      allies: state.allies.map((a) => (a.id === id ? { ...a, ...updates } : a)),
     }));
   },
 }));

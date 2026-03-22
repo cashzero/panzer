@@ -135,6 +135,14 @@ export function computeTrackMovement(
   return { forwardSpeed, rotationSpeed, position, rotation };
 }
 
+// --- Gravity Drop (used by AI aiming) ---
+
+export function computeGravityDrop(distance: number, velocity: number): number {
+  if (distance <= 0 || velocity <= 0) return 0;
+  const t = distance / velocity;
+  return 0.5 * GAME_CONFIG.physics.gravity * t * t;
+}
+
 // --- Ballistic Angle ---
 
 export function computeBallisticAngle(
@@ -269,4 +277,80 @@ export function computeEngineState(
   else if (forwardSpeed < -0.5) gear = -1;
 
   return { rpm, gear };
+}
+
+// --- Track Target Speeds (input → desired track speeds) ---
+
+export interface TrackTargets {
+  left: number;
+  right: number;
+}
+
+export function computeTrackTargets(params: {
+  throttle: number;
+  steering: number;
+  maxSpeed: number;
+  maxReverseSpeed: number;
+  currentLeftTrackSpeed: number;
+  currentRightTrackSpeed: number;
+  trackDestroyed: { left: boolean; right: boolean };
+}): TrackTargets {
+  const { throttle, steering, maxSpeed, maxReverseSpeed, currentLeftTrackSpeed, currentRightTrackSpeed, trackDestroyed } = params;
+
+  let left = 0;
+  let right = 0;
+
+  if (throttle !== 0) {
+    const baseSpeed = throttle > 0 ? maxSpeed : -maxReverseSpeed;
+    left = baseSpeed;
+    right = baseSpeed;
+
+    // Speed-dependent inner track factor: less differential at higher speeds
+    const currentSpeed = (currentLeftTrackSpeed + currentRightTrackSpeed) / 2;
+    const speedRatio = Math.min(1, Math.abs(currentSpeed) / maxSpeed);
+    const innerTrackFactor = 0.6 + 0.25 * speedRatio;
+
+    if (steering > 0) {
+      left *= innerTrackFactor;
+    } else if (steering < 0) {
+      right *= innerTrackFactor;
+    }
+  } else if (steering !== 0) {
+    const pivotSpeed = maxSpeed * 0.15;
+    left = -steering * pivotSpeed;
+    right = steering * pivotSpeed;
+  }
+
+  if (trackDestroyed.left) left = 0;
+  if (trackDestroyed.right) right = 0;
+
+  return { left, right };
+}
+
+// --- Track Speed Acceleration ---
+
+export function accelerateTrackSpeeds(params: {
+  currentLeft: number;
+  currentRight: number;
+  targetLeft: number;
+  targetRight: number;
+  acceleration: number;
+  deceleration: number;
+  delta: number;
+}): TrackTargets {
+  const { currentLeft, currentRight, targetLeft, targetRight, acceleration, deceleration, delta } = params;
+
+  const accelLeft = (targetLeft === 0) ? deceleration : acceleration;
+  const accelRight = (targetRight === 0) ? deceleration : acceleration;
+
+  let left = currentLeft;
+  let right = currentRight;
+
+  if (left < targetLeft) left = Math.min(left + accelLeft * delta, targetLeft);
+  else if (left > targetLeft) left = Math.max(left - accelLeft * delta, targetLeft);
+
+  if (right < targetRight) right = Math.min(right + accelRight * delta, targetRight);
+  else if (right > targetRight) right = Math.max(right - accelRight * delta, targetRight);
+
+  return { left, right };
 }

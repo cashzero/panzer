@@ -4,21 +4,40 @@ import { getTankDef } from './tanks/registry';
 import type { TankDefinition } from './tanks/types';
 import { playFireSound, playAutocannonSound } from './audio';
 
-function randGauss() {
+export function randGauss() {
   return (Math.random() - 0.5) + (Math.random() - 0.5);
+}
+
+/** Apply random yaw/pitch dispersion to a direction vector (mutates and returns dir). */
+export function applyDispersion(dir: THREE.Vector3, dispersion: number): THREE.Vector3 {
+  if (dispersion > 0) {
+    const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), randGauss() * dispersion);
+    const pitchQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), randGauss() * dispersion);
+    dir.applyQuaternion(yawQ).applyQuaternion(pitchQ);
+  }
+  return dir;
+}
+
+export interface MuzzleOverrides {
+  turretSwayOffset?: number;
+  gunSwayOffset?: number;
 }
 
 export function computeMuzzleAndDirection(
   tank: TankData,
-  def: TankDefinition
+  def: TankDefinition,
+  overrides?: MuzzleOverrides,
 ): { pos: THREE.Vector3; dir: THREE.Vector3 } {
+  const turretSway = overrides?.turretSwayOffset ?? (tank.turretSwayOffset || 0);
+  const gunSway = overrides?.gunSwayOffset ?? (tank.gunSwayOffset || 0);
+
   const tankEuler = new THREE.Euler(tank.pitch || 0, tank.rotation, tank.roll || 0, 'YXZ');
   const tankQuat = new THREE.Quaternion().setFromEuler(tankEuler);
 
-  const turretEuler = new THREE.Euler(0, tank.turretRotation + (tank.turretSwayOffset || 0), 0, 'YXZ');
+  const turretEuler = new THREE.Euler(0, tank.turretRotation + turretSway, 0, 'YXZ');
   const turretQuat = new THREE.Quaternion().setFromEuler(turretEuler);
 
-  const gunEuler = new THREE.Euler(tank.gunElevation + (tank.gunSwayOffset || 0), 0, 0, 'YXZ');
+  const gunEuler = new THREE.Euler(tank.gunElevation + gunSway, 0, 0, 'YXZ');
   const gunQuat = new THREE.Quaternion().setFromEuler(gunEuler);
 
   const worldTurretQuat = tankQuat.clone().multiply(turretQuat);
@@ -38,20 +57,13 @@ function fireOneRound(tank: TankData, def: TankDefinition, ammoType: AmmoType): 
   if (!ammoStats) return;
 
   const { pos, dir } = computeMuzzleAndDirection(tank, def);
-
-  // Apply inherent gun dispersion (random spread)
-  const dispersion = ammoStats.dispersion;
-  if (dispersion > 0) {
-    const yawQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), randGauss() * dispersion);
-    const pitchQ = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), randGauss() * dispersion);
-    dir.applyQuaternion(yawQ).applyQuaternion(pitchQ);
-  }
+  applyDispersion(dir, ammoStats.dispersion);
 
   const velocity = dir.clone().multiplyScalar(ammoStats.velocity);
 
   useGameStore.getState().fireProjectile(pos, velocity, ammoType, ammoStats.penetration, ammoStats.damage, 'player', def.caliber);
   const caliberScale = (def.caliber || 75) / 75;
-  useGameStore.getState().triggerCameraShake((def.burstCount ? 0.1 : 0.3) * caliberScale);
+  useGameStore.getState().triggerCameraShake((def.burstCount ? 0.3 : 0.8) * caliberScale);
 
   if (def.burstCount) {
     playAutocannonSound();

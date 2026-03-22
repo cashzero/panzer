@@ -2,6 +2,7 @@ import { useGameStore, GUNNER_ZOOM_LEVELS, GUNNER_ZOOM_LABELS } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
+import type { TankData } from './store';
 
 function ReloadIndicator() {
   const [progress, setProgress] = useState(100);
@@ -234,6 +235,91 @@ function TrackHPDisplay() {
   );
 }
 
+interface DirectionMarker {
+  angle: number; // relative bearing in degrees (-180 to 180)
+  distance: number; // in meters
+  label: string;
+  color: string;
+  destroyed: boolean;
+}
+
+function DirectionIndicator() {
+  const [markers, setMarkers] = useState<DirectionMarker[]>([]);
+
+  useEffect(() => {
+    let raf: number;
+    const update = () => {
+      const { playerTank, enemies, allies, cameraYawAbs } = useGameStore.getState();
+      const px = playerTank.position.x;
+      const pz = playerTank.position.z;
+      const playerYaw = cameraYawAbs; // camera viewpoint direction
+
+      const toMarker = (t: TankData, color: string, label: string): DirectionMarker => {
+        const dx = t.position.x - px;
+        const dz = t.position.z - pz;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        // atan2 gives angle from +Z axis (forward). Subtract player yaw to get relative bearing.
+        let bearing = -(Math.atan2(dx, dz) - playerYaw);
+        // Normalize to -PI..PI
+        bearing = ((bearing + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+        return { angle: bearing * (180 / Math.PI), distance: dist, label, color, destroyed: false };
+      };
+
+      const m: DirectionMarker[] = [];
+      enemies.forEach((e, i) => { if (!e.destroyed) m.push(toMarker(e, '#ef4444', `E${i + 1}`)); });
+      allies.forEach((a, i) => { if (!a.destroyed) m.push(toMarker(a, '#3b82f6', `A${i + 1}`)); });
+      setMarkers(m);
+      raf = requestAnimationFrame(update);
+    };
+    update();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  if (markers.length === 0) return null;
+
+  // FOV range shown on the bar: full 360 degrees
+  // Map angle (-180..180) to percentage (0..100)
+  const angleToPercent = (deg: number) => ((deg + 180) / 360) * 100;
+
+  return (
+    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[80%] pointer-events-none">
+      {/* Bar background */}
+      <div className="relative h-10 bg-black/50 border border-gray-700 rounded-b overflow-visible">
+        {/* Center tick (forward direction) */}
+        <div className="absolute left-1/2 top-0 h-full w-px bg-gray-500" />
+        <div className="absolute left-1/2 -translate-x-1/2 top-0 text-[9px] text-gray-500 leading-none mt-px">FWD</div>
+        {/* 90° ticks */}
+        <div className="absolute top-0 h-full w-px bg-gray-700" style={{ left: '25%' }} />
+        <div className="absolute top-0 h-full w-px bg-gray-700" style={{ left: '75%' }} />
+
+        {/* Markers */}
+        {markers.map((m, i) => {
+          const pct = angleToPercent(m.angle);
+          const distHm = Math.round(m.distance / 100); // in 100m units
+          return (
+            <div
+              key={i}
+              className="absolute top-1 flex flex-col items-center -translate-x-1/2"
+              style={{ left: `${pct}%` }}
+            >
+              {/* Triangle marker */}
+              <div style={{
+                width: 0, height: 0,
+                borderLeft: '5px solid transparent',
+                borderRight: '5px solid transparent',
+                borderTop: `8px solid ${m.color}`,
+              }} />
+              <div className="text-[10px] font-bold leading-tight whitespace-nowrap" style={{ color: m.color }}>
+                {distHm}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function UI() {
   const health = useGameStore((state) => state.playerTank.health);
   const maxHealth = useGameStore((state) => state.playerTank.maxHealth);
@@ -247,11 +333,12 @@ export function UI() {
   return (
     <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between font-mono text-white text-shadow">
       {viewMode === 'gunner' && !isMapMode && <GunnerSightOverlay />}
-      
+
+      {!isMapMode && <DirectionIndicator />}
+
       {/* Top Left: Status */}
       <div>
-        <h1 className="text-2xl font-bold text-green-400">PANZER FRONT WEBGL</h1>
-        <div className="mt-4">
+        <div className="mt-0">
           <div className="text-lg">Hull HP: {Math.max(0, Math.round(health))} / {maxHealth}</div>
           <div className="w-64 h-4 bg-gray-800 border border-gray-600 mt-1">
             <div 

@@ -253,7 +253,7 @@ export const panzer2Def: TankDefinition = {
   burstCount: 5,
   burstInterval: 125,
   weapons: {
-    AP: { penetration: 20, velocity: 780, damage: 25, drop: 0.12, dispersion: 0.012 },
+    AP: { penetration: 20, velocity: 780, damage: 25, drop: 0.12, dispersion: 0.005 },
   },
   plates: makePz2Plates(),
   HullComponent: Pz2Hull,

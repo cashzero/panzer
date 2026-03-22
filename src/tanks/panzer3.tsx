@@ -274,9 +274,9 @@ export const panzer3Def: TankDefinition = {
   caliber: 50,
   reloadTime: 3000,
   weapons: {
-    AP:  { penetration: 96,  velocity: 835,  damage: 180, drop: 0.15, dispersion: 0.006 },
-    APC: { penetration: 130, velocity: 1130, damage: 120, drop: 0.1, dispersion: 0.005 },
-    HE:  { penetration: 20,  velocity: 835,  damage: 350, drop: 0.35, dispersion: 0.007 },
+    AP:  { penetration: 96,  velocity: 835,  damage: 180, drop: 0.15, dispersion: 0.0025 },
+    APC: { penetration: 130, velocity: 1130, damage: 120, drop: 0.1, dispersion: 0.002 },
+    HE:  { penetration: 20,  velocity: 835,  damage: 350, drop: 0.35, dispersion: 0.003 },
   },
   plates: makePz3Plates(),
   HullComponent: Pz3Hull,

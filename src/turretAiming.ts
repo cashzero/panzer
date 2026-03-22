@@ -67,10 +67,13 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
     }
   } else {
     // Arrow keys directly move the sight (and thus the turret)
-    if (input.arrowKeys.left) newTurretRot += turretSpeed;
-    if (input.arrowKeys.right) newTurretRot -= turretSpeed;
-    if (input.arrowKeys.up) currentSightPitch += gunSpeed;
-    if (input.arrowKeys.down) currentSightPitch -= gunSpeed;
+    // Use half speed for precise manual aiming
+    const manualTurretSpeed = turretSpeed * 0.5;
+    const manualGunSpeed = gunSpeed * 0.5;
+    if (input.arrowKeys.left) newTurretRot += manualTurretSpeed;
+    if (input.arrowKeys.right) newTurretRot -= manualTurretSpeed;
+    if (input.arrowKeys.up) currentSightPitch += manualGunSpeed;
+    if (input.arrowKeys.down) currentSightPitch -= manualGunSpeed;
   }
 
   currentSightPitch = THREE.MathUtils.clamp(currentSightPitch, -Math.PI / 4, Math.PI / 4);

@@ -6,9 +6,10 @@ import { useGameStore } from './store';
 interface MapMarkerProps {
   id: string;
   isPlayer?: boolean;
+  isAlly?: boolean;
 }
 
-export function MapMarker({ id, isPlayer }: MapMarkerProps) {
+export function MapMarker({ id, isPlayer, isAlly }: MapMarkerProps) {
   const groupRef = useRef<THREE.Group>(null);
 
   const triangleGeo = useMemo(() => {
@@ -21,19 +22,28 @@ export function MapMarker({ id, isPlayer }: MapMarkerProps) {
   }, []);
 
   const destroyed = useGameStore(state =>
-    isPlayer ? state.playerTank.destroyed : state.enemies.find(e => e.id === id)?.destroyed
+    isPlayer ? state.playerTank.destroyed
+    : isAlly ? state.allies.find(a => a.id === id)?.destroyed
+    : state.enemies.find(e => e.id === id)?.destroyed
   ) || false;
 
-  const color = destroyed ? '#555555' : isPlayer ? '#00ff00' : '#ff3333';
+  const color = destroyed ? '#555555' : isPlayer ? '#00ff00' : isAlly ? '#3399ff' : '#ff3333';
 
-  useFrame(() => {
+  useFrame(({ camera }) => {
     const data = isPlayer
       ? useGameStore.getState().playerTank
+      : isAlly
+      ? useGameStore.getState().allies.find(a => a.id === id)
       : useGameStore.getState().enemies.find(e => e.id === id);
     if (!data || !groupRef.current) return;
 
     groupRef.current.position.set(data.position.x, data.position.y + 2, data.position.z);
     groupRef.current.rotation.set(-Math.PI / 2, 0, Math.PI + data.rotation);
+
+    // Scale marker inversely with camera distance so it keeps constant screen size
+    const dist = camera.position.distanceTo(groupRef.current.position);
+    const baseScale = dist / 150;
+    groupRef.current.scale.setScalar(Math.max(0.3, baseScale));
   });
 
   return (

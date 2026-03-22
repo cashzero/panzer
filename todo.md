@@ -18,9 +18,9 @@
 - [ ] Add trail geometry per projectile in `ProjectileManager.tsx` (THREE.Line or stretched mesh)
 - [ ] Add `tracerLength`, `tracerColor`, `tracerFadeTime` to `config.ts`
 
-### 2.3 Persistent Burning Wrecks [S]
-- [ ] Create `src/BurningWrecks.tsx` — useFrame loop spawning `burning_smoke` on destroyed tanks
-- [ ] Add `destroyedAt` timestamp to `TankData` in `store.ts` (stop burning after 60s)
+### 2.3 Persistent Burning Wrecks [S] ✅
+- [x] Create `src/BurningWrecks.tsx` — useFrame loop spawning `burning_smoke` on destroyed tanks
+- [x] Add `destroyedAt` timestamp to `TankData` in `store.ts` (stop burning after 3 min)
 
 ---
 

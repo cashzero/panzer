@@ -302,9 +302,9 @@ export const tigerDef: TankDefinition = {
   caliber: 88,
   reloadTime: 7000,
   weapons: {
-    AP:  { penetration: 132, velocity: 773, damage: 550, drop: 0.08, dispersion: 0.003 },
-    APC: { penetration: 120, velocity: 773, damage: 650, drop: 0.08, dispersion: 0.003 },
-    HE:  { penetration: 30,  velocity: 773, damage: 700, drop: 0.2, dispersion: 0.004 },
+    AP:  { penetration: 132, velocity: 773, damage: 550, drop: 0.08, dispersion: 0.0012 },
+    APC: { penetration: 120, velocity: 773, damage: 650, drop: 0.08, dispersion: 0.0012 },
+    HE:  { penetration: 30,  velocity: 773, damage: 700, drop: 0.2, dispersion: 0.0015 },
   },
   plates: makeTigerPlates(),
   HullComponent: TigerHull,

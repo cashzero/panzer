@@ -2,11 +2,11 @@ import { useFrame } from '@react-three/fiber';
 import { Sphere } from '@react-three/drei';
 import { useGameStore } from './store';
 import * as THREE from 'three';
-import { getTerrainHeight } from './Terrain';
 import { testProjectileAgainstTank } from './armorModel';
 import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import { GAME_CONFIG } from './config';
+import { checkTerrainCollision, checkTreeCollision } from './projectilePhysics';
 
 export function ProjectileManager() {
   const projectiles = useGameStore((state) => state.projectiles);
@@ -14,8 +14,12 @@ export function ProjectileManager() {
   const handleHit = useGameStore((state) => state.handleHit);
 
   useFrame((state, delta) => {
-    const { projectiles: currentProjectiles, playerTank, enemies } = useGameStore.getState();
-    const allTanks = [playerTank, ...enemies].filter(t => !t.destroyed);
+    const { projectiles: currentProjectiles, playerTank, enemies, allies } = useGameStore.getState();
+    const allTanks = [playerTank, ...enemies, ...allies].filter(t => !t.destroyed);
+
+    // Build faction sets for friendly-fire prevention
+    const playerAndAllyIds = new Set(['player', ...allies.map(a => a.id)]);
+    const enemyIds = new Set(enemies.map(e => e.id));
 
     const now = Date.now();
     currentProjectiles.forEach((p) => {
@@ -38,41 +42,24 @@ export function ProjectileManager() {
       const ray = new THREE.Ray(prevPos, rayDir);
 
       // Check collision with ground
-      const terrainHeight = getTerrainHeight(nextPos.x, nextPos.z);
-      if (nextPos.y <= terrainHeight) {
+      if (checkTerrainCollision(nextPos).hit) {
         handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0));
         return;
       }
 
       // Check collision with trees
       const trees = useGameStore.getState().trees;
-      const treeRadius = GAME_CONFIG.trees.collisionRadius;
-      for (let ti = 0; ti < trees.length; ti++) {
-        const tree = trees[ti];
-        if (tree.fallen) continue;
-        const tx = tree.position[0];
-        const tz = tree.position[2];
-        const ty = tree.position[1];
-        // Simple cylinder test: check XZ distance and Y range
-        const dx = nextPos.x - tx;
-        const dz = nextPos.z - tz;
-        const distXZ = Math.sqrt(dx * dx + dz * dz);
-        const treeHeight = 8 * tree.scale;
-        if (distXZ < treeRadius + 0.2 && nextPos.y >= ty && nextPos.y <= ty + treeHeight) {
-          // Hit tree
-          const { spawnParticle, updateTree } = useGameStore.getState();
-          spawnParticle('tree_hit', nextPos.clone(), new THREE.Vector3(dx / distXZ, 0, dz / distXZ));
-          // Damage tree
-          const newHealth = tree.health - 50;
-          if (newHealth <= 0) {
-            const fallDir = Math.atan2(dx, dz);
-            updateTree(ti, { health: 0, fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
-          } else {
-            updateTree(ti, { health: newHealth });
-          }
-          handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0)); // consume projectile
-          return;
+      const treeHit = checkTreeCollision(nextPos, trees, GAME_CONFIG.trees.collisionRadius);
+      if (treeHit) {
+        const { spawnParticle, updateTree } = useGameStore.getState();
+        spawnParticle('tree_hit', nextPos.clone(), treeHit.normal);
+        if (treeHit.shouldFall) {
+          updateTree(treeHit.treeIndex, { health: 0, fallen: true, fallDirection: treeHit.fallDirection, fallProgress: 0.01 });
+        } else {
+          updateTree(treeHit.treeIndex, { health: treeHit.newHealth });
         }
+        handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0)); // consume projectile
+        return;
       }
 
       let closestHit: { tankId: string; hit: HitResult } | null = null;
@@ -80,6 +67,11 @@ export function ProjectileManager() {
       // Check collision with tanks using multi-OBB armor model
       for (const tank of allTanks) {
         if (p.firedBy === tank.id) continue;
+        // No friendly fire: skip same-faction targets
+        const firedByFriendly = playerAndAllyIds.has(p.firedBy);
+        const targetFriendly = playerAndAllyIds.has(tank.id);
+        if (firedByFriendly && targetFriendly) continue;
+        if (!firedByFriendly && enemyIds.has(tank.id)) continue;
         const def = getTankDef(tank.tankType);
         const profile = { plates: def.plates, broadPhaseRadius: def.broadPhaseRadius };
         const hit = testProjectileAgainstTank(ray, rayLength, tank, profile, def.turretOffset, def.gunPivotOffset);
@@ -99,7 +91,7 @@ export function ProjectileManager() {
   return (
     <group>
       {projectiles.map((p) => {
-        const radius = 0.05 + 0.05 * ((p.caliber || 75) / 75);
+        const radius = 0.02 + 0.02 * ((p.caliber || 75) / 75);
         return (
           <Sphere key={p.id} args={[radius, 8, 8]} position={p.position}>
             <meshBasicMaterial color={p.ricochet ? '#cc6600' : '#ffaa00'} />

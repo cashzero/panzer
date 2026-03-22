@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { getAllTankDefs } from '../tanks/registry';
 import type { TankDefinition } from '../tanks/types';
 import type { ArmorPlate } from '../armorModel';
-import { useGameStore } from '../store';
+import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
 
 const allTanks = getAllTankDefs();
 
@@ -189,6 +189,8 @@ export function TankSelect() {
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const selectPlayerTank = useGameStore((s) => s.selectPlayerTank);
+  const mapSize = useGameStore((s) => s.mapSize);
+  const setMapSize = useGameStore((s) => s.setMapSize);
   const def = allTanks[selectedIdx];
 
   const handleConfirm = () => {
@@ -316,6 +318,27 @@ export function TankSelect() {
             <span>Side {def.armor.side}mm</span>
             <span>Rear {def.armor.rear}mm</span>
             <span>Turret {def.armor.turret}mm</span>
+          </div>
+
+          {/* Map size selector */}
+          <div className="mt-4 pt-4 border-t border-gray-800">
+            <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Map Size</div>
+            <div className="flex gap-2">
+              {(['small', 'medium', 'large'] as MapSize[]).map((size) => (
+                <button
+                  key={size}
+                  onClick={() => setMapSize(size)}
+                  className={`flex-1 px-3 py-2 border text-xs uppercase tracking-wider transition-all cursor-pointer ${
+                    mapSize === size
+                      ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
+                      : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  <div>{size}</div>
+                  <div className="text-[10px] mt-0.5 opacity-60">{MAP_SIZE_VALUES[size]}m</div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>

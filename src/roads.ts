@@ -1,12 +1,13 @@
 import { GAME_CONFIG } from './config';
+import { useGameStore, MAP_SIZE_VALUES } from './store';
 
 export interface RoadSegment {
   points: [number, number][]; // XZ waypoints
   halfWidth: number;
 }
 
-// Road network: crossroads layout
-const ROAD_SEGMENTS: RoadSegment[] = [
+// Base road waypoints defined for a 1000m map
+const BASE_ROAD_SEGMENTS: { points: [number, number][]; halfWidth: number }[] = [
   // Main N-S road (slightly curved)
   {
     points: [
@@ -34,6 +35,18 @@ const ROAD_SEGMENTS: RoadSegment[] = [
     halfWidth: GAME_CONFIG.roads.halfWidth,
   },
 ];
+
+function getMapScale(): number {
+  return MAP_SIZE_VALUES[useGameStore.getState().mapSize] / 1000;
+}
+
+function getScaledSegments(): RoadSegment[] {
+  const s = getMapScale();
+  return BASE_ROAD_SEGMENTS.map((seg) => ({
+    points: seg.points.map(([x, z]) => [x * s, z * s] as [number, number]),
+    halfWidth: seg.halfWidth,
+  }));
+}
 
 function closestPointOnSegment(
   px: number, pz: number,
@@ -77,7 +90,7 @@ export function getRoadInfluence(x: number, z: number): RoadInfluence {
   let bestZ = 0;
   let bestHalfWidth = GAME_CONFIG.roads.halfWidth;
 
-  for (const segment of ROAD_SEGMENTS) {
+  for (const segment of getScaledSegments()) {
     const pts = segment.points;
     for (let i = 0; i < pts.length - 1; i++) {
       const result = closestPointOnSegment(
@@ -102,7 +115,7 @@ export function getRoadInfluence(x: number, z: number): RoadInfluence {
 
 export function isOnRoad(x: number, z: number, extraMargin: number = 0): boolean {
   const halfWidth = GAME_CONFIG.roads.halfWidth;
-  for (const segment of ROAD_SEGMENTS) {
+  for (const segment of getScaledSegments()) {
     const pts = segment.points;
     for (let i = 0; i < pts.length - 1; i++) {
       const result = closestPointOnSegment(

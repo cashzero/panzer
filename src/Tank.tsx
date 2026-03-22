@@ -53,11 +53,11 @@ export function Tank({ id, tankType }: TankProps) {
 
   // Subscribe to destroyed state and track destruction to trigger re-renders
   const destroyed = useGameStore(state =>
-    isPlayer ? state.playerTank.destroyed : state.enemies.find(e => e.id === id)?.destroyed
+    isPlayer ? state.playerTank.destroyed : (state.enemies.find(e => e.id === id) ?? state.allies.find(a => a.id === id))?.destroyed
   ) || false;
 
   const trackDestroyed = useGameStore(useShallow(state => {
-    const tank = isPlayer ? state.playerTank : state.enemies.find(e => e.id === id);
+    const tank = isPlayer ? state.playerTank : (state.enemies.find(e => e.id === id) ?? state.allies.find(a => a.id === id));
     return tank?.trackDestroyed ?? { left: false, right: false };
   }));
 
@@ -78,7 +78,7 @@ export function Tank({ id, tankType }: TankProps) {
   useFrame(() => {
     const data = isPlayer
       ? useGameStore.getState().playerTank
-      : useGameStore.getState().enemies.find(e => e.id === id);
+      : (useGameStore.getState().enemies.find(e => e.id === id) ?? useGameStore.getState().allies.find(a => a.id === id));
 
     if (!data) return;
 

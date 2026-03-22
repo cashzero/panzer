@@ -247,9 +247,9 @@ export const shermanDef: TankDefinition = {
   caliber: 75,
   reloadTime: 4000,
   weapons: {
-    AP:  { penetration: 109, velocity: 618, damage: 350, drop: 0.1, dispersion: 0.005 },
-    APC: { penetration: 88,  velocity: 618, damage: 450, drop: 0.1, dispersion: 0.005 },
-    HE:  { penetration: 30,  velocity: 618, damage: 500, drop: 0.25, dispersion: 0.006 },
+    AP:  { penetration: 109, velocity: 618, damage: 350, drop: 0.1, dispersion: 0.002 },
+    APC: { penetration: 88,  velocity: 618, damage: 450, drop: 0.1, dispersion: 0.002 },
+    HE:  { penetration: 30,  velocity: 618, damage: 500, drop: 0.25, dispersion: 0.0025 },
   },
   plates: makeShermanPlates(),
   HullComponent: ShermanHull,

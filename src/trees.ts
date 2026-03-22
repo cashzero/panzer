@@ -24,21 +24,22 @@ function mulberry32(seed: number) {
   };
 }
 
-export function generateTrees(): TreeInstance[] {
+export function generateTrees(mapScale: number = 1): TreeInstance[] {
   const cfg = GAME_CONFIG.trees;
   const rng = mulberry32(cfg.seed);
   const trees: TreeInstance[] = [];
   const minSpacingSq = cfg.minSpacing * cfg.minSpacing;
+  const treeCount = Math.round(cfg.count * mapScale);
 
   // Jittered grid placement
   const gridSize = cfg.minSpacing * 1.2;
-  const halfRange = cfg.maxPlacementRadius;
+  const halfRange = cfg.maxPlacementRadius * mapScale;
   const gridStart = -halfRange;
   const gridEnd = halfRange;
 
   for (let gx = gridStart; gx < gridEnd; gx += gridSize) {
     for (let gz = gridStart; gz < gridEnd; gz += gridSize) {
-      if (trees.length >= cfg.count) break;
+      if (trees.length >= treeCount) break;
 
       // Jitter within cell
       const x = gx + rng() * gridSize;
@@ -49,7 +50,7 @@ export function generateTrees(): TreeInstance[] {
       if (distFromCenter < cfg.exclusionFromCenter) continue;
 
       // Exclusion: terrain edge
-      if (distFromCenter > cfg.maxPlacementRadius) continue;
+      if (distFromCenter > halfRange) continue;
 
       // Exclusion: roads
       if (isOnRoad(x, z, cfg.exclusionFromRoad)) continue;
@@ -79,7 +80,7 @@ export function generateTrees(): TreeInstance[] {
         fallProgress: 0,
       });
     }
-    if (trees.length >= cfg.count) break;
+    if (trees.length >= treeCount) break;
   }
 
   return trees;
