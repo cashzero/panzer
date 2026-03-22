@@ -18,24 +18,14 @@
 - [ ] Add trail geometry per projectile in `ProjectileManager.tsx` (THREE.Line or stretched mesh)
 - [ ] Add `tracerLength`, `tracerColor`, `tracerFadeTime` to `config.ts`
 
-### 2.3 Persistent Burning Wrecks [S] ✅
-- [x] Create `src/BurningWrecks.tsx` — useFrame loop spawning `burning_smoke` on destroyed tanks
-- [x] Add `destroyedAt` timestamp to `TankData` in `store.ts` (stop burning after 3 min)
-
 ---
 
-## Sprint 2: Scoring, Tank Selection, Sound
+## Sprint 2: Scoring, Sound
 
 ### 1.2 Scoring / Stats System [S]
 - [ ] Add `stats` object to `store.ts` (kills, shots fired, accuracy, damage dealt/received)
 - [ ] Add real-time kill counter in `UI.tsx`
 - [ ] Display detailed stats in `MissionResult.tsx`
-
-### 1.3 Tank Selection Screen [M] ✅
-- [x] Modify `store.ts` — dynamic `playerTank` initialization from selected tank type
-- [x] Export `getAllTankDefs()` from `tanks/registry.ts`
-- [x] Add `description`, `nationality`, `year` fields to `TankDefinition` in `tanks/types.ts`
-- [x] Create `src/screens/TankSelect.tsx` — 3D tank preview with stat bars
 
 ### 2.4 Impact / Ricochet Sound Effects [M]
 - [ ] Add `playImpactSound('penetrate' | 'ricochet' | 'ground')` to `audio.ts`

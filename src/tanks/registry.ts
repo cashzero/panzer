@@ -3,6 +3,7 @@ import { shermanDef } from './sherman';
 import { tigerDef } from './tiger';
 import { panzer3Def } from './panzer3';
 import { panzer2Def } from './panzer2';
+import { shermanA276Def } from './shermanA2_76';
 
 const TANK_REGISTRY = new Map<string, TankDefinition>();
 
@@ -14,6 +15,7 @@ register(shermanDef);
 register(tigerDef);
 register(panzer3Def);
 register(panzer2Def);
+register(shermanA276Def);
 
 export function getTankDef(tankType: string): TankDefinition {
   const def = TANK_REGISTRY.get(tankType);
