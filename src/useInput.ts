@@ -78,7 +78,9 @@ export function useInput(onFire: () => void): InputRefs {
       if (document.pointerLockElement !== document.body) {
         document.body.requestPointerLock().catch(() => {});
       }
-      if (e.button === 1) {
+      if (e.button === 0) {
+        onFire();
+      } else if (e.button === 1) {
         e.preventDefault();
         toggleViewMode();
       } else if (e.button === 2) {

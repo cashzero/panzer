@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { v4 as uuidv4 } from 'uuid';
 import { GAME_CONFIG } from './config';
 import type { ArmorPlateHitInfo } from './armorModel';
-import { getTankDef } from './tanks/registry';
+import { getTankDef, getAllTankDefs } from './tanks/registry';
 import type { TreeInstance } from './trees';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { stepProjectile } from './projectilePhysics';
@@ -69,6 +69,10 @@ export interface TankData {
   trackMaxHealth: { left: number; right: number };
   trackDestroyed: { left: boolean; right: boolean };
 
+  // Awareness
+  alertedBy?: string; // ID of tank that last hit us
+  alertedAt?: number; // timestamp of last hit
+
   // Physics properties
   speed: number;
   engineRPM: number;
@@ -77,9 +81,19 @@ export interface TankData {
   rightTrackSpeed: number;
 }
 
-export type GameScreen = 'tank-select' | 'playing';
+export type GameScreen = 'oob-editor' | 'tank-select' | 'playing';
 export type MapSize = 'small' | 'medium' | 'large';
 export const MAP_SIZE_VALUES: Record<MapSize, number> = { small: 1000, medium: 2000, large: 4000 };
+
+export interface OOBUnit {
+  id: string;
+  tankType: string;
+  position: [number, number]; // XZ world coords (pre-mapScale)
+  rotation: number;
+}
+
+const AXIS_NATIONALITIES: Record<string, boolean> = { 'Germany': true };
+export function isAxisNationality(nationality: string) { return !!AXIS_NATIONALITIES[nationality]; }
 
 interface GameState {
   gameScreen: GameScreen;
@@ -129,6 +143,29 @@ interface GameState {
   setMapSize: (size: MapSize) => void;
   selectPlayerTank: (tankType: string) => void;
   setPlayerBurst: (remaining: number, nextTime: number) => void;
+
+  // OOB Editor state
+  oobPlayerTankType: string;
+  oobPlayerPosition: [number, number];
+  oobEnemies: OOBUnit[];
+  oobAllies: OOBUnit[];
+  oobAllyCountry: string;
+  oobEnemyCountry: string;
+  oobSelectedUnitId: string | null;
+  oobPlacementMode: 'enemy' | 'ally' | null;
+
+  // OOB Editor actions
+  setOobPlayerTankType: (tankType: string) => void;
+  setOobPlayerPosition: (pos: [number, number]) => void;
+  addOobUnit: (side: 'enemy' | 'ally', tankType: string, position: [number, number]) => void;
+  removeOobUnit: (id: string) => void;
+  updateOobUnit: (id: string, updates: Partial<OOBUnit>) => void;
+  setOobSelectedUnit: (id: string | null) => void;
+  setOobPlacementMode: (mode: 'enemy' | 'ally' | null) => void;
+  setOobAllyCountry: (country: string) => void;
+  setOobEnemyCountry: (country: string) => void;
+  setGameScreen: (screen: GameScreen) => void;
+  deployOob: () => void;
   triggerCameraShake: (intensity: number) => void;
   decayCameraShake: (dt: number) => void;
   setCameraYawAbs: (yaw: number) => void;
@@ -173,7 +210,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
 }
 
 export const useGameStore = create<GameState>((set, get) => ({
-  gameScreen: 'tank-select',
+  gameScreen: 'oob-editor',
   mapSize: 'medium',
   playerTank: (() => {
     const def = getTankDef('sherman');
@@ -226,6 +263,106 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerBurstRemaining: 0,
   playerBurstNextFireTime: 0,
   cameraYawAbs: 0,
+
+  // OOB Editor initial state
+  oobPlayerTankType: 'sherman',
+  oobPlayerPosition: [0, 0] as [number, number],
+  oobEnemies: [
+    { id: uuidv4(), tankType: 'tiger', position: [80, 300] as [number, number], rotation: Math.PI },
+    { id: uuidv4(), tankType: 'panzer3', position: [-120, 400] as [number, number], rotation: Math.PI },
+    { id: uuidv4(), tankType: 'panzer3', position: [0, 500] as [number, number], rotation: Math.PI },
+    { id: uuidv4(), tankType: 'panzer2', position: [-60, 360] as [number, number], rotation: Math.PI },
+  ],
+  oobAllies: [
+    { id: uuidv4(), tankType: 'sherman', position: [20, 10] as [number, number], rotation: 0 },
+    { id: uuidv4(), tankType: 'sherman', position: [-20, 15] as [number, number], rotation: 0 },
+  ],
+  oobAllyCountry: 'USA',
+  oobEnemyCountry: 'Germany',
+  oobSelectedUnitId: null,
+  oobPlacementMode: null,
+
+  // OOB Editor actions
+  setOobPlayerTankType: (tankType) => set({ oobPlayerTankType: tankType }),
+  setOobPlayerPosition: (pos) => set({ oobPlayerPosition: pos }),
+  addOobUnit: (side, tankType, position) => {
+    const unit: OOBUnit = { id: uuidv4(), tankType, position, rotation: side === 'enemy' ? Math.PI : 0 };
+    set((state) => side === 'enemy'
+      ? { oobEnemies: [...state.oobEnemies, unit] }
+      : { oobAllies: [...state.oobAllies, unit] }
+    );
+  },
+  removeOobUnit: (id) => set((state) => ({
+    oobEnemies: state.oobEnemies.filter((u) => u.id !== id),
+    oobAllies: state.oobAllies.filter((u) => u.id !== id),
+    oobSelectedUnitId: state.oobSelectedUnitId === id ? null : state.oobSelectedUnitId,
+  })),
+  updateOobUnit: (id, updates) => set((state) => ({
+    oobEnemies: state.oobEnemies.map((u) => u.id === id ? { ...u, ...updates } : u),
+    oobAllies: state.oobAllies.map((u) => u.id === id ? { ...u, ...updates } : u),
+  })),
+  setOobSelectedUnit: (id) => set({ oobSelectedUnitId: id, oobPlacementMode: null }),
+  setOobPlacementMode: (mode) => set({ oobPlacementMode: mode, oobSelectedUnitId: null }),
+  setOobAllyCountry: (country) => {
+    const firstTank = getAllTankDefs().find((t) => t.nationality === country);
+    if (!firstTank) return;
+    set((state) => ({
+      oobAllyCountry: country,
+      oobAllies: state.oobAllies.map((u) => ({ ...u, tankType: firstTank.id })),
+    }));
+  },
+  setOobEnemyCountry: (country) => {
+    const firstTank = getAllTankDefs().find((t) => t.nationality === country);
+    if (!firstTank) return;
+    set((state) => ({
+      oobEnemyCountry: country,
+      oobEnemies: state.oobEnemies.map((u) => ({ ...u, tankType: firstTank.id })),
+    }));
+  },
+  setGameScreen: (screen) => set({ gameScreen: screen }),
+  deployOob: () => {
+    const state = get();
+    const mapScale = MAP_SIZE_VALUES[state.mapSize] / 1000;
+
+    // Create player tank
+    const player = createTankData(state.oobPlayerTankType, true);
+    const px = state.oobPlayerPosition[0] * mapScale;
+    const pz = state.oobPlayerPosition[1] * mapScale;
+    player.position = new Vector3(px, 0, pz);
+
+    // Create enemies
+    const enemies: TankData[] = state.oobEnemies.map((u) => {
+      const t = createTankData(u.tankType, false);
+      const ex = u.position[0] * mapScale;
+      const ez = u.position[1] * mapScale;
+      t.position = new Vector3(ex, 0, ez);
+      t.rotation = u.rotation;
+      return t;
+    });
+
+    // Create allies
+    const allies: TankData[] = state.oobAllies.map((u) => {
+      const t = createTankData(u.tankType, false);
+      const ax = u.position[0] * mapScale;
+      const az = u.position[1] * mapScale;
+      t.position = new Vector3(ax, 0, az);
+      t.rotation = u.rotation;
+      return t;
+    });
+
+    set({
+      playerTank: player,
+      enemies,
+      allies,
+      gameScreen: 'playing',
+      ammoType: 'AP',
+      playerBurstRemaining: 0,
+      playerBurstNextFireTime: 0,
+      projectiles: [],
+      particles: [],
+      messages: [],
+    });
+  },
 
   setCameraYawAbs: (yaw) => set({ cameraYawAbs: yaw }),
 
@@ -369,6 +506,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     const target = hitTankId === 'player' ? state.playerTank : (state.enemies.find((e) => e.id === hitTankId) ?? state.allies.find((a) => a.id === hitTankId));
     if (!target || target.destroyed) return;
+
+    // Alert the hit tank — it now knows who attacked it
+    if (hitTankId !== 'player') {
+      const alertUpdate = { alertedBy: projectile.firedBy, alertedAt: Date.now() };
+      if (state.allies.some(a => a.id === hitTankId)) {
+        get().updateAlly(hitTankId, alertUpdate);
+      } else {
+        get().updateEnemy(hitTankId, alertUpdate);
+      }
+    }
 
     // Plate info carries armor thickness and zone directly
     const baseArmor = plateInfo?.armorThickness ?? target.armor.front;

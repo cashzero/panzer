@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 
 // ============================================================
 // SHERMAN — M4 Sherman-inspired Allied tank
@@ -200,7 +201,7 @@ const ShermanGun = ({ destroyedColor, destroyed }: TankGunProps) => {
   return (
     <group>
       {/* Mantlet */}
-      <Box args={[0.5, 0.4, 0.5]} position={[0, 0, 0.15]} castShadow receiveShadow>
+      <Box args={[0.5, 0.4, 0.5]} position={[0, 0, -0.05]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
       {/* 75mm barrel */}
@@ -242,7 +243,7 @@ function makeShermanPlates(): ArmorPlate[] {
     { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.1, 0.375, 0.7], position: [0.82, 0.38, 0.1], rotation: [0, 0, 0], armorThickness: 60, parent: 'turret' },
     { name: 'Turret Bustle', zone: 'turret', halfExtents: [0.82, 0.325, 0.25], position: [0, 0.38, -0.9], rotation: [0, 0, 0], armorThickness: 40, parent: 'turret' },
     { name: 'Turret Roof', zone: 'turret', halfExtents: [0.82, 0.1, 0.7], position: [0, 0.755, 0.1], rotation: [0, 0, 0], armorThickness: 20, parent: 'turret' },
-    { name: 'Mantlet', zone: 'gun', halfExtents: [0.25, 0.2, 0.25], position: [0, 0, 0.15], rotation: [0, 0, 0], armorThickness: 220, parent: 'gunGroup' },
+    { name: 'Mantlet', zone: 'gun', halfExtents: [0.25, 0.2, 0.25], position: [0, 0, -0.05], rotation: [0, 0, 0], armorThickness: 220, parent: 'gunGroup' },
     { name: 'Track Left', zone: 'track', halfExtents: [0.25, 0.35, 3.0], position: [-1.1, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'left', parent: 'hull' },
     { name: 'Track Right', zone: 'track', halfExtents: [0.25, 0.35, 3.0], position: [1.1, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'right', parent: 'hull' },
   ];
@@ -262,10 +263,12 @@ export const shermanDef: TankDefinition = {
   trackHealth: 150,
   armor: { front: 100, side: 50, rear: 30, turret: 120 },
   color: '#4a5d23',
-  maxSpeed: 12,
-  maxReverseSpeed: 5,
-  acceleration: 6,
-  deceleration: 10,
+  horsepower: 400,    // Continental R-975 C4
+  weight: 30.3,       // tonnes
+  maxSpeed: 10,       // 38.6 km/h road, ~36 km/h game
+  maxReverseSpeed: 2,
+  acceleration: computeAccelFromHpWeight(400, 30.3),
+  deceleration: 9,
   trackWidth: 2.62,
   turnRateLimit: 0.50,
   rotationalInertia: 2.5,

@@ -39,6 +39,8 @@ export interface TankDefinition {
   broadPhaseRadius: number;
 
   // Mobility
+  horsepower: number;      // metric hp (PS)
+  weight: number;          // tonnes (combat loaded)
   maxSpeed: number;        // m/s
   maxReverseSpeed: number; // m/s
   acceleration: number;    // m/s²

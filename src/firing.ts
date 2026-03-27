@@ -66,9 +66,9 @@ function fireOneRound(tank: TankData, def: TankDefinition, ammoType: AmmoType): 
   useGameStore.getState().triggerCameraShake((def.burstCount ? 0.3 : 0.8) * caliberScale);
 
   if (def.burstCount) {
-    playAutocannonSound();
+    playAutocannonSound(def.caliber);
   } else {
-    playFireSound();
+    playFireSound(def.caliber);
   }
 }
 

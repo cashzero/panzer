@@ -10,10 +10,17 @@ import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
 const allTanks = getAllTankDefs();
 
 /* ------------------------------------------------------------------ */
+/*  Country tabs                                                       */
+/* ------------------------------------------------------------------ */
+
+const ALL_COUNTRY = 'ALL';
+const countries = [ALL_COUNTRY, ...Array.from(new Set(allTanks.map((t) => t.nationality)))];
+
+/* ------------------------------------------------------------------ */
 /*  Stat bar — normalised against the best value across all tanks     */
 /* ------------------------------------------------------------------ */
 
-function StatBar({ label, value, max, unit }: { label: string; value: number; max: number; unit?: string }) {
+export function StatBar({ label, value, max, unit }: { label: string; value: number; max: number; unit?: string }) {
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div className="flex items-center gap-2">
@@ -118,19 +125,21 @@ function ArmorPlateMesh({
 /*  Spinning 3D tank preview with armor plate overlays                */
 /* ------------------------------------------------------------------ */
 
-function TankPreview({
+export function TankPreview({
   def,
   paused,
   onPlateHover,
+  autoRotate = true,
 }: {
   def: TankDefinition;
   paused: boolean;
   onPlateHover: (info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => void;
+  autoRotate?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null!);
 
   useFrame((_, dt) => {
-    if (groupRef.current && !paused) {
+    if (groupRef.current && !paused && autoRotate) {
       groupRef.current.rotation.y += dt * 0.4;
     }
   });
@@ -173,28 +182,35 @@ function TankPreview({
 /*  Stat ranges across all tanks (for bar normalisation)              */
 /* ------------------------------------------------------------------ */
 
-const maxHP = Math.max(...allTanks.map((t) => t.health));
-const maxArmor = Math.max(...allTanks.map((t) => t.armor.front));
-const maxSpeed = Math.max(...allTanks.map((t) => t.maxSpeed));
-const maxPen = Math.max(...allTanks.map((t) => t.weapons.AP.penetration));
-const maxReload = Math.max(...allTanks.map((t) => t.reloadTime));
-const minReload = Math.min(...allTanks.map((t) => t.reloadTime));
+export const maxHP = Math.max(...allTanks.map((t) => t.health));
+export const maxArmor = Math.max(...allTanks.map((t) => t.armor.front));
+export const maxSpeed = Math.max(...allTanks.map((t) => t.maxSpeed));
+export const maxPen = Math.max(...allTanks.map((t) => t.weapons.AP.penetration));
+export const maxReload = Math.max(...allTanks.map((t) => t.reloadTime));
+export const minReload = Math.min(...allTanks.map((t) => t.reloadTime));
 
 /* ------------------------------------------------------------------ */
 /*  Main screen                                                       */
 /* ------------------------------------------------------------------ */
 
 export function TankSelect() {
+  const [selectedCountry, setSelectedCountry] = useState(ALL_COUNTRY);
+  const filteredTanks = selectedCountry === ALL_COUNTRY
+    ? allTanks
+    : allTanks.filter((t) => t.nationality === selectedCountry);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const safeIdx = Math.min(selectedIdx, filteredTanks.length - 1);
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
-  const selectPlayerTank = useGameStore((s) => s.selectPlayerTank);
+  const setOobPlayerTankType = useGameStore((s) => s.setOobPlayerTankType);
+  const setGameScreen = useGameStore((s) => s.setGameScreen);
   const mapSize = useGameStore((s) => s.mapSize);
   const setMapSize = useGameStore((s) => s.setMapSize);
-  const def = allTanks[selectedIdx];
+  const def = filteredTanks[safeIdx];
 
   const handleConfirm = () => {
-    selectPlayerTank(def.id);
+    setOobPlayerTankType(def.id);
+    setGameScreen('oob-editor');
   };
 
   const handlePlateHover = useCallback((info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => {
@@ -241,6 +257,7 @@ export function TankSelect() {
                 def={def}
                 paused={hoveredPlate !== null}
                 onPlateHover={handlePlateHover}
+                autoRotate={false}
               />
             </Suspense>
             <OrbitControls
@@ -298,7 +315,7 @@ export function TankSelect() {
           <div>
             <h2 className="text-2xl font-bold" style={{ color: '#c9b458' }}>{def.displayName}</h2>
             <div className="text-sm text-gray-500 mt-1">
-              {def.nationality} &middot; {def.year}
+              {def.nationality} &middot; {def.year} &middot; {def.horsepower} hp / {def.weight}t ({(def.horsepower / def.weight).toFixed(1)} hp/t)
             </div>
             <p className="text-sm text-gray-400 mt-3 leading-relaxed">{def.description}</p>
           </div>
@@ -343,27 +360,46 @@ export function TankSelect() {
         </div>
       </div>
 
-      {/* Bottom: Tank selector + confirm */}
-      <div className="border-t border-gray-800 p-4 flex items-center justify-center gap-6">
-        {allTanks.map((t, i) => (
+      {/* Bottom: Country tabs + Tank selector + confirm */}
+      <div className="border-t border-gray-800">
+        {/* Country tabs */}
+        <div className="flex justify-center gap-1 pt-3 pb-1">
+          {countries.map((c) => (
+            <button
+              key={c}
+              onClick={() => { setSelectedCountry(c); setSelectedIdx(0); }}
+              className={`px-4 py-1 text-xs uppercase tracking-widest transition-all cursor-pointer border-b-2 ${
+                c === selectedCountry
+                  ? 'border-yellow-600 text-yellow-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-300 hover:border-gray-600'
+              }`}
+            >
+              {c === ALL_COUNTRY ? 'All' : c}
+            </button>
+          ))}
+        </div>
+        {/* Tank buttons + deploy */}
+        <div className="p-3 flex items-center justify-center gap-4">
+          {filteredTanks.map((t, i) => (
+            <button
+              key={t.id}
+              onClick={() => setSelectedIdx(i)}
+              className={`px-5 py-2 border text-sm uppercase tracking-wider transition-all cursor-pointer ${
+                i === safeIdx
+                  ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
+                  : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {t.displayName}
+            </button>
+          ))}
           <button
-            key={t.id}
-            onClick={() => setSelectedIdx(i)}
-            className={`px-5 py-2 border text-sm uppercase tracking-wider transition-all cursor-pointer ${
-              i === selectedIdx
-                ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
-                : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
-            }`}
+            onClick={handleConfirm}
+            className="ml-8 px-8 py-2 bg-green-900/40 border border-green-700 text-green-400 text-sm uppercase tracking-wider hover:bg-green-800/50 transition-all cursor-pointer font-bold"
           >
-            {t.displayName}
+            Confirm
           </button>
-        ))}
-        <button
-          onClick={handleConfirm}
-          className="ml-8 px-8 py-2 bg-green-900/40 border border-green-700 text-green-400 text-sm uppercase tracking-wider hover:bg-green-800/50 transition-all cursor-pointer font-bold"
-        >
-          Deploy
-        </button>
+        </div>
       </div>
     </div>
   );

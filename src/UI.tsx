@@ -5,7 +5,7 @@ import { getTankDef } from './tanks/registry';
 import type { TankData } from './store';
 
 function ReloadIndicator() {
-  const [progress, setProgress] = useState(100);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [burstRemaining, setBurstRemaining] = useState(0);
 
   useEffect(() => {
@@ -21,10 +21,8 @@ function ReloadIndicator() {
 
       setBurstRemaining(store.playerBurstRemaining);
 
-      let p = (timeSinceFire / def.reloadTime) * 100;
-      if (p > 100) p = 100;
-
-      setProgress(p);
+      const remaining = Math.max(0, (def.reloadTime - timeSinceFire) / 1000);
+      setSecondsLeft(remaining);
       animationFrameId = requestAnimationFrame(updateProgress);
     };
 
@@ -34,18 +32,12 @@ function ReloadIndicator() {
   }, []);
 
   const isBursting = burstRemaining > 0;
-  const isReady = progress === 100 && !isBursting;
+  const isReady = secondsLeft === 0 && !isBursting;
 
   return (
     <div className="mt-4">
       <div className="text-sm text-gray-300 mb-1 font-bold">
-        {isBursting ? `FIRING (${burstRemaining})` : isReady ? 'READY TO FIRE' : 'RELOADING...'}
-      </div>
-      <div className="w-64 h-4 bg-gray-800 border border-gray-600 overflow-hidden">
-        <div
-          className={`h-full transition-all duration-75 ${isBursting ? 'bg-orange-500' : isReady ? 'bg-green-500' : 'bg-yellow-500'}`}
-          style={{ width: `${isBursting ? 100 : progress}%` }}
-        />
+        {isBursting ? `FIRING (${burstRemaining})` : isReady ? 'READY' : `RELOAD ${secondsLeft.toFixed(1)}s`}
       </div>
     </div>
   );
@@ -73,7 +65,9 @@ function PhysicsHUD() {
 
   const speedKmh = Math.abs(physics.speed * 3.6).toFixed(1);
   const rpm = Math.round(physics.rpm);
-  const hp = Math.round(1500 * (physics.rpm / 2800)); // Max 1500 HP at 2800 RPM
+  const playerTankType = useGameStore.getState().playerTank.tankType;
+  const tankDef = getTankDef(playerTankType);
+  const hp = Math.round(tankDef.horsepower * (physics.rpm / GAME_CONFIG.tank.maxRPM));
   const gearStr = physics.gear === 0 ? 'N' : physics.gear < 0 ? 'R' : `D${physics.gear}`;
 
   return (
@@ -377,12 +371,9 @@ export function UI() {
             />
           </div>
         </div>
-        <TrackHPDisplay />
+        {/* <TrackHPDisplay /> */}
         <div className="mt-4 text-xl">
           Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : ammoType === 'APC' ? 'text-orange-400' : 'text-red-400 font-bold'}>{ammoType}</span>
-          {(getTankDef(useGameStore.getState().playerTank.tankType).weapons.APC || getTankDef(useGameStore.getState().playerTank.tankType).weapons.HE) && (
-            <div className="text-sm text-gray-300 mt-1">Press R to switch</div>
-          )}
         </div>
         <ReloadIndicator />
         {isMapMode && <MapModeHUD />}

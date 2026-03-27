@@ -37,6 +37,20 @@ export function AllyAI() {
         }
       }
 
+      // Check if alerted by a hit — prioritize attacker
+      const alertActive = ally.alertedBy && ally.alertedAt &&
+        (now - ally.alertedAt) < GAME_CONFIG.ai.alertDecayTime;
+      let alerted = false;
+
+      if (alertActive) {
+        const attacker = enemies.find(e => !e.destroyed && e.id === ally.alertedBy);
+        if (attacker) {
+          closestEnemy = attacker;
+          closestDist = ally.position.distanceTo(attacker.position);
+          alerted = true;
+        }
+      }
+
       // Also follow player loosely — move toward player if no enemies or too far from player
       const distToPlayer = ally.position.distanceTo(player.position);
       const allyDef = getTankDef(ally.tankType);
@@ -51,7 +65,7 @@ export function AllyAI() {
       // Check for waypoint
       const waypoint = useGameStore.getState().allyWaypoints[ally.id];
 
-      if (closestEnemy && closestDist < GAME_CONFIG.ai.engagementDistance) {
+      if (closestEnemy && (closestDist < GAME_CONFIG.ai.detectionDistance || alerted)) {
         // Engage enemy
         const dirToEnemy = closestEnemy.position.clone().sub(ally.position).normalize();
 
@@ -212,16 +226,16 @@ export function AllyAI() {
         const angleDiff = targetRotation - (ally.rotation + ally.turretRotation);
         normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
 
-        if (Math.abs(normalizedDiff) > 0.05) {
-          newTurretRot += Math.sign(normalizedDiff) * GAME_CONFIG.ai.turretSpeed * delta;
+        if (Math.abs(normalizedDiff) > 0.005) {
+          newTurretRot += Math.sign(normalizedDiff) * allyDef.turretSpeed * delta;
         }
 
         const drop = computeGravityDrop(dist, allyDef.weapons.AP.velocity);
         const targetElev = -Math.atan2(closestEnemy.position.y + 1.5 + drop - (ally.position.y + 1.6), dist) + aimOff.elevation;
 
         elevDiff = targetElev - ally.gunElevation;
-        if (Math.abs(elevDiff) > 0.01) {
-          newGunElev += Math.sign(elevDiff) * GAME_CONFIG.ai.gunSpeed * delta;
+        if (Math.abs(elevDiff) > 0.002) {
+          newGunElev += Math.sign(elevDiff) * allyDef.gunSpeed * delta;
         }
       }
 
@@ -254,10 +268,11 @@ export function AllyAI() {
         fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP.penetration, allyDef.weapons.AP.damage, ally.id, allyDef.caliber);
         updateAlly(ally.id, { lastFireTime: now });
 
+        const distToPlayer = newPos.distanceTo(player.position);
         if (allyDef.burstCount) {
-          playAutocannonSound();
+          playAutocannonSound(allyDef.caliber, distToPlayer);
         } else {
-          playFireSound();
+          playFireSound(allyDef.caliber, distToPlayer);
         }
       };
 
@@ -273,7 +288,7 @@ export function AllyAI() {
             lastFireTimes.current[ally.id] = now;
           }
         }
-      } else if (Math.abs(normalizedDiff) < 0.1 && Math.abs(elevDiff) < 0.1) {
+      } else if (Math.abs(normalizedDiff) < 0.03 && Math.abs(elevDiff) < 0.03) {
         const lastFire = lastFireTimes.current[ally.id] || 0;
         if (now - lastFire > allyDef.reloadTime + Math.random() * 3000) {
           fireAllyRound();

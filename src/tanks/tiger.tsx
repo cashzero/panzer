@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 
 // ============================================================
 // TIGER — Tiger I (Panzerkampfwagen VI Ausf. E)
@@ -202,10 +203,10 @@ const TigerTurret = ({ color, destroyedColor, destroyed }: TankGeometryProps) =>
 
       {/* Zimmerit texture hint */}
       <Box args={[0.03, 0.8, 2.4]} position={[1.12, 0.48, -0.2]} castShadow receiveShadow>
-        <meshStandardMaterial color={destroyed ? destroyedColor : '#a89840'} roughness={0.95} metalness={0.05} />
+        <meshStandardMaterial color={destroyed ? destroyedColor : '#555759'} roughness={0.95} metalness={0.05} />
       </Box>
       <Box args={[0.03, 0.8, 2.4]} position={[-1.12, 0.48, -0.2]} castShadow receiveShadow>
-        <meshStandardMaterial color={destroyed ? destroyedColor : '#a89840'} roughness={0.95} metalness={0.05} />
+        <meshStandardMaterial color={destroyed ? destroyedColor : '#555759'} roughness={0.95} metalness={0.05} />
       </Box>
     </group>
   );
@@ -218,7 +219,7 @@ const TigerGun = ({ destroyedColor, destroyed }: TankGunProps) => {
   return (
     <group>
       {/* Mantlet */}
-      <Box args={[0.7, 0.5, 0.6]} position={[0, 0, 0.2]} castShadow receiveShadow>
+      <Box args={[0.7, 0.5, 0.6]} position={[0, 0, 0.075]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
       {/* 88mm barrel */}
@@ -266,7 +267,7 @@ function makeTigerPlates(): ArmorPlate[] {
     { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.1, 0.475, 1.4], position: [1.1, 0.48, -0.2], rotation: [0, 0, 0], armorThickness: 80, parent: 'turret' },
     { name: 'Turret Bustle', zone: 'turret', halfExtents: [1.1, 0.425, 0.3], position: [0, 0.48, -1.9], rotation: [0, 0, 0], armorThickness: 80, parent: 'turret' },
     { name: 'Turret Roof', zone: 'turret', halfExtents: [1.1, 0.1, 1.4], position: [0, 0.955, -0.2], rotation: [0, 0, 0], armorThickness: 15, parent: 'turret' },
-    { name: 'Mantlet', zone: 'gun', halfExtents: [0.35, 0.25, 0.3], position: [0, 0, 0.2], rotation: [0, 0, 0], armorThickness: 180, parent: 'gunGroup' },
+    { name: 'Mantlet', zone: 'gun', halfExtents: [0.35, 0.25, 0.3], position: [0, 0, 0.075], rotation: [0, 0, 0], armorThickness: 180, parent: 'gunGroup' },
     { name: 'Track Left', zone: 'track', halfExtents: [0.38, 0.35, 3.2], position: [-1.42, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'left', parent: 'hull' },
     { name: 'Track Right', zone: 'track', halfExtents: [0.38, 0.35, 3.2], position: [1.42, 0.3, 0], rotation: [0, 0, 0], armorThickness: 20, isTrack: 'right', parent: 'hull' },
   ];
@@ -285,11 +286,13 @@ export const tigerDef: TankDefinition = {
   health: 350,
   trackHealth: 100,
   armor: { front: 102, side: 80, rear: 80, turret: 100 },
-  color: '#b8a04a',
-  maxSpeed: 8,
+  color: '#4d4f53',  // Dunkelgrau (RAL 7021)
+  horsepower: 700,    // Maybach HL 230 P45
+  weight: 57.0,       // tonnes
+  maxSpeed: 11,       // 45.4 km/h road, ~40 km/h game
   maxReverseSpeed: 3,
-  acceleration: 4,
-  deceleration: 8,
+  acceleration: computeAccelFromHpWeight(700, 57.0),
+  deceleration: 7,
   trackWidth: 3.56,
   turnRateLimit: 0.35,
   rotationalInertia: 1.5,

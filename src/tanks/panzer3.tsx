@@ -1,6 +1,7 @@
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 
 // ============================================================
 // PANZER III — Panzerkampfwagen III Ausf. J/L medium tank
@@ -189,7 +190,7 @@ const Pz3Gun = ({ destroyedColor, destroyed }: TankGunProps) => {
   return (
     <group>
       {/* Mantlet — internal type, smaller */}
-      <Box args={[0.4, 0.32, 0.4]} position={[0, 0, 0.12]} castShadow receiveShadow>
+      <Box args={[0.4, 0.32, 0.4]} position={[0, 0, 0.05]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
 
@@ -238,7 +239,7 @@ function makePz3Plates(): ArmorPlate[] {
     { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.08, 0.39, 1.1], position: [0.85, 0.39, -0.1], rotation: [0, 0, 0], armorThickness: 30, parent: 'turret' },
     { name: 'Turret Bustle', zone: 'turret', halfExtents: [0.85, 0.34, 0.35], position: [0, 0.39, -1.5], rotation: [0, 0, 0], armorThickness: 30, parent: 'turret' },
     { name: 'Turret Roof', zone: 'turret', halfExtents: [0.85, 0.08, 1.1], position: [0, 0.78, -0.1], rotation: [0, 0, 0], armorThickness: 10, parent: 'turret' },
-    { name: 'Mantlet', zone: 'gun', halfExtents: [0.2, 0.16, 0.2], position: [0, 0, 0.12], rotation: [0, 0, 0], armorThickness: 50, parent: 'gunGroup' },
+    { name: 'Mantlet', zone: 'gun', halfExtents: [0.2, 0.16, 0.2], position: [0, 0, 0.05], rotation: [0, 0, 0], armorThickness: 50, parent: 'gunGroup' },
     { name: 'Track Left', zone: 'track', halfExtents: [0.22, 0.30, 2.7], position: [-1.19, 0.26, 0], rotation: [0, 0, 0], armorThickness: 15, isTrack: 'left', parent: 'hull' },
     { name: 'Track Right', zone: 'track', halfExtents: [0.22, 0.30, 2.7], position: [1.19, 0.26, 0], rotation: [0, 0, 0], armorThickness: 15, isTrack: 'right', parent: 'hull' },
   ];
@@ -257,11 +258,13 @@ export const panzer3Def: TankDefinition = {
   health: 200,
   trackHealth: 80,
   armor: { front: 50, side: 30, rear: 20, turret: 57 },
-  color: '#8a8463',  // field gray-tan
-  maxSpeed: 14,
-  maxReverseSpeed: 6,
-  acceleration: 7,
-  deceleration: 10,
+  color: '#4d4f53',  // Dunkelgrau (RAL 7021)
+  horsepower: 300,    // Maybach HL 120 TRM
+  weight: 22.3,       // tonnes
+  maxSpeed: 10,       // 40 km/h road, ~36 km/h game
+  maxReverseSpeed: 3,
+  acceleration: computeAccelFromHpWeight(300, 22.3),
+  deceleration: 9,
   trackWidth: 2.38,
   turnRateLimit: 0.55,
   rotationalInertia: 3.0,

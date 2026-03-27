@@ -50,11 +50,12 @@ export const GAME_CONFIG = {
     heightOffset: 4.5,
   },
   ai: {
-    engagementDistance: 200,
+    detectionDistance: 800,
+    alertDecayTime: 30000, // ms — alert from being hit decays after 30s
     turretSpeed: 0.05,
     gunSpeed: 0.1,
-    aimDispersion: 0.012, // rad (~0.7°) — per-enemy aim offset that drifts over time
-    fireDispersion: 0.006, // rad — additional random spread applied at fire time
+    aimDispersion: 0.005, // rad (~0.3°) — per-enemy aim offset that drifts over time
+    fireDispersion: 0.003, // rad — additional random spread applied at fire time
     zeroInTime: 8, // seconds of steady aiming to reach minimum dispersion
     zeroInMinFactor: 0.15, // minimum dispersion multiplier (15% of base) when fully zeroed
     movementThreshold: 0.5, // m/s — speed below this counts as "stationary"
@@ -81,6 +82,11 @@ export const GAME_CONFIG = {
     exclusionFromCenter: 60,
     maxPlacementRadius: 450,
     seed: 42,
+  },
+  mobility: {
+    accelPivotHpPerTon: 12.0,  // hp/t reference point
+    accelBase: 3.5,             // m/s² at pivot
+    accelScale: 0.95,           // m/s² per hp/t above pivot
   },
   map: {
     defaultZoom: 150,
@@ -113,10 +119,16 @@ export const GAME_CONFIG = {
       speedThreshold: 0.5,
       spawnInterval: 350,
     },
-    burning_smoke: { lifetime: 3000, color: '#111111', size: 3.5, expand: true,
+    burning_smoke: { lifetime: 5000, color: '#111111', size: 3.5, expand: true,
       spawnInterval: 150,  // ms between smoke puffs
     },
     tree_hit: { lifetime: 800, color: '#8b6914', size: 2, expand: true },
     default: { lifetime: 500, color: '#ffffff', size: 1, expand: true },
   },
 };
+
+export function computeAccelFromHpWeight(hp: number, weightTonnes: number): number {
+  const hpPerTon = hp / weightTonnes;
+  const { accelPivotHpPerTon, accelBase, accelScale } = GAME_CONFIG.mobility;
+  return Math.max(2.0, accelBase + (hpPerTon - accelPivotHpPerTon) * accelScale);
+}

@@ -283,24 +283,8 @@ export function GameScene() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
-  const spawnEnemy = useGameStore((state) => state.spawnEnemy);
-  const spawnAlly = useGameStore((state) => state.spawnAlly);
-
   useEffect(() => {
     const mapScale = MAP_SIZE_VALUES[useGameStore.getState().mapSize] / 1000;
-    // Spawn some enemies only if none exist (prevents double spawn in Strict Mode)
-    if (useGameStore.getState().enemies.length === 0) {
-      const s = mapScale;
-      spawnEnemy(new THREE.Vector3(80 * s, getTerrainHeight(80 * s, 300 * s), 300 * s), 'tiger');
-      spawnEnemy(new THREE.Vector3(-120 * s, getTerrainHeight(-120 * s, 400 * s), 400 * s), 'panzer3');
-      spawnEnemy(new THREE.Vector3(0, getTerrainHeight(0, 500 * s), 500 * s), 'panzer3');
-      spawnEnemy(new THREE.Vector3(-60 * s, getTerrainHeight(-60 * s, 360 * s), 360 * s), 'panzer2');
-    }
-    // Spawn allies near player
-    if (useGameStore.getState().allies.length === 0) {
-      spawnAlly(new THREE.Vector3(20, getTerrainHeight(20, 10), 10), 'sherman');
-      spawnAlly(new THREE.Vector3(-20, getTerrainHeight(-20, 15), 15), 'sherman');
-    }
     // Initialize trees
     if (useGameStore.getState().trees.length === 0) {
       useGameStore.getState().initTrees(generateTrees(mapScale));

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 
 // ============================================================
 // M4A2(76)W — Sherman with T23 turret and 76mm M1A1 gun
@@ -317,10 +318,12 @@ export const shermanA276Def: TankDefinition = {
   trackHealth: 150,
   armor: { front: 100, side: 38, rear: 38, turret: 89 },
   color: '#4a5d23',
-  maxSpeed: 11,
-  maxReverseSpeed: 4.5,
-  acceleration: 5.5,
-  deceleration: 10,
+  horsepower: 410,    // GM 6046 twin diesel
+  weight: 33.0,       // tonnes
+  maxSpeed: 12,       // 48 km/h road, ~43 km/h game
+  maxReverseSpeed: 2,
+  acceleration: computeAccelFromHpWeight(410, 33.0),
+  deceleration: 9,
   trackWidth: 2.62,
   turnRateLimit: 0.48,
   rotationalInertia: 2.3,

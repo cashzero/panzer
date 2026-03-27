@@ -39,8 +39,23 @@ export function EnemyAI() {
 
       if (!target) return;
 
-      // Only engage if within distance
-      if (dist > GAME_CONFIG.ai.engagementDistance) return;
+      // Check if alerted by a hit (overrides detection range)
+      const alertActive = enemy.alertedBy && enemy.alertedAt &&
+        (now - enemy.alertedAt) < GAME_CONFIG.ai.alertDecayTime;
+      let alerted = false;
+
+      if (alertActive) {
+        // Prioritize the tank that hit us
+        const attacker = friendlyTargets.find(t => t.id === enemy.alertedBy);
+        if (attacker) {
+          target = attacker;
+          dist = enemy.position.distanceTo(attacker.position);
+          alerted = true;
+        }
+      }
+
+      // Only engage if within detection range or alerted
+      if (dist > GAME_CONFIG.ai.detectionDistance && !alerted) return;
 
       // Aim at target
       const dirToPlayer = target.position.clone().sub(enemy.position).normalize();
@@ -181,8 +196,8 @@ export function EnemyAI() {
       // Normalize angle
       let normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
       
-      if (Math.abs(normalizedDiff) > 0.05) {
-        newTurretRot += Math.sign(normalizedDiff) * GAME_CONFIG.ai.turretSpeed * delta;
+      if (Math.abs(normalizedDiff) > 0.005) {
+        newTurretRot += Math.sign(normalizedDiff) * enemyDef.turretSpeed * delta;
       }
 
       // Gun elevation with gravity compensation
@@ -191,8 +206,8 @@ export function EnemyAI() {
       
       let newGunElev = enemy.gunElevation;
       const elevDiff = targetElev - enemy.gunElevation;
-      if (Math.abs(elevDiff) > 0.01) {
-        newGunElev += Math.sign(elevDiff) * GAME_CONFIG.ai.gunSpeed * delta;
+      if (Math.abs(elevDiff) > 0.002) {
+        newGunElev += Math.sign(elevDiff) * enemyDef.gunSpeed * delta;
       }
 
       updateEnemy(enemy.id, {
@@ -219,10 +234,11 @@ export function EnemyAI() {
         fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
         updateEnemy(enemy.id, { lastFireTime: now });
 
+        const distToPlayer = newPos.distanceTo(player.position);
         if (enemyDef.burstCount) {
-          playAutocannonSound();
+          playAutocannonSound(enemyDef.caliber, distToPlayer);
         } else {
-          playFireSound();
+          playFireSound(enemyDef.caliber, distToPlayer);
         }
       };
 
@@ -238,7 +254,7 @@ export function EnemyAI() {
             lastFireTimes.current[enemy.id] = now;
           }
         }
-      } else if (Math.abs(normalizedDiff) < 0.1 && Math.abs(elevDiff) < 0.1) {
+      } else if (Math.abs(normalizedDiff) < 0.03 && Math.abs(elevDiff) < 0.03) {
         // Fire if aimed and reloaded
         const lastFire = lastFireTimes.current[enemy.id] || 0;
         if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {

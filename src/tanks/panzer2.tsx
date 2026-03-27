@@ -1,6 +1,7 @@
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 
 // ============================================================
 // PANZER II — Panzerkampfwagen II Ausf. F light tank
@@ -149,9 +150,6 @@ const Pz2Turret = ({ color, destroyedColor, destroyed }: TankGeometryProps) => {
       <Box args={[0.4, 0.45, 0.5]} position={[-0.5, 0.275, 0.4]} rotation={[0, -0.3, 0]} castShadow receiveShadow>{mat}</Box>
       <Box args={[0.4, 0.45, 0.5]} position={[0.5, 0.275, 0.4]} rotation={[0, 0.3, 0]} castShadow receiveShadow>{mat}</Box>
 
-      {/* Turret Bustle — short */}
-      <Box args={[1.2, 0.45, 0.4]} position={[0, 0.275, -0.95]} castShadow receiveShadow>{mat}</Box>
-
       {/* Simple hatch on top (no cupola on Panzer II) */}
       <Cylinder args={[0.2, 0.2, 0.04, 10]} position={[0.2, 0.57, -0.1]} castShadow receiveShadow>{mat}</Cylinder>
       <Box args={[0.06, 0.02, 0.06]} position={[0.2, 0.60, -0.1]} castShadow receiveShadow>{darkMat}</Box>
@@ -172,7 +170,7 @@ const Pz2Gun = ({ destroyedColor, destroyed }: TankGunProps) => {
   return (
     <group>
       {/* Mantlet — small rectangular */}
-      <Box args={[0.3, 0.25, 0.3]} position={[0, 0, 0.1]} castShadow receiveShadow>
+      <Box args={[0.3, 0.25, 0.3]} position={[0, 0, -0.05]} castShadow receiveShadow>
         <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />
       </Box>
 
@@ -213,9 +211,9 @@ function makePz2Plates(): ArmorPlate[] {
     { name: 'Turret Cheek Right', zone: 'turret', halfExtents: [0.2, 0.225, 0.25], position: [0.5, 0.275, 0.4], rotation: [0, 0.3, 0], armorThickness: 30, parent: 'turret' },
     { name: 'Turret Side Left', zone: 'turret', halfExtents: [0.06, 0.275, 0.75], position: [-0.6, 0.275, -0.05], rotation: [0, 0, 0], armorThickness: 15, parent: 'turret' },
     { name: 'Turret Side Right', zone: 'turret', halfExtents: [0.06, 0.275, 0.75], position: [0.6, 0.275, -0.05], rotation: [0, 0, 0], armorThickness: 15, parent: 'turret' },
-    { name: 'Turret Bustle', zone: 'turret', halfExtents: [0.6, 0.225, 0.2], position: [0, 0.275, -0.95], rotation: [0, 0, 0], armorThickness: 15, parent: 'turret' },
+    { name: 'Turret Rear', zone: 'turret', halfExtents: [0.6, 0.275, 0.06], position: [0, 0.275, -0.8], rotation: [0, 0, 0], armorThickness: 15, parent: 'turret' },
     { name: 'Turret Roof', zone: 'turret', halfExtents: [0.6, 0.06, 0.75], position: [0, 0.55, -0.05], rotation: [0, 0, 0], armorThickness: 5, parent: 'turret' },
-    { name: 'Mantlet', zone: 'gun', halfExtents: [0.15, 0.125, 0.15], position: [0, 0, 0.1], rotation: [0, 0, 0], armorThickness: 30, parent: 'gunGroup' },
+    { name: 'Mantlet', zone: 'gun', halfExtents: [0.15, 0.125, 0.15], position: [0, 0, -0.05], rotation: [0, 0, 0], armorThickness: 30, parent: 'gunGroup' },
     { name: 'Track Left', zone: 'track', halfExtents: [0.16, 0.25, 2.1], position: [-0.97, 0.24, 0], rotation: [0, 0, 0], armorThickness: 10, isTrack: 'left', parent: 'hull' },
     { name: 'Track Right', zone: 'track', halfExtents: [0.16, 0.25, 2.1], position: [0.97, 0.24, 0], rotation: [0, 0, 0], armorThickness: 10, isTrack: 'right', parent: 'hull' },
   ];
@@ -234,11 +232,13 @@ export const panzer2Def: TankDefinition = {
   health: 150,
   trackHealth: 50,
   armor: { front: 30, side: 15, rear: 10, turret: 30 },
-  color: '#7a7a5a',
-  maxSpeed: 16,
-  maxReverseSpeed: 7,
-  acceleration: 9,
-  deceleration: 12,
+  color: '#4d4f53',  // Dunkelgrau (RAL 7021)
+  horsepower: 140,    // Maybach HL 62 TR
+  weight: 8.9,        // tonnes
+  maxSpeed: 10,       // 40 km/h road, ~36 km/h game
+  maxReverseSpeed: 3,
+  acceleration: computeAccelFromHpWeight(140, 8.9),
+  deceleration: 11,
   trackWidth: 1.94,
   turnRateLimit: 0.65,
   rotationalInertia: 4.0,

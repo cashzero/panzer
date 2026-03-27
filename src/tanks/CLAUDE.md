@@ -26,6 +26,7 @@ import * as THREE from 'three';
 import { Box, Cylinder } from '@react-three/drei';
 import type { ArmorPlate } from '../armorModel';
 import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
+import { computeAccelFromHpWeight } from '../config';
 ```
 
 ### 3. Geometry components
@@ -103,7 +104,7 @@ export const <tankid>Def: TankDefinition = {
   // Mobility
   maxSpeed: 8,                 // m/s forward
   maxReverseSpeed: 3,          // m/s reverse
-  acceleration: 4,             // m/s²
+  acceleration: computeAccelFromHpWeight(700, 57.0),  // derived from hp/weight
   deceleration: 8,             // m/s²
   trackWidth: 3.56,            // meters, affects differential steering
   turnRateLimit: 0.35,         // rad/s max hull rotation
