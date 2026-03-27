@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { useGameStore, Particle } from './store';
 import * as THREE from 'three';
@@ -39,7 +39,7 @@ const sparkTexture = createSparkTexture();
 // --- Pool sizes ---
 const MAX_ADDITIVE = 384; // flash + fireball
 const MAX_SPARK = 256;
-const MAX_SMOKE = 256;
+const MAX_SMOKE = 512;
 const MAX_DEBRIS = 384;
 
 // --- Sub-particle state ---
@@ -55,6 +55,16 @@ interface SubState {
   rotation: number;
   createdAt: number;
   lifetime: number;
+}
+
+interface BurningSmokeSubParticle {
+  type: 'smoke' | 'fireball';
+  pos: THREE.Vector3;
+  vel: THREE.Vector3;
+  scale: number;
+  color: string;
+  life: number;
+  rotSpeed: number;
 }
 
 // --- Shaders for Points ---
@@ -299,8 +309,107 @@ const _debrisScale = new THREE.Vector3();
 const _debrisEuler = new THREE.Euler();
 const _debrisBoxGeo = new THREE.BoxGeometry(1, 1, 1);
 
+function BurningSmokeEffect({ particle }: { particle: Particle }) {
+  const removeParticle = useGameStore((state) => state.removeParticle);
+  const groupRef = useRef<THREE.Group>(null);
+  const { position, createdAt } = particle;
+  const config = GAME_CONFIG.particles.burning_smoke;
+
+  const subParticles = useMemo(() => {
+    const subs: BurningSmokeSubParticle[] = [];
+
+    for (let i = 0; i < 3; i++) {
+      subs.push({
+        type: 'smoke',
+        pos: new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random() * 0.5, (Math.random() - 0.5) * 1.5),
+        vel: new THREE.Vector3((Math.random() - 0.5) * 0.8, 2 + Math.random() * 2, (Math.random() - 0.5) * 0.8),
+        scale: config.size * (0.7 + Math.random() * 0.6),
+        color: config.color,
+        life: 1,
+        rotSpeed: (Math.random() - 0.5) * 1.5,
+      });
+    }
+
+    if (Math.random() < 0.4) {
+      subs.push({
+        type: 'fireball',
+        pos: new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.5, (Math.random() - 0.5) * 0.8),
+        vel: new THREE.Vector3(0, 1 + Math.random(), 0),
+        scale: 1.5 + Math.random(),
+        color: '#ff3300',
+        life: 0.4,
+        rotSpeed: (Math.random() - 0.5) * 2,
+      });
+    }
+
+    return subs;
+  }, [config.color, config.size]);
+
+  const subParticlesData = useRef(subParticles.map((sp) => ({
+    ...sp,
+    currentPos: sp.pos.clone(),
+    currentVel: sp.vel.clone(),
+  })));
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      removeParticle(particle.id);
+    }, config.lifetime);
+    return () => clearTimeout(timer);
+  }, [config.lifetime, particle.id, removeParticle]);
+
+  useFrame((_, delta) => {
+    if (!groupRef.current) return;
+
+    const age = Date.now() - createdAt;
+    const children = groupRef.current.children;
+
+    subParticlesData.current.forEach((sp, i) => {
+      const child = children[i] as THREE.Sprite | undefined;
+      if (!child) return;
+
+      const progress = Math.min(age / (config.lifetime * sp.life), 1);
+
+      sp.currentVel.multiplyScalar(1 - 2 * delta);
+      sp.currentVel.y += 1.5 * delta;
+      sp.currentPos.addScaledVector(sp.currentVel, delta);
+      child.position.copy(sp.currentPos);
+
+      const scale = sp.scale * (1 + progress * 2);
+      child.scale.setScalar(scale);
+
+      const material = child.material as THREE.SpriteMaterial;
+      material.opacity = (1 - Math.pow(progress, 1.5)) * (sp.type === 'fireball' ? 1 : 0.6);
+      material.rotation += sp.rotSpeed * delta;
+      child.visible = progress < 1;
+    });
+  });
+
+  return (
+    <group ref={groupRef} position={position}>
+      {subParticles.map((sp, i) => (
+        <sprite key={i} scale={[sp.scale, sp.scale, 1]}>
+          <spriteMaterial
+            map={dustTexture}
+            color={sp.color}
+            transparent
+            opacity={1}
+            depthWrite={false}
+            blending={sp.type === 'smoke' ? THREE.NormalBlending : THREE.AdditiveBlending}
+          />
+        </sprite>
+      ))}
+    </group>
+  );
+}
+
 export function Particles() {
   const removeParticle = useGameStore((state) => state.removeParticle);
+  const particles = useGameStore((state) => state.particles);
+  const burningSmokeParticles = useMemo(
+    () => particles.filter((p) => p.type === 'burning_smoke'),
+    [particles]
+  );
 
   // Pools (created once)
   const additivePool = useMemo(() => createPointPool(MAX_ADDITIVE, dustTexture, THREE.AdditiveBlending), []);
@@ -329,6 +438,7 @@ export function Particles() {
 
     // 1. Spawn sub-particles for new effects
     for (const p of state.particles) {
+      if (p.type === 'burning_smoke') continue;
       if (!processed.has(p.id)) {
         processed.add(p.id);
         spawnSubParticles(p, subs);
@@ -531,6 +641,9 @@ export function Particles() {
       <points geometry={sparkPool.geometry} material={sparkPool.material} frustumCulled={false} />
       {/* Smoke sprites (normal blending) */}
       <points geometry={smokePool.geometry} material={smokePool.material} frustumCulled={false} />
+      {burningSmokeParticles.map((p) => (
+        <BurningSmokeEffect key={p.id} particle={p} />
+      ))}
       {/* Debris boxes */}
       <instancedMesh
         ref={debrisRef}

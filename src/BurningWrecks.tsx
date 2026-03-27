@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
+import { Vector3 } from 'three';
 import { useGameStore } from './store';
 import { GAME_CONFIG } from './config';
 
@@ -27,7 +28,7 @@ export function BurningWrecks() {
       if (now - last < spawnInterval) continue;
 
       lastSpawn[tank.id] = now;
-      spawnParticle('burning_smoke', tank.position.clone());
+      spawnParticle('burning_smoke', tank.position.clone().add(new Vector3(0, 1.8, 0)));
     }
   });
 

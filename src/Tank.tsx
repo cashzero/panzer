@@ -119,6 +119,8 @@ export function Tank({ id, tankType }: TankProps) {
       rightTrackMat.map!.offset.y -= data.rightTrackSpeed * 0.01;
     }
 
+    if (data.destroyed) return;
+
     // Spawn dust particles
     const rawSpeed = data.speed || 0;
     const speed = Math.abs(rawSpeed);
