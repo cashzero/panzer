@@ -71,6 +71,8 @@ The game uses a **multi-plate oriented bounding box (OBB)** collision system. Ea
 
 ## Implemented Features
 
+Completed TODO items are removed from `todo.md` and documented here.
+
 - Press V / mouse middle button to toggle gunner view (first person with gunner sight)
 - In gunner sight, use PageUp/PageDown to calibrate distance
 - Tank moving dust effect
@@ -98,6 +100,7 @@ The game uses a **multi-plate oriented bounding box (OBB)** collision system. Ea
 - Armor plate hover tooltips on tank selection 3D preview: invisible OBB meshes per plate with pointer events, shows plate name/zone/thickness/slope angle, highlights hovered plate, pauses auto-rotation while hovering
 - Per-gun dispersion: each weapon has an inherent `dispersion` (radians) applied as random yaw/pitch spread at fire time. Larger high-velocity guns (Tiger 88mm, 0.003 rad) are tightest; autocannons (Panzer II 20mm, 0.012 rad) are widest. Applies to both player and enemy fire.
 - GunAimPoint (yellow circle) uses terrain raycast to find the actual world hit point where the aim ray intersects terrain, ensuring consistent screen position across third-person and gunner views regardless of camera position or FOV. Binary-search refinement (10 iterations) on 2m stepping ray for precision.
+- Instanced rendering: TreeRenderer uses InstancedMesh (4 meshes: trunks, deciduous canopy, 2× conifer cones). Particles converted from per-effect React components to pooled Points (3 pools: additive+dust, additive+spark, normal+smoke) + InstancedMesh (debris boxes) with custom shaders — reduces draw calls from hundreds to 4.
 
 ## Map Mode
 

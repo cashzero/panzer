@@ -68,12 +68,6 @@
 - [ ] Scale AI engagement distance by fog visibility
 - [ ] Reduce traction in rain (`tankPhysics.ts`)
 
-### 5.1 Instanced Rendering [M]
-- [ ] Convert `TreeRenderer.tsx` to `InstancedMesh`
-- [ ] Convert `Particles.tsx` to `Points` or `InstancedMesh` with custom shader
-
----
-
 ## Sprint 5: Advanced AI, Day/Night
 
 ### 3.2 AI Obstacle Avoidance [L]
