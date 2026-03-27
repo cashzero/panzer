@@ -48,6 +48,9 @@ export function AllyAI() {
       let leftSpeed = 0;
       let rightSpeed = 0;
 
+      // Check for waypoint
+      const waypoint = useGameStore.getState().allyWaypoints[ally.id];
+
       if (closestEnemy && closestDist < GAME_CONFIG.ai.engagementDistance) {
         // Engage enemy
         const dirToEnemy = closestEnemy.position.clone().sub(ally.position).normalize();
@@ -77,8 +80,30 @@ export function AllyAI() {
           leftSpeed = forwardSpeed;
           rightSpeed = forwardSpeed;
         }
+      } else if (waypoint) {
+        // Navigate to waypoint
+        const wpVec = new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z);
+        const distToWp = ally.position.distanceTo(wpVec);
+
+        if (distToWp > 5) {
+          const dirToWp = wpVec.clone().sub(ally.position).normalize();
+          const angleToWp = Math.atan2(dirToWp.x, dirToWp.z);
+          let rotDiff = angleToWp - ally.rotation;
+          rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
+
+          if (Math.abs(rotDiff) > 0.1) {
+            rotationSpeed = Math.sign(rotDiff) * 1.0;
+            leftSpeed = -rotationSpeed * allyDef.trackWidth / 2;
+            rightSpeed = rotationSpeed * allyDef.trackWidth / 2;
+          } else {
+            forwardSpeed = allyDef.maxSpeed * 0.5;
+            leftSpeed = forwardSpeed;
+            rightSpeed = forwardSpeed;
+          }
+        }
+        // else: arrived at waypoint — hold position
       } else if (distToPlayer > 50) {
-        // No enemies in range, follow player
+        // No enemies in range, no waypoint — follow player
         const dirToPlayer = player.position.clone().sub(ally.position).normalize();
         const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
         let rotDiff = angleToPlayer - ally.rotation;

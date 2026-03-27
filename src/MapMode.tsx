@@ -3,6 +3,7 @@ import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from './store';
 import { GAME_CONFIG } from './config';
+import { getTerrainHeight } from './Terrain';
 
 export function MapCameraController() {
   const { camera } = useThree();
@@ -11,6 +12,23 @@ export function MapCameraController() {
   const mapZoom = useRef(GAME_CONFIG.map.defaultZoom);
   const mapDragging = useRef(false);
   const lastMousePos = useRef<{ x: number; y: number } | null>(null);
+  const mouseDownPos = useRef<{ x: number; y: number } | null>(null);
+  const mouseDownTime = useRef(0);
+
+  const raycaster = useRef(new THREE.Raycaster());
+  const groundPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
+
+  /** Raycast mouse position to the ground plane, returns world XZ point */
+  const getGroundPoint = (clientX: number, clientY: number): THREE.Vector3 | null => {
+    const ndc = new THREE.Vector2(
+      (clientX / window.innerWidth) * 2 - 1,
+      -(clientY / window.innerHeight) * 2 + 1
+    );
+    raycaster.current.setFromCamera(ndc, camera);
+    const hit = new THREE.Vector3();
+    const result = raycaster.current.ray.intersectPlane(groundPlane.current, hit);
+    return result ? hit : null;
+  };
 
   useEffect(() => {
     // Exit pointer lock when map mode activates
@@ -36,13 +54,30 @@ export function MapCameraController() {
       if (e.button === 0) {
         mapDragging.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
+        mouseDownPos.current = { x: e.clientX, y: e.clientY };
+        mouseDownTime.current = Date.now();
       }
     };
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 0) {
         mapDragging.current = false;
+
+        // Distinguish click from drag
+        if (mouseDownPos.current) {
+          const dx = e.clientX - mouseDownPos.current.x;
+          const dy = e.clientY - mouseDownPos.current.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          const elapsed = Date.now() - mouseDownTime.current;
+
+          if (dist < 5 && elapsed < 300) {
+            // This is a click — select ally
+            handleMapClick(e.clientX, e.clientY);
+          }
+        }
+
         lastMousePos.current = null;
+        mouseDownPos.current = null;
       }
     };
 
@@ -57,12 +92,18 @@ export function MapCameraController() {
       }
     };
 
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      handleRightClick(e.clientX, e.clientY);
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('wheel', handleWheel, { passive: false });
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
@@ -71,8 +112,44 @@ export function MapCameraController() {
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('contextmenu', handleContextMenu);
     };
   }, []);
+
+  const handleMapClick = (clientX: number, clientY: number) => {
+    const worldPoint = getGroundPoint(clientX, clientY);
+    if (!worldPoint) return;
+
+    const allies = useGameStore.getState().allies;
+    const selectionRadius = mapZoom.current * 0.05;
+
+    let closestId: string | null = null;
+    let closestDist = Infinity;
+    for (const ally of allies) {
+      if (ally.destroyed) continue;
+      const d = Math.sqrt(
+        (ally.position.x - worldPoint.x) ** 2 +
+        (ally.position.z - worldPoint.z) ** 2
+      );
+      if (d < selectionRadius && d < closestDist) {
+        closestId = ally.id;
+        closestDist = d;
+      }
+    }
+
+    useGameStore.getState().selectAlly(closestId);
+  };
+
+  const handleRightClick = (clientX: number, clientY: number) => {
+    const selectedId = useGameStore.getState().selectedAllyId;
+    if (!selectedId) return;
+
+    const worldPoint = getGroundPoint(clientX, clientY);
+    if (!worldPoint) return;
+
+    const y = getTerrainHeight(worldPoint.x, worldPoint.z);
+    useGameStore.getState().setAllyWaypoint(selectedId, { x: worldPoint.x, y, z: worldPoint.z });
+  };
 
   useFrame((_state, delta) => {
     const player = useGameStore.getState().playerTank;

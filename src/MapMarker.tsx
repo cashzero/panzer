@@ -1,5 +1,5 @@
 import { useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useGameStore } from './store';
 
@@ -27,9 +27,14 @@ export function MapMarker({ id, isPlayer, isAlly }: MapMarkerProps) {
     : state.enemies.find(e => e.id === id)?.destroyed
   ) || false;
 
+  const selectedAllyId = useGameStore(state => state.selectedAllyId);
+  const isSelected = isAlly && selectedAllyId === id;
+
   const color = destroyed ? '#555555' : isPlayer ? '#00ff00' : isAlly ? '#3399ff' : '#ff3333';
 
-  useFrame(({ camera }) => {
+  const selectionRingRef = useRef<THREE.Mesh>(null);
+
+  useFrame(({ camera, clock }) => {
     const data = isPlayer
       ? useGameStore.getState().playerTank
       : isAlly
@@ -44,6 +49,12 @@ export function MapMarker({ id, isPlayer, isAlly }: MapMarkerProps) {
     const dist = camera.position.distanceTo(groupRef.current.position);
     const baseScale = dist / 150;
     groupRef.current.scale.setScalar(Math.max(0.3, baseScale));
+
+    // Pulse selection ring opacity
+    if (selectionRingRef.current) {
+      const mat = selectionRingRef.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.5 + 0.4 * Math.sin(clock.elapsedTime * 4);
+    }
   });
 
   return (
@@ -55,6 +66,12 @@ export function MapMarker({ id, isPlayer, isAlly }: MapMarkerProps) {
         <mesh>
           <ringGeometry args={[2.5, 3, 32]} />
           <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} depthTest={false} />
+        </mesh>
+      )}
+      {isSelected && !destroyed && (
+        <mesh ref={selectionRingRef}>
+          <ringGeometry args={[2.5, 3, 32]} />
+          <meshBasicMaterial color="#ffcc00" side={THREE.DoubleSide} depthTest={false} transparent />
         </mesh>
       )}
       {destroyed && (

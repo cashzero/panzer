@@ -320,6 +320,36 @@ function DirectionIndicator() {
   );
 }
 
+function MapModeHUD() {
+  const selectedAllyId = useGameStore((state) => state.selectedAllyId);
+  const allies = useGameStore((state) => state.allies);
+  const selectedAlly = selectedAllyId ? allies.find(a => a.id === selectedAllyId) : null;
+  const hasWaypoint = useGameStore((state) => selectedAllyId ? !!state.allyWaypoints[selectedAllyId] : false);
+
+  return (
+    <div className="mt-4 text-xl font-bold text-yellow-400 animate-pulse">
+      MAP MODE ACTIVE
+      <div className="text-sm text-gray-300 font-normal mt-1">
+        WASD/Drag - Pan | Scroll - Zoom | M - Exit
+      </div>
+      <div className="text-sm font-normal mt-2">
+        {selectedAlly ? (
+          <>
+            <div className="text-yellow-300">
+              Selected: <span className="uppercase">{selectedAlly.tankType}</span>
+            </div>
+            <div className="text-gray-400 mt-1">
+              {hasWaypoint ? 'Right-click to change waypoint' : 'Right-click to set waypoint'}
+            </div>
+          </>
+        ) : (
+          <div className="text-gray-400">Left-click an ally to select</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function UI() {
   const health = useGameStore((state) => state.playerTank.health);
   const maxHealth = useGameStore((state) => state.playerTank.maxHealth);
@@ -355,14 +385,7 @@ export function UI() {
           )}
         </div>
         <ReloadIndicator />
-        {isMapMode && (
-          <div className="mt-4 text-xl font-bold text-yellow-400 animate-pulse">
-            MAP MODE ACTIVE
-            <div className="text-sm text-gray-300 font-normal mt-1">
-              WASD/Drag - Pan | Scroll - Zoom | M - Exit
-            </div>
-          </div>
-        )}
+        {isMapMode && <MapModeHUD />}
       </div>
 
       {/* Crosshair - only in third person */}

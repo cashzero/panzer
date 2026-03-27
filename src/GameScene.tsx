@@ -25,6 +25,7 @@ import { computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees } from './TreeRenderer';
 import { BurningWrecks } from './BurningWrecks';
+import { WaypointMarkers } from './WaypointMarker';
 import { generateTrees } from './trees';
 import { MAP_SIZE_VALUES } from './store';
 
@@ -338,6 +339,7 @@ export function GameScene() {
               {allyIds.map((id) => (
                 <MapMarker key={id} id={id} isAlly />
               ))}
+              <WaypointMarkers />
               <MapCameraController />
             </>
           ) : (

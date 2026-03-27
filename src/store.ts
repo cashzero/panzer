@@ -94,6 +94,8 @@ interface GameState {
   lastFireTime: number;
   viewMode: 'third-person' | 'gunner';
   isMapMode: boolean;
+  selectedAllyId: string | null;
+  allyWaypoints: Record<string, { x: number; y: number; z: number }>;
   calibrationDistance: number;
   gunnerZoom: number; // index into GUNNER_ZOOM_LEVELS
   trees: TreeInstance[];
@@ -117,6 +119,9 @@ interface GameState {
   toggleAmmo: () => void;
   toggleViewMode: () => void;
   toggleMapMode: () => void;
+  selectAlly: (id: string | null) => void;
+  setAllyWaypoint: (allyId: string, position: { x: number; y: number; z: number }) => void;
+  clearAllyWaypoint: (allyId: string) => void;
   setCalibrationDistance: (dist: number) => void;
   zoomGunnerIn: () => void;
   zoomGunnerOut: () => void;
@@ -212,6 +217,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   lastFireTime: 0,
   viewMode: 'third-person',
   isMapMode: false,
+  selectedAllyId: null,
+  allyWaypoints: {},
   calibrationDistance: 0,
   gunnerZoom: 1,
   trees: [],
@@ -277,6 +284,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'third-person' ? 'gunner' : 'third-person' })),
   toggleMapMode: () => set((state) => ({ isMapMode: !state.isMapMode })),
+  selectAlly: (id) => set({ selectedAllyId: id }),
+  setAllyWaypoint: (allyId, position) => set((state) => ({
+    allyWaypoints: { ...state.allyWaypoints, [allyId]: position },
+  })),
+  clearAllyWaypoint: (allyId) => set((state) => {
+    const { [allyId]: _, ...rest } = state.allyWaypoints;
+    return { allyWaypoints: rest };
+  }),
   setCalibrationDistance: (dist) => set({ calibrationDistance: dist }),
   zoomGunnerIn: () => set((state) => ({
     gunnerZoom: Math.min(state.gunnerZoom + 1, GUNNER_ZOOM_LEVELS.length - 1),
