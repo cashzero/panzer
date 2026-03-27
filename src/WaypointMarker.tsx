@@ -1,6 +1,7 @@
 import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from './store';
 
 export function WaypointMarkers() {
@@ -8,7 +9,7 @@ export function WaypointMarkers() {
 }
 
 function WaypointMarkersInner() {
-  const allyIds = useGameStore(state => state.allies.map(a => a.id));
+  const allyIds = useGameStore(useShallow(state => state.allies.map(a => a.id)));
   return (
     <>
       {allyIds.map(id => (
