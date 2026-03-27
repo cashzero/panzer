@@ -1,0 +1,270 @@
+import type * as THREE from 'three';
+import type { ArmorPlate } from '../../armorModel';
+
+export type Vec2 = [number, number];
+export type Vec3 = [number, number, number];
+export type AmmoKey = 'AP' | 'APC' | 'HE';
+export type ArmorZone = ArmorPlate['zone'];
+export type ArmorParent = ArmorPlate['parent'];
+export type TrackSide = NonNullable<ArmorPlate['isTrack']>;
+export type TankRenderMode = 'legacy' | 'parametric';
+export type TankModuleSource = 'legacy' | 'parametric' | 'hybrid';
+
+export type TankMaterialRole =
+  | 'hullPrimary'
+  | 'darkMetal'
+  | 'grille'
+  | 'track'
+  | 'trackRubber'
+  | 'steel'
+  | 'lamp'
+  | 'mantlet'
+  | 'barrel'
+  | 'wireframe'
+  | 'accessory'
+  | (string & {});
+
+export type ModelHelperId =
+  | 'hull.panel_stack'
+  | 'hull.side_profile_extrude'
+  | 'tracks.segmented_run'
+  | 'tracks.stadium_belt'
+  | 'turret.faceted_bustle'
+  | 'gun.linear_assembly'
+  | 'detail.mirrored_accessories'
+  | 'detail.crew_fittings'
+  | 'detail.overlay_panels'
+  | 'detail.wire_rack_box';
+
+export interface TankGeometryProps {
+  color: string;
+  destroyedColor: string;
+  destroyed: boolean;
+}
+
+export interface TankTrackProps {
+  isLeft: boolean;
+  trackMat: THREE.Material;
+  destroyedColor: string;
+  destroyed: boolean;
+}
+
+export interface TankGunProps {
+  destroyedColor: string;
+  destroyed: boolean;
+}
+
+export interface TankAmmoSpec {
+  penetration: number;
+  velocity: number;
+  damage: number;
+  drop: number;
+  dispersion: number;
+}
+
+export interface TankBurstSpec {
+  count: number;
+  interval: number;
+}
+
+export interface TankArmorSummary {
+  front: number;
+  side: number;
+  rear: number;
+  turret: number;
+}
+
+export interface TankArmorPlateSpec extends ArmorPlate {
+  id: string;
+}
+
+export interface TankSpec {
+  schemaVersion: 1;
+  id: string;
+  renderMode?: TankRenderMode;
+  catalog?: {
+    sortOrder?: number;
+    hidden?: boolean;
+  };
+  meta: {
+    displayName: string;
+    description: string;
+    nationality: string;
+    year: number;
+  };
+  appearance: {
+    baseColor: string;
+  };
+  durability: {
+    health: number;
+    trackHealth: number;
+    armorSummary: TankArmorSummary;
+  };
+  mounts: {
+    turretOffset: Vec3;
+    gunPivotOffset: Vec3;
+    muzzleDistance: number;
+    broadPhaseRadius: number;
+  };
+  mobility: {
+    horsepower: number;
+    weight: number;
+    maxSpeed: number;
+    maxReverseSpeed: number;
+    acceleration: number;
+    deceleration: number;
+    trackWidth: number;
+    turnRateLimit: number;
+    rotationalInertia: number;
+  };
+  traverse: {
+    turretSpeed: number;
+    gunSpeed: number;
+  };
+  weapons: {
+    caliber: number;
+    reloadTime: number;
+    burst?: TankBurstSpec;
+    ammo: {
+      AP: TankAmmoSpec;
+      APC?: TankAmmoSpec;
+      HE?: TankAmmoSpec;
+    };
+  };
+  armorModel: {
+    plates: TankArmorPlateSpec[];
+  };
+}
+
+export interface ExtrudeShapeDefinition {
+  outline: Vec2[];
+  holes?: Vec2[][];
+}
+
+export interface ModelNodeBase {
+  id: string;
+  name?: string;
+  position?: Vec3;
+  rotation?: Vec3;
+  scale?: Vec3;
+  visible?: boolean;
+  materialRole?: TankMaterialRole;
+}
+
+export interface GroupNode extends ModelNodeBase {
+  type: 'group';
+  children: ModelNode[];
+}
+
+export interface BoxNode extends ModelNodeBase {
+  type: 'box';
+  size: Vec3;
+}
+
+export interface CylinderNode extends ModelNodeBase {
+  type: 'cylinder';
+  radiusTop: number;
+  radiusBottom: number;
+  height: number;
+  radialSegments?: number;
+}
+
+export interface ExtrudeNode extends ModelNodeBase {
+  type: 'extrude';
+  shape: ExtrudeShapeDefinition;
+  depth: number;
+  bevelEnabled?: boolean;
+}
+
+export interface RepeatNode extends ModelNodeBase {
+  type: 'repeat';
+  count: number;
+  step: Vec3;
+  child: ModelNode;
+}
+
+export interface MirrorNode extends ModelNodeBase {
+  type: 'mirror';
+  axis: 'x' | 'y' | 'z';
+  includeSource?: boolean;
+  child: ModelNode;
+}
+
+export interface HelperNode extends ModelNodeBase {
+  type: 'helper';
+  helper: ModelHelperId;
+  params: Record<string, unknown>;
+}
+
+export type ModelNode =
+  | GroupNode
+  | BoxNode
+  | CylinderNode
+  | ExtrudeNode
+  | RepeatNode
+  | MirrorNode
+  | HelperNode;
+
+export interface TankModelSpec {
+  schemaVersion: 1;
+  slots: {
+    hull: ModelNode[];
+    tracksLeft: ModelNode[];
+    tracksRight: ModelNode[];
+    turret: ModelNode[];
+    gun: ModelNode[];
+  };
+}
+
+export interface TankResolvedSpec {
+  id: string;
+  displayName: string;
+  description: string;
+  nationality: string;
+  year: number;
+  health: number;
+  trackHealth: number;
+  armor: TankArmorSummary;
+  color: string;
+  turretOffset: Vec3;
+  gunPivotOffset: Vec3;
+  muzzleDistance: number;
+  broadPhaseRadius: number;
+  horsepower: number;
+  weight: number;
+  maxSpeed: number;
+  maxReverseSpeed: number;
+  acceleration: number;
+  deceleration: number;
+  trackWidth: number;
+  turnRateLimit: number;
+  rotationalInertia: number;
+  turretSpeed: number;
+  gunSpeed: number;
+  caliber: number;
+  reloadTime: number;
+  burstCount?: number;
+  burstInterval?: number;
+  weapons: {
+    AP: TankAmmoSpec;
+    APC?: TankAmmoSpec;
+    HE?: TankAmmoSpec;
+  };
+  plates: ArmorPlate[];
+}
+
+export interface TankRenderer {
+  HullComponent: React.FC<TankGeometryProps>;
+  TracksComponent: React.FC<TankTrackProps>;
+  TurretComponent: React.FC<TankGeometryProps>;
+  GunComponent: React.FC<TankGunProps>;
+}
+
+export type TankDefinition = TankResolvedSpec & TankRenderer;
+
+export interface TankModule {
+  definition: TankDefinition;
+  spec?: TankSpec;
+  model?: TankModelSpec;
+  source?: TankModuleSource;
+}

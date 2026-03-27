@@ -1,0 +1,241 @@
+{
+  "schemaVersion": 1,
+  "id": "tiger",
+  "renderMode": "parametric",
+  "catalog": {
+    "sortOrder": 1
+  },
+  "meta": {
+    "displayName": "Tiger I",
+    "description": "The feared heavy tank of the Wehrmacht. Its legendary 88mm gun can penetrate almost anything at range, and thick flat armor provides excellent protection. Slow but devastating.",
+    "nationality": "Germany",
+    "year": 1942
+  },
+  "appearance": {
+    "baseColor": "#4d4f53"
+  },
+  "durability": {
+    "health": 350,
+    "trackHealth": 100,
+    "armorSummary": {
+      "front": 102,
+      "side": 80,
+      "rear": 80,
+      "turret": 100
+    }
+  },
+  "mounts": {
+    "turretOffset": [0, 1.65, 0.2],
+    "gunPivotOffset": [0, 0.45, 1.5],
+    "muzzleDistance": 4,
+    "broadPhaseRadius": 5.8
+  },
+  "mobility": {
+    "horsepower": 700,
+    "weight": 57,
+    "maxSpeed": 11,
+    "maxReverseSpeed": 3,
+    "acceleration": 3.7666666666666666,
+    "deceleration": 7,
+    "trackWidth": 3.56,
+    "turnRateLimit": 0.35,
+    "rotationalInertia": 1.5
+  },
+  "traverse": {
+    "turretSpeed": 0.06,
+    "gunSpeed": 0.08
+  },
+  "weapons": {
+    "caliber": 88,
+    "reloadTime": 7000,
+    "ammo": {
+      "AP": {
+        "penetration": 132,
+        "velocity": 773,
+        "damage": 550,
+        "drop": 0.08,
+        "dispersion": 0.0012
+      },
+      "APC": {
+        "penetration": 120,
+        "velocity": 773,
+        "damage": 650,
+        "drop": 0.08,
+        "dispersion": 0.0012
+      },
+      "HE": {
+        "penetration": 30,
+        "velocity": 773,
+        "damage": 700,
+        "drop": 0.2,
+        "dispersion": 0.0015
+      }
+    }
+  },
+  "armorModel": {
+    "plates": [
+      {
+        "id": "hull-front-plate",
+        "name": "Hull Front Plate",
+        "zone": "hull",
+        "halfExtents": [1.78, 0.225, 0.075],
+        "position": [0, 1.42, 2.7],
+        "rotation": [0, 0, 0],
+        "armorThickness": 102,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-upper-glacis",
+        "name": "Hull Upper Glacis",
+        "zone": "hull",
+        "halfExtents": [1.78, 0.125, 0.35],
+        "position": [0, 0.85, 2.85],
+        "rotation": [0.35, 0, 0],
+        "armorThickness": 95,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-lower-glacis",
+        "name": "Hull Lower Glacis",
+        "zone": "hull",
+        "halfExtents": [1.06, 0.25, 0.075],
+        "position": [0, 0.45, 2.95],
+        "rotation": [0.05, 0, 0],
+        "armorThickness": 60,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left",
+        "name": "Hull Side Left",
+        "zone": "hull",
+        "halfExtents": [0.1, 0.6, 2.7],
+        "position": [-1.78, 1.05, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right",
+        "name": "Hull Side Right",
+        "zone": "hull",
+        "halfExtents": [0.1, 0.6, 2.7],
+        "position": [1.78, 1.05, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear",
+        "name": "Hull Rear",
+        "zone": "hull",
+        "halfExtents": [1.78, 0.6, 0.1],
+        "position": [0, 1.05, -3.15],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-roof",
+        "name": "Hull Roof",
+        "zone": "hull",
+        "halfExtents": [1.78, 0.1, 1.78],
+        "position": [0, 1.65, 0.92],
+        "rotation": [0, 0, 0],
+        "armorThickness": 12,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-engine-deck",
+        "name": "Hull Engine Deck",
+        "zone": "hull",
+        "halfExtents": [1.78, 0.1, 1.25],
+        "position": [0, 1.63, -2.1],
+        "rotation": [-0.03, 0, 0],
+        "armorThickness": 12,
+        "parent": "hull"
+      },
+      {
+        "id": "turret-front",
+        "name": "Turret Front",
+        "zone": "turret",
+        "halfExtents": [1.1, 0.475, 0.1],
+        "position": [0, 0.48, 1.275],
+        "rotation": [0, 0, 0],
+        "armorThickness": 100,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-side-left",
+        "name": "Turret Side Left",
+        "zone": "turret",
+        "halfExtents": [0.1, 0.475, 1.4],
+        "position": [-1.1, 0.48, -0.2],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-side-right",
+        "name": "Turret Side Right",
+        "zone": "turret",
+        "halfExtents": [0.1, 0.475, 1.4],
+        "position": [1.1, 0.48, -0.2],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-bustle",
+        "name": "Turret Bustle",
+        "zone": "turret",
+        "halfExtents": [1.1, 0.425, 0.3],
+        "position": [0, 0.48, -1.9],
+        "rotation": [0, 0, 0],
+        "armorThickness": 80,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-roof",
+        "name": "Turret Roof",
+        "zone": "turret",
+        "halfExtents": [1.1, 0.1, 1.4],
+        "position": [0, 0.955, -0.2],
+        "rotation": [0, 0, 0],
+        "armorThickness": 15,
+        "parent": "turret"
+      },
+      {
+        "id": "mantlet",
+        "name": "Mantlet",
+        "zone": "gun",
+        "halfExtents": [0.35, 0.25, 0.3],
+        "position": [0, 0, 0.075],
+        "rotation": [0, 0, 0],
+        "armorThickness": 180,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "track-left",
+        "name": "Track Left",
+        "zone": "track",
+        "halfExtents": [0.38, 0.35, 3.2],
+        "position": [-1.42, 0.3, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right",
+        "name": "Track Right",
+        "zone": "track",
+        "halfExtents": [0.38, 0.35, 3.2],
+        "position": [1.42, 0.3, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      }
+    ]
+  }
+}

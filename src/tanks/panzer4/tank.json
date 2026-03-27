@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "id": "panzer4",
+  "renderMode": "parametric",
+  "catalog": {
+    "sortOrder": 6
+  },
+  "meta": {
+    "displayName": "Panzer IV",
+    "description": "The backbone of the Wehrmacht's Panzer divisions throughout the war. The Ausf. H mounts the powerful 75mm KwK 40 L/48 gun capable of engaging any Allied medium tank, with Schurzen side skirts for added protection. A well-balanced workhorse - reliable, versatile, and deadly at range.",
+    "nationality": "Germany",
+    "year": 1943
+  },
+  "appearance": {
+    "baseColor": "#7a7754"
+  },
+  "durability": {
+    "health": 250,
+    "trackHealth": 90,
+    "armorSummary": {
+      "front": 80,
+      "side": 30,
+      "rear": 20,
+      "turret": 50
+    }
+  },
+  "mounts": {
+    "turretOffset": [0, 1.42, 0.3],
+    "gunPivotOffset": [0, 0.42, 1.5],
+    "muzzleDistance": 3.5,
+    "broadPhaseRadius": 5.2
+  },
+  "mobility": {
+    "horsepower": 300,
+    "weight": 25,
+    "maxSpeed": 10.5,
+    "maxReverseSpeed": 4,
+    "acceleration": 3.5,
+    "deceleration": 9,
+    "trackWidth": 2.36,
+    "turnRateLimit": 0.48,
+    "rotationalInertia": 2.5
+  },
+  "traverse": {
+    "turretSpeed": 0.26,
+    "gunSpeed": 0.12
+  },
+  "weapons": {
+    "caliber": 75,
+    "reloadTime": 5000,
+    "ammo": {
+      "AP": {
+        "penetration": 99,
+        "velocity": 740,
+        "damage": 350,
+        "drop": 0.1,
+        "dispersion": 0.0018
+      },
+      "APC": {
+        "penetration": 126,
+        "velocity": 930,
+        "damage": 250,
+        "drop": 0.08,
+        "dispersion": 0.0015
+      },
+      "HE": {
+        "penetration": 25,
+        "velocity": 550,
+        "damage": 500,
+        "drop": 0.3,
+        "dispersion": 0.0025
+      }
+    }
+  },
+  "armorModel": {
+    "plates": [
+      {
+        "id": "hull-front-plate",
+        "name": "Hull Front Plate",
+        "zone": "hull",
+        "halfExtents": [1.42, 0.25, 0.075],
+        "position": [0, 1.18, 2.55],
+        "rotation": [-0.17, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-upper-glacis",
+        "name": "Hull Upper Glacis",
+        "zone": "hull",
+        "halfExtents": [1, 0.25, 0.075],
+        "position": [0, 0.68, 3],
+        "rotation": [-0.5, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-lower-glacis",
+        "name": "Hull Lower Glacis",
+        "zone": "hull",
+        "halfExtents": [1, 0.2, 0.075],
+        "position": [0, 0.3, 3],
+        "rotation": [0.85, 0, 0],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left",
+        "name": "Hull Side Left",
+        "zone": "hull",
+        "halfExtents": [0.06, 0.525, 2.9],
+        "position": [-1.46, 0.85, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right",
+        "name": "Hull Side Right",
+        "zone": "hull",
+        "halfExtents": [0.06, 0.525, 2.9],
+        "position": [1.46, 0.85, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear",
+        "name": "Hull Rear",
+        "zone": "hull",
+        "halfExtents": [1.42, 0.55, 0.06],
+        "position": [0, 0.82, -3.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 20,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-roof",
+        "name": "Hull Roof",
+        "zone": "hull",
+        "halfExtents": [1.42, 0.08, 1.4],
+        "position": [0, 1.42, 0.2],
+        "rotation": [0, 0, 0],
+        "armorThickness": 10,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-engine-deck",
+        "name": "Hull Engine Deck",
+        "zone": "hull",
+        "halfExtents": [1.42, 0.08, 1.1],
+        "position": [0, 1.4, -2],
+        "rotation": [-0.03, 0, 0],
+        "armorThickness": 10,
+        "parent": "hull"
+      },
+      {
+        "id": "side-skirt-left",
+        "name": "Side Skirt Left",
+        "zone": "hull",
+        "halfExtents": [0.4, 0.375, 2.4],
+        "position": [-1.55, 0.8, -0.3],
+        "rotation": [0, 0, 0],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "side-skirt-right",
+        "name": "Side Skirt Right",
+        "zone": "hull",
+        "halfExtents": [0.4, 0.375, 2.4],
+        "position": [1.55, 0.8, -0.3],
+        "rotation": [0, 0, 0],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "turret-front",
+        "name": "Turret Front",
+        "zone": "turret",
+        "halfExtents": [0.75, 0.39, 0.08],
+        "position": [0, 0.41, 1.4],
+        "rotation": [0, 0, 0],
+        "armorThickness": 50,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-cheek-left",
+        "name": "Turret Cheek Left",
+        "zone": "turret",
+        "halfExtents": [0.25, 0.36, 0.35],
+        "position": [-0.75, 0.41, 0.6],
+        "rotation": [0, -0.3, 0],
+        "armorThickness": 50,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-cheek-right",
+        "name": "Turret Cheek Right",
+        "zone": "turret",
+        "halfExtents": [0.25, 0.36, 0.35],
+        "position": [0.75, 0.41, 0.6],
+        "rotation": [0, 0.3, 0],
+        "armorThickness": 50,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-side-left",
+        "name": "Turret Side Left",
+        "zone": "turret",
+        "halfExtents": [0.08, 0.41, 1.2],
+        "position": [-0.925, 0.41, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 30,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-side-right",
+        "name": "Turret Side Right",
+        "zone": "turret",
+        "halfExtents": [0.08, 0.41, 1.2],
+        "position": [0.925, 0.41, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 30,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-bustle",
+        "name": "Turret Bustle",
+        "zone": "turret",
+        "halfExtents": [0.925, 0.36, 0.35],
+        "position": [0, 0.41, -1.6],
+        "rotation": [0, 0, 0],
+        "armorThickness": 30,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-roof",
+        "name": "Turret Roof",
+        "zone": "turret",
+        "halfExtents": [0.925, 0.08, 1.2],
+        "position": [0, 0.82, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 16,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-skirt-left",
+        "name": "Turret Skirt Left",
+        "zone": "turret",
+        "halfExtents": [0.4, 0.3, 0.9],
+        "position": [-0.96, 0.41, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 5,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-skirt-right",
+        "name": "Turret Skirt Right",
+        "zone": "turret",
+        "halfExtents": [0.4, 0.3, 0.9],
+        "position": [0.96, 0.41, -0.1],
+        "rotation": [0, 0, 0],
+        "armorThickness": 5,
+        "parent": "turret"
+      },
+      {
+        "id": "mantlet",
+        "name": "Mantlet",
+        "zone": "gun",
+        "halfExtents": [0.275, 0.19, 0.225],
+        "position": [0, 0, 0.15],
+        "rotation": [0, 0, 0],
+        "armorThickness": 50,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "track-left",
+        "name": "Track Left",
+        "zone": "track",
+        "halfExtents": [0.22, 0.3, 2.9],
+        "position": [-1.18, 0.28, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 15,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right",
+        "name": "Track Right",
+        "zone": "track",
+        "halfExtents": [0.22, 0.3, 2.9],
+        "position": [1.18, 0.28, 0],
+        "rotation": [0, 0, 0],
+        "armorThickness": 15,
+        "isTrack": "right",
+        "parent": "hull"
+      }
+    ]
+  }
+}

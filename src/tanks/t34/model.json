@@ -1,0 +1,496 @@
+{
+  "schemaVersion": 1,
+  "slots": {
+    "hull": [
+      {
+        "id": "lower-hull",
+        "type": "box",
+        "size": [1.8, 0.5, 4.6],
+        "position": [0, 0.4, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "upper-hull-roof",
+        "type": "box",
+        "size": [2.2, 0.12, 3.8],
+        "position": [0, 1.2, -0.28],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "right-side-profile",
+        "type": "helper",
+        "helper": "hull.side_profile_extrude",
+        "position": [1.3, 0.88, -0.2],
+        "rotation": [0, -1.5707963267948966, 0.7],
+        "params": {
+          "shape": {
+            "outline": [[-2.2, -0.43], [-2.2, 0.43], [1.82, 0.43], [2.95, -0.43]]
+          },
+          "depth": 0.12,
+          "bevelEnabled": false,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
+        "id": "left-side-profile",
+        "type": "helper",
+        "helper": "hull.side_profile_extrude",
+        "position": [-1.3, 0.88, -0.2],
+        "rotation": [0, 1.5707963267948966, -0.7],
+        "params": {
+          "shape": {
+            "outline": [[2.2, -0.43], [2.2, 0.43], [-1.82, 0.43], [-2.95, -0.43]]
+          },
+          "depth": 0.12,
+          "bevelEnabled": false,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
+        "id": "sponson-fill",
+        "type": "box",
+        "size": [2.8, 0.3, 4.4],
+        "position": [0, 0.7, -0.2],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "upper-glacis",
+        "type": "extrude",
+        "position": [0, 0.875, 2.19],
+        "rotation": [-1.05, 0, 0],
+        "shape": {
+          "outline": [[-1.4, -0.65], [1.4, -0.65], [1.1, 0.65], [-1.1, 0.65]]
+        },
+        "depth": 0.12,
+        "bevelEnabled": false,
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "lower-glacis",
+        "type": "box",
+        "size": [1.8, 0.12, 0.45],
+        "position": [0, 0.33, 2.75],
+        "rotation": [1.8, 0, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "engine-deck",
+        "type": "box",
+        "size": [2.4, 0.15, 2],
+        "position": [0, 1.27, -1.8],
+        "rotation": [-0.04, 0, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "rear-plate",
+        "type": "box",
+        "size": [2.6, 0.7, 0.12],
+        "position": [0, 0.88, -2.8],
+        "rotation": [-0.1, 0, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "engine-grille-right",
+        "type": "box",
+        "size": [0.7, 0.05, 0.8],
+        "position": [0.5, 1.36, -1.8],
+        "materialRole": "grille"
+      },
+      {
+        "id": "engine-grille-left",
+        "type": "box",
+        "size": [0.7, 0.05, 0.8],
+        "position": [-0.5, 1.36, -1.8],
+        "materialRole": "grille"
+      },
+      {
+        "id": "exhaust-right",
+        "type": "cylinder",
+        "radiusTop": 0.08,
+        "radiusBottom": 0.08,
+        "height": 1.2,
+        "position": [1, 1.05, -2.6],
+        "rotation": [0.4, 0, 0.15],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "exhaust-left",
+        "type": "cylinder",
+        "radiusTop": 0.08,
+        "radiusBottom": 0.08,
+        "height": 1.2,
+        "position": [-1, 1.05, -2.6],
+        "rotation": [0.4, 0, -0.15],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "front-light",
+        "type": "box",
+        "size": [0.16, 0.12, 0.08],
+        "position": [-1, 0.95, 2.7],
+        "rotation": [1.05, 0, 0],
+        "materialRole": "lamp"
+      },
+      {
+        "id": "hull-mg",
+        "type": "cylinder",
+        "radiusTop": 0.06,
+        "radiusBottom": 0.06,
+        "height": 0.18,
+        "position": [0.5, 0.75, 2.85],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "tow-hook-right",
+        "type": "box",
+        "size": [0.12, 0.06, 0.15],
+        "position": [0.7, 0.33, 2.9],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "tow-hook-left",
+        "type": "box",
+        "size": [0.12, 0.06, 0.15],
+        "position": [-0.7, 0.33, 2.9],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "fuel-drum-right",
+        "type": "cylinder",
+        "radiusTop": 0.18,
+        "radiusBottom": 0.18,
+        "height": 0.8,
+        "position": [1.35, 0.95, -2.2],
+        "rotation": [0, 0, 1.5707963267948966],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "fuel-drum-left",
+        "type": "cylinder",
+        "radiusTop": 0.18,
+        "radiusBottom": 0.18,
+        "height": 0.8,
+        "position": [-1.35, 0.95, -2.2],
+        "rotation": [0, 0, 1.5707963267948966],
+        "materialRole": "darkMetal"
+      }
+    ],
+    "tracksLeft": [
+      {
+        "id": "left-track-belt",
+        "type": "helper",
+        "helper": "tracks.stadium_belt",
+        "position": [-1.475, 0, 0],
+        "rotation": [0, 1.5707963267948966, 0],
+        "params": {
+          "centerY": 0.32,
+          "radius": 0.28,
+          "halfLength": 2.8,
+          "band": 0.04,
+          "depth": 0.55,
+          "arcSegments": 16,
+          "materialRole": "track"
+        }
+      },
+      {
+        "id": "left-drive-sprocket",
+        "type": "group",
+        "position": [-1.2, 0.32, -2.8],
+        "rotation": [0, 0, 1.5707963267948966],
+        "children": [
+          {
+            "id": "wheel",
+            "type": "cylinder",
+            "radiusTop": 0.25,
+            "radiusBottom": 0.25,
+            "height": 0.48,
+            "radialSegments": 12,
+            "materialRole": "steel"
+          }
+        ]
+      },
+      {
+        "id": "left-idler",
+        "type": "group",
+        "position": [-1.2, 0.32, 2.8],
+        "rotation": [0, 0, 1.5707963267948966],
+        "children": [
+          {
+            "id": "wheel",
+            "type": "cylinder",
+            "radiusTop": 0.25,
+            "radiusBottom": 0.25,
+            "height": 0.48,
+            "radialSegments": 12,
+            "materialRole": "steel"
+          }
+        ]
+      },
+      {
+        "id": "road-wheel-row",
+        "type": "repeat",
+        "count": 5,
+        "position": [-1.2, 0.32, 2],
+        "step": [0, 0, -1],
+        "child": {
+          "id": "road-wheel",
+          "type": "group",
+          "rotation": [0, 0, 1.5707963267948966],
+          "children": [
+            {
+              "id": "outer",
+              "type": "cylinder",
+              "radiusTop": 0.3,
+              "radiusBottom": 0.3,
+              "height": 0.48,
+              "radialSegments": 14,
+              "materialRole": "trackRubber"
+            },
+            {
+              "id": "inner",
+              "type": "cylinder",
+              "radiusTop": 0.18,
+              "radiusBottom": 0.18,
+              "height": 0.5,
+              "radialSegments": 8,
+              "materialRole": "steel"
+            }
+          ]
+        }
+      }
+    ],
+    "tracksRight": [
+      {
+        "id": "right-track-belt",
+        "type": "helper",
+        "helper": "tracks.stadium_belt",
+        "position": [0.925, 0, 0],
+        "rotation": [0, 1.5707963267948966, 0],
+        "params": {
+          "centerY": 0.32,
+          "radius": 0.28,
+          "halfLength": 2.8,
+          "band": 0.04,
+          "depth": 0.55,
+          "arcSegments": 16,
+          "materialRole": "track"
+        }
+      },
+      {
+        "id": "right-drive-sprocket",
+        "type": "group",
+        "position": [1.2, 0.32, -2.8],
+        "rotation": [0, 0, 1.5707963267948966],
+        "children": [
+          {
+            "id": "wheel",
+            "type": "cylinder",
+            "radiusTop": 0.25,
+            "radiusBottom": 0.25,
+            "height": 0.48,
+            "radialSegments": 12,
+            "materialRole": "steel"
+          }
+        ]
+      },
+      {
+        "id": "right-idler",
+        "type": "group",
+        "position": [1.2, 0.32, 2.8],
+        "rotation": [0, 0, 1.5707963267948966],
+        "children": [
+          {
+            "id": "wheel",
+            "type": "cylinder",
+            "radiusTop": 0.25,
+            "radiusBottom": 0.25,
+            "height": 0.48,
+            "radialSegments": 12,
+            "materialRole": "steel"
+          }
+        ]
+      },
+      {
+        "id": "road-wheel-row",
+        "type": "repeat",
+        "count": 5,
+        "position": [1.2, 0.32, 2],
+        "step": [0, 0, -1],
+        "child": {
+          "id": "road-wheel",
+          "type": "group",
+          "rotation": [0, 0, 1.5707963267948966],
+          "children": [
+            {
+              "id": "outer",
+              "type": "cylinder",
+              "radiusTop": 0.3,
+              "radiusBottom": 0.3,
+              "height": 0.48,
+              "radialSegments": 14,
+              "materialRole": "trackRubber"
+            },
+            {
+              "id": "inner",
+              "type": "cylinder",
+              "radiusTop": 0.18,
+              "radiusBottom": 0.18,
+              "height": 0.5,
+              "radialSegments": 8,
+              "materialRole": "steel"
+            }
+          ]
+        }
+      }
+    ],
+    "turret": [
+      {
+        "id": "main-body",
+        "type": "box",
+        "size": [1.6, 0.65, 1.6],
+        "position": [0, 0.33, -0.1],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "front-face",
+        "type": "box",
+        "size": [1.2, 0.65, 0.5],
+        "position": [0, 0.33, 0.75],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "cheek-left",
+        "type": "box",
+        "size": [0.5, 0.6, 0.5],
+        "position": [-0.62, 0.33, 0.55],
+        "rotation": [0, -0.5, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "cheek-right",
+        "type": "box",
+        "size": [0.5, 0.6, 0.5],
+        "position": [0.62, 0.33, 0.55],
+        "rotation": [0, 0.5, 0],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "commander-cupola-base",
+        "type": "cylinder",
+        "radiusTop": 0.28,
+        "radiusBottom": 0.28,
+        "height": 0.2,
+        "radialSegments": 12,
+        "position": [0.35, 0.73, -0.3],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "commander-cupola-cap",
+        "type": "cylinder",
+        "radiusTop": 0.22,
+        "radiusBottom": 0.22,
+        "height": 0.06,
+        "radialSegments": 12,
+        "position": [0.35, 0.86, -0.3],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "loader-hatch",
+        "type": "cylinder",
+        "radiusTop": 0.22,
+        "radiusBottom": 0.22,
+        "height": 0.04,
+        "radialSegments": 10,
+        "position": [-0.35, 0.67, -0.3],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "ventilator-dome",
+        "type": "cylinder",
+        "radiusTop": 0.1,
+        "radiusBottom": 0.1,
+        "height": 0.06,
+        "radialSegments": 8,
+        "position": [0, 0.68, 0.2],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "handrail-right",
+        "type": "box",
+        "size": [0.03, 0.03, 0.6],
+        "position": [0.83, 0.4, -0.1],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "handrail-left",
+        "type": "box",
+        "size": [0.03, 0.03, 0.6],
+        "position": [-0.83, 0.4, -0.1],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "antenna",
+        "type": "cylinder",
+        "radiusTop": 0.01,
+        "radiusBottom": 0.015,
+        "height": 1.8,
+        "position": [-0.5, 1.4, -0.7],
+        "materialRole": "darkMetal"
+      }
+    ],
+    "gun": [
+      {
+        "id": "mantlet",
+        "type": "cylinder",
+        "radiusTop": 0.3,
+        "radiusBottom": 0.28,
+        "height": 0.4,
+        "radialSegments": 12,
+        "position": [0, 0, 0.1],
+        "rotation": [0, 0, 1.5707963267948966],
+        "materialRole": "mantlet"
+      },
+      {
+        "id": "barrel",
+        "type": "cylinder",
+        "radiusTop": 0.05,
+        "radiusBottom": 0.065,
+        "height": 2,
+        "position": [0, 0, 1.3],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "barrel"
+      },
+      {
+        "id": "barrel-sleeve",
+        "type": "cylinder",
+        "radiusTop": 0.085,
+        "radiusBottom": 0.085,
+        "height": 0.4,
+        "position": [0, 0, 0.5],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "barrel"
+      },
+      {
+        "id": "muzzle-tip",
+        "type": "cylinder",
+        "radiusTop": 0.065,
+        "radiusBottom": 0.065,
+        "height": 0.1,
+        "position": [0, 0, 2.35],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "coaxial-mg",
+        "type": "cylinder",
+        "radiusTop": 0.015,
+        "radiusBottom": 0.015,
+        "height": 0.6,
+        "position": [0.12, -0.05, 0.6],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "darkMetal"
+      }
+    ]
+  }
+}
