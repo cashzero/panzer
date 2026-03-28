@@ -625,11 +625,11 @@ export function Particles() {
   // Pools (created once)
   const additivePool = useMemo(() => createPointPool(MAX_ADDITIVE, dustTexture, THREE.AdditiveBlending), []);
   const muzzleAdditivePool = useMemo(
-    () => createPointPool(MAX_MUZZLE_ADDITIVE, dustTexture, THREE.AdditiveBlending, { depthTest: false }),
+    () => createPointPool(MAX_MUZZLE_ADDITIVE, dustTexture, THREE.AdditiveBlending),
     []
   );
   const impactAdditivePool = useMemo(
-    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending, { depthTest: false }),
+    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending),
     []
   );
   const shockwavePool = useMemo(
@@ -638,12 +638,12 @@ export function Particles() {
   );
   const sparkPool = useMemo(() => createPointPool(MAX_SPARK, sparkTexture, THREE.AdditiveBlending), []);
   const impactSparkPool = useMemo(
-    () => createPointPool(MAX_IMPACT_SPARK, sparkTexture, THREE.AdditiveBlending, { depthTest: false }),
+    () => createPointPool(MAX_IMPACT_SPARK, sparkTexture, THREE.AdditiveBlending),
     []
   );
   const smokePool = useMemo(() => createPointPool(MAX_SMOKE, dustTexture, THREE.NormalBlending), []);
   const muzzleSmokePool = useMemo(
-    () => createPointPool(MAX_MUZZLE_SMOKE, dustTexture, THREE.NormalBlending, { depthTest: false }),
+    () => createPointPool(MAX_MUZZLE_SMOKE, dustTexture, THREE.NormalBlending),
     []
   );
 
