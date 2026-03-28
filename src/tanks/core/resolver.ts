@@ -1,8 +1,24 @@
 import type { ArmorPlate } from '../../armorModel';
-import type { TankDefinition, TankRenderer, TankResolvedSpec, TankSpec } from './types';
+import type { TankAmmoSpec, TankDefinition, TankRenderer, TankResolvedSpec, TankSpec } from './types';
+
+function degreesToRadians(value: number) {
+  return value * (Math.PI / 180);
+}
 
 export function toArmorPlates(plates: TankSpec['armorModel']['plates']): ArmorPlate[] {
   return plates.map(({id: _id, ...plate}) => ({...plate}));
+}
+
+function cloneAmmoSpec(ammo: TankAmmoSpec): TankAmmoSpec {
+  return {
+    ...ammo,
+    historicalPenetration: ammo.historicalPenetration
+      ? {
+          standard: ammo.historicalPenetration.standard,
+          points: ammo.historicalPenetration.points.map((point) => ({...point})),
+        }
+      : undefined,
+  };
 }
 
 export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
@@ -31,14 +47,16 @@ export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
     rotationalInertia: spec.mobility.rotationalInertia,
     turretSpeed: spec.traverse.turretSpeed,
     gunSpeed: spec.traverse.gunSpeed,
+    minGunElevation: -degreesToRadians(spec.traverse.maxElevationDeg),
+    maxGunElevation: degreesToRadians(spec.traverse.maxDepressionDeg),
     caliber: spec.weapons.caliber,
     reloadTime: spec.weapons.reloadTime,
     burstCount: spec.weapons.burst?.count,
     burstInterval: spec.weapons.burst?.interval,
     weapons: {
-      AP: {...spec.weapons.ammo.AP},
-      APC: spec.weapons.ammo.APC ? {...spec.weapons.ammo.APC} : undefined,
-      HE: spec.weapons.ammo.HE ? {...spec.weapons.ammo.HE} : undefined,
+      AP: cloneAmmoSpec(spec.weapons.ammo.AP),
+      APC: spec.weapons.ammo.APC ? cloneAmmoSpec(spec.weapons.ammo.APC) : undefined,
+      HE: spec.weapons.ammo.HE ? cloneAmmoSpec(spec.weapons.ammo.HE) : undefined,
     },
     plates: toArmorPlates(spec.armorModel.plates),
   };

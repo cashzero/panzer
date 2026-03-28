@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { useRef } from 'react';
 import { playFireSound, playAutocannonSound } from './audio';
 import { GAME_CONFIG } from './config';
+import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
+import { clampGunElevation } from './turretAiming';
 import type { TankData } from './store';
 
 export function EnemyAI() {
@@ -72,8 +74,10 @@ export function EnemyAI() {
       // Dynamic engagement range based on both tanks' characteristics
       const enemyDef = getTankDef(enemy.tankType);
       const targetDef = getTankDef(target.tankType);
-      const penRatio = enemyDef.weapons.AP.penetration / target.armor.front;
-      const armorRatio = enemyDef.armor.front / targetDef.weapons.AP.penetration;
+      const enemyPen = getAmmoDisplayPenetration(enemyDef.weapons.AP, 'AP', enemyDef.caliber);
+      const targetPen = getAmmoDisplayPenetration(targetDef.weapons.AP, 'AP', targetDef.caliber);
+      const penRatio = enemyPen / target.armor.front;
+      const armorRatio = enemyDef.armor.front / Math.max(1, targetPen);
       const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
       const rangeDeadzone = preferredRange * 0.15; // 15% deadzone to avoid jitter
 
@@ -179,6 +183,7 @@ export function EnemyAI() {
       if (Math.abs(elevDiff) > 0.002) {
         newGunElev += Math.sign(elevDiff) * enemyDef.gunSpeed * delta;
       }
+      newGunElev = clampGunElevation(newGunElev, enemyDef.minGunElevation, enemyDef.maxGunElevation);
 
       updateEnemy(enemy.id, {
         position: newPos,
@@ -201,7 +206,7 @@ export function EnemyAI() {
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
-        fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
+        fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
         updateEnemy(enemy.id, { lastFireTime: now });
         registerAiShot(accuracyState.current, aimOffsets.current, enemy.id, target.id);
 

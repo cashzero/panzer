@@ -4,12 +4,14 @@ import * as THREE from 'three';
 import { useRef } from 'react';
 import { playFireSound, playAutocannonSound } from './audio';
 import { GAME_CONFIG } from './config';
+import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
+import { clampGunElevation } from './turretAiming';
 import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 
 function computeEngagementMovement(
@@ -19,8 +21,10 @@ function computeEngagementMovement(
 ) {
   const dirToEnemy = target.position.clone().sub(ally.position).normalize();
   const playerDef = getTankDef(target.tankType);
-  const penRatio = allyDef.weapons.AP.penetration / target.armor.front;
-  const armorRatio = allyDef.armor.front / playerDef.weapons.AP.penetration;
+  const allyPen = getAmmoDisplayPenetration(allyDef.weapons.AP, 'AP', allyDef.caliber);
+  const targetPen = getAmmoDisplayPenetration(playerDef.weapons.AP, 'AP', playerDef.caliber);
+  const penRatio = allyPen / target.armor.front;
+  const armorRatio = allyDef.armor.front / Math.max(1, targetPen);
   const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
   const rangeDeadzone = preferredRange * 0.15;
 
@@ -321,6 +325,7 @@ export function AllyAI() {
         if (Math.abs(elevDiff) > 0.002) {
           newGunElev += Math.sign(elevDiff) * allyDef.gunSpeed * delta;
         }
+        newGunElev = clampGunElevation(newGunElev, allyDef.minGunElevation, allyDef.maxGunElevation);
       }
 
       updateAlly(ally.id, {
@@ -347,7 +352,7 @@ export function AllyAI() {
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(allyDef.weapons.AP.velocity);
-        fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP.penetration, allyDef.weapons.AP.damage, ally.id, allyDef.caliber);
+        fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP, allyDef.weapons.AP.damage, ally.id, allyDef.caliber);
         updateAlly(ally.id, { lastFireTime: now });
         registerAiShot(accuracyState.current, aimOffsets.current, ally.id, engagementTarget.id);
 

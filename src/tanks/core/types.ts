@@ -4,11 +4,22 @@ import type { ArmorPlate } from '../../armorModel';
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
 export type AmmoKey = 'AP' | 'APC' | 'HE';
+export type PenetrationStandard = 'RHA_30deg' | 'RHA_0deg';
 export type ArmorZone = ArmorPlate['zone'];
 export type ArmorParent = ArmorPlate['parent'];
 export type TrackSide = NonNullable<ArmorPlate['isTrack']>;
 export type TankRenderMode = 'legacy' | 'parametric';
 export type TankModuleSource = 'legacy' | 'parametric' | 'hybrid';
+
+export interface TankHistoricalPenetrationPoint {
+  distance: number;
+  penetration: number;
+}
+
+export interface TankHistoricalPenetrationSpec {
+  standard?: PenetrationStandard;
+  points: TankHistoricalPenetrationPoint[];
+}
 
 export type TankMaterialRole =
   | 'hullPrimary'
@@ -60,6 +71,7 @@ export interface TankAmmoSpec {
   damage: number;
   drop: number;
   dispersion: number;
+  historicalPenetration?: TankHistoricalPenetrationSpec;
 }
 
 export interface TankBurstSpec {
@@ -120,6 +132,8 @@ export interface TankSpec {
   traverse: {
     turretSpeed: number;
     gunSpeed: number;
+    maxElevationDeg: number;
+    maxDepressionDeg: number;
   };
   weapons: {
     caliber: number;
@@ -241,6 +255,8 @@ export interface TankResolvedSpec {
   rotationalInertia: number;
   turretSpeed: number;
   gunSpeed: number;
+  minGunElevation: number;
+  maxGunElevation: number;
   caliber: number;
   reloadTime: number;
   burstCount?: number;

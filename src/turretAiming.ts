@@ -1,6 +1,17 @@
 import * as THREE from 'three';
 import { computeBallisticAngle } from './tankPhysics';
 
+export const MIN_GUN_ELEVATION = -Math.PI / 6;
+export const MAX_GUN_ELEVATION = Math.PI / 12;
+
+export function clampGunElevation(
+  gunElevation: number,
+  minGunElevation = MIN_GUN_ELEVATION,
+  maxGunElevation = MAX_GUN_ELEVATION
+) {
+  return THREE.MathUtils.clamp(gunElevation, minGunElevation, maxGunElevation);
+}
+
 export interface TurretAimingInput {
   currentTurretRot: number;
   currentGunElev: number;
@@ -15,6 +26,8 @@ export interface TurretAimingInput {
   ammoVelocity: number;
   turretSpeed: number;
   gunSpeed: number;
+  minGunElevation?: number;
+  maxGunElevation?: number;
   delta: number;
 }
 
@@ -27,8 +40,12 @@ export interface TurretAimingResult {
 export function computeTurretAiming(input: TurretAimingInput): TurretAimingResult {
   const turretSpeed = input.turretSpeed * input.delta;
   const gunSpeed = input.gunSpeed * input.delta;
+  const minGunElevation = input.minGunElevation ?? MIN_GUN_ELEVATION;
+  const maxGunElevation = input.maxGunElevation ?? MAX_GUN_ELEVATION;
 
   const angleOffset = computeBallisticAngle(input.calibrationDistance, input.ammoVelocity);
+  const minSightPitch = -maxGunElevation - angleOffset;
+  const maxSightPitch = -minGunElevation - angleOffset;
 
   // Current sight pitch is derived from actual gun elevation
   let currentSightPitch = -input.currentGunElev - angleOffset;
@@ -76,11 +93,11 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
     if (input.arrowKeys.down) currentSightPitch -= manualGunSpeed;
   }
 
-  currentSightPitch = THREE.MathUtils.clamp(currentSightPitch, -Math.PI / 4, Math.PI / 4);
+  currentSightPitch = THREE.MathUtils.clamp(currentSightPitch, minSightPitch, maxSightPitch);
 
   // Calculate final gun elevation from the sight pitch
   let newGunElev = -currentSightPitch - angleOffset;
-  newGunElev = THREE.MathUtils.clamp(newGunElev, -Math.PI / 6, Math.PI / 12);
+  newGunElev = clampGunElevation(newGunElev, minGunElevation, maxGunElevation);
 
   return {
     turretRotation: newTurretRot,

@@ -204,6 +204,8 @@ function PlayerController() {
       ammoVelocity: ammoStats.velocity,
       turretSpeed: playerDef.turretSpeed,
       gunSpeed: playerDef.gunSpeed,
+      minGunElevation: playerDef.minGunElevation,
+      maxGunElevation: playerDef.maxGunElevation,
       delta,
     });
 

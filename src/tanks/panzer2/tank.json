@@ -43,7 +43,9 @@
   },
   "traverse": {
     "turretSpeed": 0.2,
-    "gunSpeed": 0.15
+    "gunSpeed": 0.15,
+    "maxElevationDeg": 20,
+    "maxDepressionDeg": 9
   },
   "weapons": {
     "caliber": 20,

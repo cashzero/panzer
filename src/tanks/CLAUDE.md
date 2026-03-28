@@ -100,7 +100,9 @@ Top-level structure:
   },
   "traverse": {
     "turretSpeed": 0.26,
-    "gunSpeed": 0.12
+    "gunSpeed": 0.12,
+    "maxElevationDeg": 20,
+    "maxDepressionDeg": 10
   },
   "weapons": {
     "caliber": 75,
@@ -124,6 +126,7 @@ Notes:
 - `renderMode` should be `"parametric"` for the new structure.
 - `catalog.sortOrder` controls selection-screen ordering.
 - `mobility.acceleration` is stored directly now; it is not derived automatically in the JSON pipeline.
+- `traverse.maxElevationDeg` and `traverse.maxDepressionDeg` define the historical gun arc in degrees.
 - `weapons.ammo.AP` is required. `APC` and `HE` are optional.
 - `weapons.burst` is optional and used for burst-fire tanks such as autocannons.
 

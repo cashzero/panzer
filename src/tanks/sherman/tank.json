@@ -25,8 +25,8 @@
     }
   },
   "mounts": {
-    "turretOffset": [0, 1.7, 0.25],
-    "gunPivotOffset": [0, 0.4, 1.5],
+    "turretOffset": [0, 1.58, 0.25],
+    "gunPivotOffset": [0, 0.46, 1.5],
     "muzzleDistance": 3,
     "broadPhaseRadius": 5
   },
@@ -43,18 +43,29 @@
   },
   "traverse": {
     "turretSpeed": 0.1,
-    "gunSpeed": 0.1
+    "gunSpeed": 0.1,
+    "maxElevationDeg": 25,
+    "maxDepressionDeg": 12
   },
   "weapons": {
     "caliber": 75,
     "reloadTime": 4000,
     "ammo": {
       "AP": {
-        "penetration": 109,
+        "penetration": 92,
         "velocity": 618,
         "damage": 350,
         "drop": 0.1,
-        "dispersion": 0.002
+        "dispersion": 0.002,
+        "historicalPenetration": {
+          "standard": "RHA_30deg",
+          "points": [
+            { "distance": 100, "penetration": 92 },
+            { "distance": 500, "penetration": 81 },
+            { "distance": 1000, "penetration": 68 },
+            { "distance": 1500, "penetration": 57 }
+          ]
+        }
       },
       "APC": {
         "penetration": 88,

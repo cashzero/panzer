@@ -43,18 +43,29 @@
   },
   "traverse": {
     "turretSpeed": 0.09,
-    "gunSpeed": 0.1
+    "gunSpeed": 0.1,
+    "maxElevationDeg": 25,
+    "maxDepressionDeg": 10
   },
   "weapons": {
     "caliber": 76,
     "reloadTime": 5000,
     "ammo": {
       "AP": {
-        "penetration": 128,
+        "penetration": 109,
         "velocity": 792,
         "damage": 380,
         "drop": 0.08,
-        "dispersion": 0.0015
+        "dispersion": 0.0015,
+        "historicalPenetration": {
+          "standard": "RHA_30deg",
+          "points": [
+            { "distance": 100, "penetration": 109 },
+            { "distance": 500, "penetration": 100 },
+            { "distance": 1000, "penetration": 88 },
+            { "distance": 1500, "penetration": 77 }
+          ]
+        }
       },
       "APC": {
         "penetration": 109,
