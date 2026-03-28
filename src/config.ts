@@ -113,6 +113,8 @@ export const GAME_CONFIG = {
     fire: { lifetime: 300, color: '#ffaa00', size: 1.5, expand: true },
     hit_penetrate: { lifetime: 800, color: '#ff3300', size: 2, expand: true },
     hit_bounce: { lifetime: 400, color: '#ffff00', size: 0.8, expand: false },
+    non_pen_impact: { lifetime: 680, color: '#ffd46b', size: 2.9, expand: false },
+    ricochet_impact: { lifetime: 740, color: '#ffe08c', size: 3.4, expand: false },
     hit_ground: { lifetime: 1000, color: '#8b5a2b', size: 3, expand: true },
     tank_explosion: { lifetime: 2200, color: '#ff5500', size: 8, expand: true },
     he_hit_ground: { lifetime: 1200, color: '#ff5500', size: 4, expand: true },

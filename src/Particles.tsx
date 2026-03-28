@@ -57,8 +57,8 @@ const ringTexture = createRingTexture();
 // --- Pool sizes ---
 const MAX_ADDITIVE = 384; // world-space flash + fireball
 const MAX_MUZZLE_ADDITIVE = 160;
-const MAX_IMPACT_ADDITIVE = 128;
-const MAX_IMPACT_SPARK = 192;
+const MAX_IMPACT_ADDITIVE = 256;
+const MAX_IMPACT_SPARK = 512;
 const MAX_SHOCKWAVE = 96;
 const MAX_SPARK = 256;
 const MAX_SMOKE = 512;
@@ -105,7 +105,7 @@ void main() {
   vRotation = aRotation;
   vColor = aColor;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = aSize * (300.0 / -mvPosition.z);
+  gl_PointSize = aSize * (520.0 / -mvPosition.z);
   gl_PointSize = clamp(gl_PointSize, 0.0, 512.0);
   gl_Position = projectionMatrix * mvPosition;
 }
@@ -203,6 +203,8 @@ function getConfig(type: Particle['type']) {
     case 'fire': return GAME_CONFIG.particles.fire;
     case 'hit_penetrate': return GAME_CONFIG.particles.hit_penetrate;
     case 'hit_bounce': return GAME_CONFIG.particles.hit_bounce;
+    case 'non_pen_impact': return GAME_CONFIG.particles.non_pen_impact;
+    case 'ricochet_impact': return GAME_CONFIG.particles.ricochet_impact;
     case 'hit_ground': return GAME_CONFIG.particles.hit_ground;
     case 'he_hit_ground': return GAME_CONFIG.particles.he_hit_ground;
     case 'he_hit_penetrate': return GAME_CONFIG.particles.he_hit_penetrate;
@@ -249,6 +251,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
   const config = getConfig(type);
   const lifetime = config.lifetime;
   const s = effectScale;
+  const cs = config.size ?? 1;
   const sc = (count: number) => Math.max(1, Math.floor(count * s));
   const sv = Math.sqrt(s);
 
@@ -296,7 +299,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     for (let i = 0; i < sc(6); i++) cone('smoke', 1.2, (2 + Math.random() * 3) * sv, (2.0 + Math.random() * 2) * s, '#6b5428', 1, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(15); i++) cone('debris', 1.5, (8 + Math.random() * 8) * sv, (0.15 + Math.random() * 0.2) * s, '#3d2e15', 0.8, 0);
   } else if (type === 'hit_penetrate') {
-    add('flash', 0, 0, 0, 0, 0, 0, 3.0 * s, '#ffffff', 0.15, 0);
+    add('flash', 0, 0, 0, 0, 0, 0, 2.2 * s, '#fff6de', 0.12, 0);
     for (let i = 0; i < sc(25); i++) cone('spark', 1.5, (12 + Math.random() * 12) * sv, 0.5 * s, '#ffdd44', 0.4 + Math.random() * 0.4, 0);
     for (let i = 0; i < sc(5); i++) cone('smoke', 0.8, (1 + Math.random() * 2) * sv, (1.5 + Math.random() * 1.5) * s, '#444444', 1, (Math.random() - 0.5) * 2);
   } else if (type === 'hit_bounce') {
@@ -352,6 +355,73 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         i === 0 ? '#8c877f' : '#5a564f',
         0.42 + Math.random() * 0.18,
         (Math.random() - 0.5) * 1.5,
+      );
+    }
+  } else if (type === 'non_pen_impact') {
+    const ox = n.x * 0.22 * s;
+    const oy = n.y * 0.22 * s;
+    const oz = n.z * 0.22 * s;
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 5.8 * s * cs, '#fffdf4', 0.12, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.2 * s * cs, '#ffe09a', 0.18, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 3.0 * s * cs, '#ffb347', 0.22, 0);
+    for (let i = 0; i < sc(36); i++) {
+      const v = randomConeVector(2.1);
+      const tangent = v.clone().sub(n.clone().multiplyScalar(v.dot(n))).normalize();
+      add(
+        'impactSpark',
+        ox + tangent.x * 0.08 * s,
+        oy + tangent.y * 0.08 * s,
+        oz + tangent.z * 0.08 * s,
+        tangent.x * (17 + Math.random() * 16) * sv + n.x * (1.4 + Math.random() * 1.6) * sv,
+        tangent.y * (17 + Math.random() * 16) * sv + n.y * (1.4 + Math.random() * 1.6) * sv,
+        tangent.z * (17 + Math.random() * 16) * sv + n.z * (1.4 + Math.random() * 1.6) * sv,
+        (0.66 + Math.random() * 0.24) * s * cs,
+        i < 24 ? '#fff7cf' : (i < 52 ? '#ffd87f' : '#ff9620'),
+        0.2 + Math.random() * 0.16,
+        0,
+      );
+    }
+    for (let i = 0; i < sc(5); i++) {
+      const v = randomConeVector(0.9);
+      add(
+        'impactSpark',
+        ox,
+        oy,
+        oz,
+        v.x * (8 + Math.random() * 6) * sv,
+        v.y * (8 + Math.random() * 6) * sv,
+        v.z * (8 + Math.random() * 6) * sv,
+        (0.46 + Math.random() * 0.18) * s * cs,
+        i < 5 ? '#fffef2' : '#ffca68',
+        0.12 + Math.random() * 0.08,
+        0,
+      );
+    }
+    for (let i = 0; i < sc(2); i++) {
+      cone('smoke', 0.7, (0.8 + Math.random() * 0.9) * sv, (0.75 + Math.random() * 0.25) * s * cs, i === 0 ? '#80776f' : '#5b554f', 0.3 + Math.random() * 0.12, (Math.random() - 0.5) * 1.2);
+    }
+  } else if (type === 'ricochet_impact') {
+    const ox = n.x * 0.24 * s;
+    const oy = n.y * 0.24 * s;
+    const oz = n.z * 0.24 * s;
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.2 * s * cs, '#fff8dc', 0.11, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.4 * s * cs, '#ffc761', 0.16, 0);
+    for (let i = 0; i < sc(42); i++) {
+      const v = randomConeVector(2.8);
+      const tangent = v.clone().sub(n.clone().multiplyScalar(v.dot(n))).normalize();
+      const forwardBias = 0.6 + Math.random() * 1.2;
+      add(
+        'impactSpark',
+        ox + tangent.x * 0.06 * s,
+        oy + tangent.y * 0.06 * s,
+        oz + tangent.z * 0.06 * s,
+        tangent.x * (19 + Math.random() * 18) * sv + n.x * (1.3 + forwardBias * 1.2) * sv,
+        tangent.y * (19 + Math.random() * 18) * sv + n.y * (1.3 + forwardBias * 1.2) * sv,
+        tangent.z * (19 + Math.random() * 18) * sv + n.z * (1.3 + forwardBias * 1.2) * sv,
+        (0.7 + Math.random() * 0.26) * s * cs,
+        i < 28 ? '#fff8cf' : (i < 60 ? '#ffd97e' : '#ff8d1a'),
+        0.16 + Math.random() * 0.12,
+        0,
       );
     }
   } else if (type === 'he_hit_ground') {
