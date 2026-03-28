@@ -60,11 +60,11 @@
         "id": "right-side-profile",
         "type": "helper",
         "helper": "hull.side_profile_extrude",
-        "position": [1.235, 0, 0],
+        "position": [1.31, 0, 0],
         "rotation": [0, -1.5707963267948966, 0],
         "params": {
           "shape": {
-            "outline": [[2.95, 0.75], [2.95, 1.5], [1.5, 1.7], [-2, 1.7], [-3.15, 0.55], [-2.5, 0.75]]
+            "outline": [[-2.95, 0.75], [-2.95, 1.5], [-1.5, 1.7], [2, 1.7], [3.15, 0.55], [2.5, 0.75]]
           },
           "depth": 0.15,
           "bevelEnabled": false,
@@ -75,7 +75,7 @@
         "id": "left-side-profile",
         "type": "helper",
         "helper": "hull.side_profile_extrude",
-        "position": [-1.235, 0, 0],
+        "position": [-1.31, 0, 0],
         "rotation": [0, 1.5707963267948966, 0],
         "params": {
           "shape": {
@@ -85,6 +85,36 @@
           "bevelEnabled": false,
           "materialRole": "hullPrimary"
         }
+      },
+      {
+        "id": "left-sponson-fill",
+        "type": "box",
+        "size": [0.42, 0.4, 4.2],
+        "position": [-1.08, 1, -0.15],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "right-sponson-fill",
+        "type": "box",
+        "size": [0.42, 0.4, 4.2],
+        "position": [1.08, 1, -0.15],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "front-fender-left",
+        "type": "box",
+        "size": [0.2, 0.06, 0.68],
+        "position": [-1.13, 1.42, 2.7],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "accessory"
+      },
+      {
+        "id": "front-fender-right",
+        "type": "box",
+        "size": [0.2, 0.06, 0.68],
+        "position": [1.13, 1.42, 2.7],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "accessory"
       },
       {
         "id": "hull-mg-cylinder",

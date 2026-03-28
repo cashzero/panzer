@@ -57,10 +57,25 @@
         "materialRole": "hullPrimary"
       },
       {
+        "id": "right-side-profile",
+        "type": "helper",
+        "helper": "hull.side_profile_extrude",
+        "position": [1.31, 0, 0],
+        "rotation": [0, -1.5707963267948966, 0],
+        "params": {
+          "shape": {
+            "outline": [[-2.95, 0.75], [-2.95, 1.5], [-1.5, 1.7], [2, 1.7], [3.15, 0.55], [2.5, 0.75]]
+          },
+          "depth": 0.15,
+          "bevelEnabled": false,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
         "id": "left-side-profile",
         "type": "helper",
         "helper": "hull.side_profile_extrude",
-        "position": [-1.235, 0, 0],
+        "position": [-1.31, 0, 0],
         "rotation": [0, 1.5707963267948966, 0],
         "params": {
           "shape": {
@@ -70,6 +85,36 @@
           "bevelEnabled": false,
           "materialRole": "hullPrimary"
         }
+      },
+      {
+        "id": "left-sponson-fill",
+        "type": "box",
+        "size": [0.42, 0.4, 4.2],
+        "position": [-1.08, 1, -0.15],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "right-sponson-fill",
+        "type": "box",
+        "size": [0.42, 0.4, 4.2],
+        "position": [1.08, 1, -0.15],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "front-fender-left",
+        "type": "box",
+        "size": [0.2, 0.06, 0.68],
+        "position": [-1.13, 1.42, 2.7],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "accessory"
+      },
+      {
+        "id": "front-fender-right",
+        "type": "box",
+        "size": [0.2, 0.06, 0.68],
+        "position": [1.13, 1.42, 2.7],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "accessory"
       },
       {
         "id": "hull-mg-cylinder",
@@ -85,7 +130,7 @@
         "id": "hull-mg-box",
         "type": "box",
         "size": [0.22, 0.25, 0.1],
-        "position": [0.7, 1.12, 3.06],
+        "position": [0.7, 1.2, 3.2],
         "rotation": [0.82, 0, 0],
         "materialRole": "darkMetal"
       },
@@ -98,14 +143,60 @@
         "materialRole": "grille"
       },
       {
-        "id": "exhaust",
+        "id": "exhaust-right",
         "type": "cylinder",
-        "radiusTop": 0.08,
-        "radiusBottom": 0.08,
-        "height": 1.2,
-        "position": [1.3, 1.45, -2.7],
+        "radiusTop": 0.07,
+        "radiusBottom": 0.07,
+        "height": 1,
+        "position": [1.1, 1.45, -2.7],
         "rotation": [0.1, 0, 0],
         "materialRole": "darkMetal"
+      },
+      {
+        "id": "exhaust-left",
+        "type": "cylinder",
+        "radiusTop": 0.07,
+        "radiusBottom": 0.07,
+        "height": 1,
+        "position": [-1.1, 1.45, -2.7],
+        "rotation": [0.1, 0, 0],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "exhaust-right-cap",
+        "type": "cylinder",
+        "radiusTop": 0.09,
+        "radiusBottom": 0.09,
+        "height": 0.12,
+        "position": [1.1, 1.45, -3.2],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "exhaust-left-cap",
+        "type": "cylinder",
+        "radiusTop": 0.09,
+        "radiusBottom": 0.09,
+        "height": 0.12,
+        "position": [-1.1, 1.45, -3.2],
+        "rotation": [1.5707963267948966, 0, 0],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "front-light-right",
+        "type": "box",
+        "size": [0.18, 0.13, 0.18],
+        "position": [1.1, 1.35, 3],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "lamp"
+      },
+      {
+        "id": "front-light-left",
+        "type": "box",
+        "size": [0.18, 0.13, 0.18],
+        "position": [-1.1, 1.35, 3],
+        "rotation": [0.82, 0, 0],
+        "materialRole": "lamp"
       },
       {
         "id": "front-tow-hook-right",
@@ -120,6 +211,13 @@
         "size": [0.12, 0.06, 0.15],
         "position": [-0.9, 0.35, 3.3],
         "materialRole": "darkMetal"
+      },
+      {
+        "id": "rear-stowage-rack",
+        "type": "box",
+        "size": [2, 0.25, 0.3],
+        "position": [0, 1.55, -3.15],
+        "materialRole": "accessory"
       }
     ],
     "tracksLeft": [
