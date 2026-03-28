@@ -33,6 +33,7 @@ export function useInput(onFire: () => void): InputRefs {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       keys.current[e.code] = true;
+      const store = useGameStore.getState();
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
         e.preventDefault();
       }
@@ -42,7 +43,7 @@ export function useInput(onFire: () => void): InputRefs {
       }
       if (e.code === 'KeyV') toggleViewMode();
       if (e.code === 'KeyM') {
-        const wasMapMode = useGameStore.getState().isMapMode;
+        const wasMapMode = store.isMapMode;
         toggleMapMode();
         if (!wasMapMode) {
           document.exitPointerLock();
@@ -51,12 +52,22 @@ export function useInput(onFire: () => void): InputRefs {
         }
       }
       if (e.code === 'PageUp') {
-        const currentDist = useGameStore.getState().calibrationDistance;
+        const currentDist = store.calibrationDistance;
         setCalibrationDistance(Math.min(currentDist + 100, 2000));
       }
       if (e.code === 'PageDown') {
-        const currentDist = useGameStore.getState().calibrationDistance;
+        const currentDist = store.calibrationDistance;
         setCalibrationDistance(Math.max(currentDist - 100, 0));
+      }
+      if (store.viewMode === 'gunner') {
+        if (e.code === 'Equal' || e.code === 'NumpadAdd') {
+          e.preventDefault();
+          store.zoomGunnerIn();
+        }
+        if (e.code === 'Minus' || e.code === 'NumpadSubtract') {
+          e.preventDefault();
+          store.zoomGunnerOut();
+        }
       }
       if (e.code === 'KeyR') toggleAmmo();
     };

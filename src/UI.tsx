@@ -561,7 +561,7 @@ export function UI() {
         <div>V / Mid Click - Toggle View</div>
         <div>M - Toggle Map</div>
         <div>PgUp/PgDn - Calibrate Dist</div>
-        <div>Scroll (Gunner) - Zoom</div>
+        <div>+ / - / Scroll (Gunner) - Zoom</div>
       </div>
       
       {destroyed && (
