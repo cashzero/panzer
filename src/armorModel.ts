@@ -71,6 +71,23 @@ const _gunGroupEuler = new THREE.Euler();
 const _gunGroupQuat = new THREE.Quaternion();
 const _gunGroupOffset = new THREE.Vector3();
 
+function getThicknessAxis(halfExtents: THREE.Vector3): 'x' | 'y' | 'z' {
+  if (halfExtents.x <= halfExtents.y && halfExtents.x <= halfExtents.z) return 'x';
+  if (halfExtents.y <= halfExtents.x && halfExtents.y <= halfExtents.z) return 'y';
+  return 'z';
+}
+
+function isThicknessFaceHit(normal: THREE.Vector3, halfExtents: THREE.Vector3): boolean {
+  const thicknessAxis = getThicknessAxis(halfExtents);
+  if (thicknessAxis === 'x') return Math.abs(normal.x) > 0.999;
+  if (thicknessAxis === 'y') return Math.abs(normal.y) > 0.999;
+  return Math.abs(normal.z) > 0.999;
+}
+
+function isExteriorFaceHit(rayDirection: THREE.Vector3, normal: THREE.Vector3): boolean {
+  return rayDirection.dot(normal) < -0.001;
+}
+
 // --- Ray-OBB Intersection ---
 
 function determineFaceNormal(point: THREE.Vector3, halfExtents: THREE.Vector3): THREE.Vector3 {
@@ -120,6 +137,8 @@ function rayOBBIntersect(
 
   // Compute face normal in local space
   determineFaceNormal(_intersection, halfExtents);
+  if (!isThicknessFaceHit(_localNormal, halfExtents)) return null;
+  if (!isExteriorFaceHit(_localRayDir, _localNormal)) return null;
 
   // Transform back to world space
   _worldNormal.copy(_localNormal).transformDirection(plateWorldMatrix).normalize();
