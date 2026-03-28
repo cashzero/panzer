@@ -323,6 +323,7 @@ export function GameScene() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
+  const viewMode = useGameStore((state) => state.viewMode);
   useEffect(() => {
     const mapScale = MAP_SIZE_VALUES[useGameStore.getState().mapSize] / 1000;
     // Initialize trees
@@ -369,7 +370,7 @@ export function GameScene() {
             </>
           ) : (
             <>
-              <PlayerTank />
+              {viewMode !== 'gunner' && <PlayerTank />}
               {enemyIds.map((id) => (
                 <EnemyTank key={id} id={id} />
               ))}
