@@ -22,7 +22,7 @@
         "type": "box",
         "size": [2.12, 0.5, 0.15],
         "position": [0, 0.45, 2.95],
-        "rotation": [0.05, 0, 0],
+        "rotation": [0.401, 0, 0],
         "materialRole": "hullPrimary"
       },
       {
