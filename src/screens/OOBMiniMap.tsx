@@ -1,7 +1,11 @@
 import { useRef, useMemo, useCallback, useState, useEffect } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Terrain } from '../Terrain';
+import { Buildings } from '../BuildingRenderer';
+import { isPointNearAnyBuilding } from '../buildings';
+import { GAME_CONFIG } from '../config';
 import { useGameStore, MAP_SIZE_VALUES } from '../store';
 
 /* ------------------------------------------------------------------ */
@@ -130,60 +134,82 @@ function OOBMapCamera() {
 function ClickPlane() {
   const mapSize = useGameStore((s) => s.mapSize);
   const half = MAP_SIZE_VALUES[mapSize];
+  const buildings = useGameStore((s) => s.buildings);
+  const [notice, setNotice] = useState<string | null>(null);
+  const mapScale = MAP_SIZE_VALUES[mapSize] / 1000;
+
+  useEffect(() => {
+    if (!notice) return;
+    const timeout = window.setTimeout(() => setNotice(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [notice]);
 
   const handleClick = useCallback((e: ThreeEvent<MouseEvent>) => {
     const point = e.point;
     const x = point.x;
     const z = point.z;
     const state = useGameStore.getState();
+    const oobX = x / mapScale;
+    const oobZ = z / mapScale;
+
+    if (isPointNearAnyBuilding(x, z, buildings, GAME_CONFIG.tank.collisionRadius + 2)) {
+      setNotice('Blocked by building');
+      return;
+    }
 
     if (state.oobPlacementMode) {
-      // Place new unit
       const side = state.oobPlacementMode;
       const defaultType = side === 'enemy' ? 'tiger' : 'sherman';
-      state.addOobUnit(side, defaultType, [x, z]);
+      state.addOobUnit(side, defaultType, [oobX, oobZ]);
       state.setOobPlacementMode(null);
       return;
     }
 
     if (state.oobSelectedUnitId) {
-      // Check if it's the player being repositioned
       if (state.oobSelectedUnitId === 'player') {
-        state.setOobPlayerPosition([x, z]);
+        state.setOobPlayerPosition([oobX, oobZ]);
         state.setOobSelectedUnit(null);
         return;
       }
-      // Reposition selected unit
-      state.updateOobUnit(state.oobSelectedUnitId, { position: [x, z] });
+      state.updateOobUnit(state.oobSelectedUnitId, { position: [oobX, oobZ] });
       state.setOobSelectedUnit(null);
       return;
     }
 
-    // Check if clicking near player
     const pp = state.oobPlayerPosition;
-    if (Math.hypot(x - pp[0], z - pp[1]) < 30) {
+    if (Math.hypot(x - pp[0] * mapScale, z - pp[1] * mapScale) < 30) {
       state.setOobSelectedUnit('player');
       return;
     }
 
-    // Check if clicking near an existing unit
     const allUnits = [...state.oobEnemies, ...state.oobAllies];
     let closestId: string | null = null;
-    let closestDist = 30; // click tolerance
+    let closestDist = 30;
     for (const u of allUnits) {
-      const d = Math.hypot(x - u.position[0], z - u.position[1]);
+      const d = Math.hypot(x - u.position[0] * mapScale, z - u.position[1] * mapScale);
       if (d < closestDist) { closestDist = d; closestId = u.id; }
     }
     if (closestId) {
       state.setOobSelectedUnit(closestId);
     }
-  }, []);
+  }, [buildings, mapScale]);
 
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 5, 0]} onClick={handleClick}>
-      <planeGeometry args={[half * 2, half * 2]} />
-      <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
-    </mesh>
+    <>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 5, 0]} onClick={handleClick}>
+        <planeGeometry args={[half * 2, half * 2]} />
+        <meshBasicMaterial transparent opacity={0} side={THREE.DoubleSide} />
+      </mesh>
+      {notice && (
+        <group position={[0, 18, 0]}>
+          <Html center>
+            <div className="border border-red-800 bg-[#221410]/90 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-red-300">
+              {notice}
+            </div>
+          </Html>
+        </group>
+      )}
+    </>
   );
 }
 
@@ -197,6 +223,8 @@ export function OOBMiniMap() {
   const playerPos = useGameStore((s) => s.oobPlayerPosition);
   const selectedId = useGameStore((s) => s.oobSelectedUnitId);
   const placementMode = useGameStore((s) => s.oobPlacementMode);
+  const mapSize = useGameStore((s) => s.mapSize);
+  const mapScale = MAP_SIZE_VALUES[mapSize] / 1000;
 
   const cursorStyle = placementMode ? 'crosshair' : selectedId ? 'pointer' : 'default';
 
@@ -207,11 +235,12 @@ export function OOBMiniMap() {
         <directionalLight position={[100, 200, 50]} intensity={1.0} />
         <OOBMapCamera />
         <Terrain />
+        <Buildings clickThrough />
         <ClickPlane />
 
         {/* Player marker */}
         <OOBMarker
-          position={playerPos}
+          position={[playerPos[0] * mapScale, playerPos[1] * mapScale]}
           rotation={0}
           color="#00ff00"
           isSelected={selectedId === 'player'}
@@ -222,7 +251,7 @@ export function OOBMiniMap() {
         {oobAllies.map((u) => (
           <OOBMarker
             key={u.id}
-            position={u.position}
+            position={[u.position[0] * mapScale, u.position[1] * mapScale]}
             rotation={u.rotation}
             color="#3399ff"
             isSelected={u.id === selectedId}
@@ -233,7 +262,7 @@ export function OOBMiniMap() {
         {oobEnemies.map((u) => (
           <OOBMarker
             key={u.id}
-            position={u.position}
+            position={[u.position[0] * mapScale, u.position[1] * mapScale]}
             rotation={u.rotation}
             color="#ff3333"
             isSelected={u.id === selectedId}

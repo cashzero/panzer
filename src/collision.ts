@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TankData } from './store';
 import { GAME_CONFIG } from './config';
 import type { TreeInstance } from './trees';
+import type { BuildingInstance } from './buildings';
 
 const _tempVec = new THREE.Vector3();
 
@@ -42,6 +43,7 @@ export interface TreeCollisionResult {
 }
 
 const _treeSep = new THREE.Vector3();
+const _buildingPush = new THREE.Vector3();
 
 /**
  * Resolve tank-tree collisions.
@@ -83,4 +85,38 @@ export function resolveTreeCollision(
   }
 
   return { knockedTreeIndex: null };
+}
+
+export function resolveBuildingCollision(newPos: THREE.Vector3, buildings: BuildingInstance[]): void {
+  const tankRadius = GAME_CONFIG.tank.collisionRadius;
+
+  for (const building of buildings) {
+    const dx = newPos.x - building.position[0];
+    const dz = newPos.z - building.position[2];
+    const c = Math.cos(-building.rotation);
+    const s = Math.sin(-building.rotation);
+    const localX = dx * c - dz * s;
+    const localZ = dx * s + dz * c;
+    const expandedHalfW = building.width * 0.5 + tankRadius;
+    const expandedHalfD = building.depth * 0.5 + tankRadius;
+
+    if (Math.abs(localX) >= expandedHalfW || Math.abs(localZ) >= expandedHalfD) continue;
+
+    const pushX = expandedHalfW - Math.abs(localX);
+    const pushZ = expandedHalfD - Math.abs(localZ);
+    const outX = localX >= 0 ? expandedHalfW : -expandedHalfW;
+    const outZ = localZ >= 0 ? expandedHalfD : -expandedHalfD;
+    const resolvedLocalX = pushX < pushZ ? outX : localX;
+    const resolvedLocalZ = pushZ <= pushX ? outZ : localZ;
+    const wc = Math.cos(building.rotation);
+    const ws = Math.sin(building.rotation);
+
+    _buildingPush.set(
+      building.position[0] + resolvedLocalX * wc - resolvedLocalZ * ws,
+      newPos.y,
+      building.position[2] + resolvedLocalX * ws + resolvedLocalZ * wc,
+    );
+    newPos.x = _buildingPush.x;
+    newPos.z = _buildingPush.z;
+  }
 }

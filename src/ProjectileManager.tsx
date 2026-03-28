@@ -6,7 +6,7 @@ import { testProjectileAgainstTank } from './armorModel';
 import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import { GAME_CONFIG } from './config';
-import { checkTerrainCollision, checkTreeCollision } from './projectilePhysics';
+import { checkTerrainCollision, checkTreeCollision, checkBuildingCollision } from './projectilePhysics';
 
 export function ProjectileManager() {
   const projectiles = useGameStore((state) => state.projectiles);
@@ -59,6 +59,12 @@ export function ProjectileManager() {
           updateTree(treeHit.treeIndex, { health: treeHit.newHealth });
         }
         handleHit(p.id, 'ground', nextPos.clone(), new THREE.Vector3(0, 1, 0)); // consume projectile
+        return;
+      }
+
+      const buildingHit = checkBuildingCollision(ray, rayLength, useGameStore.getState().buildings);
+      if (buildingHit) {
+        handleHit(p.id, 'ground', buildingHit.point, buildingHit.normal);
         return;
       }
 

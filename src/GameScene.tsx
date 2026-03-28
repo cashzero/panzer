@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, Suspense } from 'react';
+import { useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Sky, Environment, OrbitControls, Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -12,7 +12,7 @@ import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight, raycastTerrain } from './Terrain';
-import { resolveTankCollision, resolveTreeCollision } from './collision';
+import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
 import { MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
@@ -23,10 +23,9 @@ import { computeTurretAiming } from './turretAiming';
 import { computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees } from './TreeRenderer';
+import { Buildings } from './BuildingRenderer';
 import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
-import { generateTrees } from './trees';
-import { MAP_SIZE_VALUES } from './store';
 import { audioManager, toAudioVec3 } from './audio';
 
 function EnemyTank({ id }: { id: string }) {
@@ -39,9 +38,9 @@ function AllyTank({ id }: { id: string }) {
   return <Tank id={id} tankType={tankType} />;
 }
 
-function PlayerTank() {
+function PlayerTank({ visible }: { visible: boolean }) {
   const tankType = useGameStore(state => state.playerTank.tankType);
-  return <Tank id="player" tankType={tankType} />;
+  return <Tank id="player" tankType={tankType} visible={visible} />;
 }
 
 function GunAimPoint() {
@@ -180,6 +179,7 @@ function PlayerController() {
     // Tank-tank collision
     const allTanks = [player, ...useGameStore.getState().enemies, ...useGameStore.getState().allies];
     resolveTankCollision('player', newPos, allTanks);
+    resolveBuildingCollision(newPos, useGameStore.getState().buildings);
 
     // Tree collision
     const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);
@@ -324,13 +324,6 @@ export function GameScene() {
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
   const viewMode = useGameStore((state) => state.viewMode);
-  useEffect(() => {
-    const mapScale = MAP_SIZE_VALUES[useGameStore.getState().mapSize] / 1000;
-    // Initialize trees
-    if (useGameStore.getState().trees.length === 0) {
-      useGameStore.getState().initTrees(generateTrees(mapScale));
-    }
-  }, []);
 
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
@@ -352,6 +345,7 @@ export function GameScene() {
           />
 
           <Terrain />
+          <Buildings />
           <Trees />
           <PlayerController />
           <AudioSync />
@@ -370,7 +364,7 @@ export function GameScene() {
             </>
           ) : (
             <>
-              {viewMode !== 'gunner' && <PlayerTank />}
+              <PlayerTank visible={viewMode !== 'gunner'} />
               {enemyIds.map((id) => (
                 <EnemyTank key={id} id={id} />
               ))}

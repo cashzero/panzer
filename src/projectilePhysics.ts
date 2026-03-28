@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { getTerrainHeight } from './Terrain';
 import type { TreeInstance } from './trees';
+import type { BuildingInstance } from './buildings';
+import { intersectBuildingRay } from './buildings';
 
 // --- Projectile Motion ---
 
@@ -71,4 +73,36 @@ export function checkTreeCollision(
     }
   }
   return null;
+}
+
+export interface BuildingHitResult {
+  hit: boolean;
+  buildingId: string;
+  point: THREE.Vector3;
+  normal: THREE.Vector3;
+  distance: number;
+}
+
+export function checkBuildingCollision(
+  ray: THREE.Ray,
+  rayLength: number,
+  buildings: BuildingInstance[],
+): BuildingHitResult | null {
+  let closest: BuildingHitResult | null = null;
+
+  for (const building of buildings) {
+    const hit = intersectBuildingRay(ray, rayLength, building);
+    if (!hit) continue;
+    if (!closest || hit.distance < closest.distance) {
+      closest = {
+        hit: true,
+        buildingId: building.id,
+        point: hit.point,
+        normal: hit.normal,
+        distance: hit.distance,
+      };
+    }
+  }
+
+  return closest;
 }

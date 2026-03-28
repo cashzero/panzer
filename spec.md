@@ -104,6 +104,8 @@ Completed TODO items are removed from `todo.md` and documented here.
 - Instanced rendering: TreeRenderer uses InstancedMesh (4 meshes: trunks, deciduous canopy, 2× conifer cones). Particles converted from per-effect React components to pooled Points (3 pools: additive+dust, additive+spark, normal+smoke) + InstancedMesh (debris boxes) with custom shaders — reduces draw calls from hundreds to 4.
 - Ally command modes: map-selected allies now use separate movement and fire-control orders. Base movement stance is `follow` or `hold`; issuing a waypoint temporarily switches the ally into `move` until the waypoint is cleared or reached, then it returns to its base stance. Fire control supports `hold-fire` (track targets without shooting), `return-fire` (engage only when alerted or threatened nearby), and `fire-at-will`. Map mode shows the active orders and provides waypoint assignment and cancellation UI.
 - Penetration now falls off with range. Ammo can define `historicalPenetration` sample points in `tank.json`; otherwise the game auto-generates a curve from muzzle velocity and caliber, with UI stats normalized to 100m penetration.
+- World layout now generates a seeded road network per map size, with terrain flattening and coloring driven by procedural roads instead of one fixed crossroads layout.
+- Rural building clusters now spawn along road junctions and roadsides as indestructible battlefield obstacles; tanks collide with them and shells impact their walls and roofs.
 
 ## Map Mode
 

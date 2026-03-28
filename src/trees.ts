@@ -1,6 +1,9 @@
 import { GAME_CONFIG } from './config';
-import { getTerrainHeight } from './Terrain';
-import { isOnRoad } from './roads';
+import type { RoadNetwork } from './roads';
+import { getRoadInfluence, isOnRoadForNetwork } from './roads';
+import type { BuildingInstance, FarmlandPlot } from './buildings';
+import { isPointInsideFarmland, isPointNearAnyBuilding } from './buildings';
+import { sampleTerrainHeight } from './terrainHeight';
 
 export interface TreeInstance {
   position: [number, number, number];
@@ -24,7 +27,12 @@ function mulberry32(seed: number) {
   };
 }
 
-export function generateTrees(mapScale: number = 1): TreeInstance[] {
+export function generateTrees(
+  mapScale: number = 1,
+  roadNetwork: RoadNetwork,
+  buildings: BuildingInstance[] = [],
+  farmlands: FarmlandPlot[] = [],
+): TreeInstance[] {
   const cfg = GAME_CONFIG.trees;
   const rng = mulberry32(cfg.seed);
   const trees: TreeInstance[] = [];
@@ -36,51 +44,60 @@ export function generateTrees(mapScale: number = 1): TreeInstance[] {
   const halfRange = cfg.maxPlacementRadius * mapScale;
   const gridStart = -halfRange;
   const gridEnd = halfRange;
+  const cells: Array<{ gx: number; gz: number }> = [];
 
   for (let gx = gridStart; gx < gridEnd; gx += gridSize) {
     for (let gz = gridStart; gz < gridEnd; gz += gridSize) {
-      if (trees.length >= treeCount) break;
-
-      // Jitter within cell
-      const x = gx + rng() * gridSize;
-      const z = gz + rng() * gridSize;
-
-      // Exclusion: center spawn area
-      const distFromCenter = Math.sqrt(x * x + z * z);
-      if (distFromCenter < cfg.exclusionFromCenter) continue;
-
-      // Exclusion: terrain edge
-      if (distFromCenter > halfRange) continue;
-
-      // Exclusion: roads
-      if (isOnRoad(x, z, cfg.exclusionFromRoad)) continue;
-
-      // Check minimum spacing against existing trees
-      let tooClose = false;
-      for (const t of trees) {
-        const dx = t.position[0] - x;
-        const dz = t.position[2] - z;
-        if (dx * dx + dz * dz < minSpacingSq) {
-          tooClose = true;
-          break;
-        }
-      }
-      if (tooClose) continue;
-
-      const y = getTerrainHeight(x, z);
-
-      trees.push({
-        position: [x, y, z],
-        rotation: rng() * Math.PI * 2,
-        scale: 0.8 + rng() * 0.5,
-        type: rng() < 0.7 ? 'deciduous' : 'conifer',
-        health: cfg.health,
-        fallen: false,
-        fallDirection: 0,
-        fallProgress: 0,
-      });
+      cells.push({ gx, gz });
     }
+  }
+
+  for (let i = cells.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [cells[i], cells[j]] = [cells[j], cells[i]];
+  }
+
+  for (const { gx, gz } of cells) {
     if (trees.length >= treeCount) break;
+
+    const x = gx + (0.2 + rng() * 0.6) * gridSize;
+    const z = gz + (0.2 + rng() * 0.6) * gridSize;
+
+    const distFromCenter = Math.sqrt(x * x + z * z);
+    if (distFromCenter < cfg.exclusionFromCenter) continue;
+    if (distFromCenter > halfRange) continue;
+    if (isOnRoadForNetwork(x, z, roadNetwork, cfg.exclusionFromRoad)) continue;
+    if (isPointNearAnyBuilding(x, z, buildings, cfg.exclusionFromBuilding)) continue;
+    if (farmlands.some((plot) => isPointInsideFarmland(x, z, plot, GAME_CONFIG.farmland.treeExclusionMargin))) continue;
+    const nearestVillage = roadNetwork.junctions.reduce((best, [jx, jz]) => Math.min(best, Math.hypot(x - jx, z - jz)), Infinity);
+    if (
+      nearestVillage < GAME_CONFIG.farmland.villageTreeSuppressionRadius &&
+      rng() < GAME_CONFIG.farmland.villageTreeSuppressionChance
+    ) continue;
+
+    let tooClose = false;
+    for (const t of trees) {
+      const dx = t.position[0] - x;
+      const dz = t.position[2] - z;
+      if (dx * dx + dz * dz < minSpacingSq) {
+        tooClose = true;
+        break;
+      }
+    }
+    if (tooClose) continue;
+
+    const y = sampleTerrainHeight(x, z, roadNetwork, getRoadInfluence);
+
+    trees.push({
+      position: [x, y, z],
+      rotation: rng() * Math.PI * 2,
+      scale: 0.8 + rng() * 0.5,
+      type: 'conifer',
+      health: cfg.health,
+      fallen: false,
+      fallDirection: 0,
+      fallProgress: 0,
+    });
   }
 
   return trees;

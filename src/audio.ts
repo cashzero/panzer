@@ -134,6 +134,13 @@ function saturate(value: number): number {
   return Math.tanh(value * 1.35);
 }
 
+function distanceBetween(a: AudioVec3, b: AudioVec3): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 function phaseFor(index: number): number {
   return ((index * 0.6180339887498948) % 1) * TAU;
 }
@@ -983,17 +990,20 @@ class LayeredTankAudioBackend implements AudioBackend {
     const now = context.currentTime;
     const scale = clamp(event.scale, 0.5, 2.2);
     const isPlayerExplosion = event.source === 'player';
+    const listenerDistance = this.lastListenerPose ? distanceBetween(this.lastListenerPose.position, event.position) : 999;
+    const proximity = this.lastListenerPose ? clamp(1 - (listenerDistance - 18) / 52, 0, 1) : 0;
+    const closeBlast = proximity * proximity;
     const transient = this.createTransientBus(context, event.position, {
       highpass: 24,
       lowpass: 980,
-      refDistance: isPlayerExplosion ? 18 : 16,
+      refDistance: isPlayerExplosion ? 18 : lerp(16, 24, closeBlast),
       maxDistance: 480,
-      rolloffFactor: 0.82,
+      rolloffFactor: lerp(0.82, 0.68, closeBlast),
     });
 
     transient.output.gain.setValueAtTime(0.0001, now);
-    transient.output.gain.exponentialRampToValueAtTime(0.72 * scale, now + 0.025);
-    transient.output.gain.exponentialRampToValueAtTime(0.14 * scale, now + 0.55);
+    transient.output.gain.exponentialRampToValueAtTime((0.88 + closeBlast * 0.82) * scale, now + 0.02);
+    transient.output.gain.exponentialRampToValueAtTime((0.16 + closeBlast * 0.14) * scale, now + 0.62);
     transient.output.gain.exponentialRampToValueAtTime(0.0001, now + 2.8);
 
     const boom = this.createNoiseSource(context, 2.4, 0.22);
@@ -1004,7 +1014,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     boomFilter.Q.value = 0.45;
     const boomGain = context.createGain();
     boomGain.gain.setValueAtTime(0.0001, now);
-    boomGain.gain.exponentialRampToValueAtTime(0.52 * scale, now + 0.04);
+    boomGain.gain.exponentialRampToValueAtTime((0.66 + closeBlast * 0.72) * scale, now + 0.03);
     boomGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.1);
     boom.connect(boomFilter);
     boomFilter.connect(boomGain);
@@ -1020,7 +1030,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     fireballFilter.Q.value = 0.55;
     const fireballGain = context.createGain();
     fireballGain.gain.setValueAtTime(0.0001, now + 0.02);
-    fireballGain.gain.exponentialRampToValueAtTime(0.22 * scale, now + 0.14);
+    fireballGain.gain.exponentialRampToValueAtTime((0.24 + closeBlast * 0.1) * scale, now + 0.12);
     fireballGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.65);
     fireball.connect(fireballFilter);
     fireballFilter.connect(fireballGain);
@@ -1036,7 +1046,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     debrisFilter.Q.value = 0.9;
     const debrisGain = context.createGain();
     debrisGain.gain.setValueAtTime(0.0001, now + 0.01);
-    debrisGain.gain.exponentialRampToValueAtTime(0.08 * scale, now + 0.06);
+    debrisGain.gain.exponentialRampToValueAtTime((0.1 + closeBlast * 0.09) * scale, now + 0.05);
     debrisGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
     debris.connect(debrisFilter);
     debrisFilter.connect(debrisGain);
@@ -1050,7 +1060,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     thump.frequency.exponentialRampToValueAtTime(23, now + 0.75);
     const thumpGain = context.createGain();
     thumpGain.gain.setValueAtTime(0.0001, now);
-    thumpGain.gain.exponentialRampToValueAtTime(0.24 * scale, now + 0.016);
+    thumpGain.gain.exponentialRampToValueAtTime((0.32 + closeBlast * 0.34) * scale, now + 0.012);
     thumpGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.9);
     thump.connect(thumpGain);
     thumpGain.connect(transient.input);
@@ -1063,7 +1073,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     shockwave.frequency.exponentialRampToValueAtTime(16, now + 1.2);
     const shockwaveGain = context.createGain();
     shockwaveGain.gain.setValueAtTime(0.0001, now + 0.02);
-    shockwaveGain.gain.exponentialRampToValueAtTime(0.12 * scale, now + 0.08);
+    shockwaveGain.gain.exponentialRampToValueAtTime((0.16 + closeBlast * 0.26) * scale, now + 0.06);
     shockwaveGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
     shockwave.connect(shockwaveGain);
     shockwaveGain.connect(transient.input);
@@ -1077,7 +1087,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     echoFilter.Q.value = 0.32;
     const echoGain = context.createGain();
     echoGain.gain.setValueAtTime(0.0001, now + 0.18);
-    echoGain.gain.exponentialRampToValueAtTime(0.12 * scale, now + 0.5);
+    echoGain.gain.exponentialRampToValueAtTime((0.12 + closeBlast * 0.05) * scale, now + 0.46);
     echoGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.7);
     echo.connect(echoFilter);
     echoFilter.connect(echoGain);
@@ -1090,7 +1100,17 @@ class LayeredTankAudioBackend implements AudioBackend {
     let interiorLowpass: BiquadFilterNode | null = null;
     let interiorRumbleGain: GainNode | null = null;
     let interiorMetalGain: GainNode | null = null;
-    if (isPlayerExplosion) {
+    let proximityBus: GainNode | null = null;
+    let proximityHighpass: BiquadFilterNode | null = null;
+    let proximityLowpass: BiquadFilterNode | null = null;
+    let proximityRumbleGain: GainNode | null = null;
+    let proximityShockGain: GainNode | null = null;
+    let hullHit: OscillatorNode | null = null;
+    let hullHitGain: GainNode | null = null;
+    let pressureNoise: AudioBufferSourceNode | null = null;
+    let pressureNoiseFilter: BiquadFilterNode | null = null;
+    let pressureNoiseGain: GainNode | null = null;
+    if (isPlayerExplosion || closeBlast > 0.02) {
       interiorBus = context.createGain();
       interiorBus.gain.value = 0;
 
@@ -1109,12 +1129,12 @@ class LayeredTankAudioBackend implements AudioBackend {
       interiorBus.connect(context.destination);
 
       interiorBus.gain.setValueAtTime(0.0001, now);
-      interiorBus.gain.exponentialRampToValueAtTime(0.38 * scale, now + 0.03);
+      interiorBus.gain.exponentialRampToValueAtTime((0.38 + closeBlast * 0.36) * scale, now + 0.025);
       interiorBus.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
 
       interiorRumbleGain = context.createGain();
       interiorRumbleGain.gain.setValueAtTime(0.0001, now);
-      interiorRumbleGain.gain.exponentialRampToValueAtTime(0.22 * scale, now + 0.04);
+      interiorRumbleGain.gain.exponentialRampToValueAtTime((0.22 + closeBlast * 0.24) * scale, now + 0.035);
       interiorRumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
       thumpGain.connect(interiorRumbleGain);
       interiorRumbleGain.connect(interiorHighpass);
@@ -1125,6 +1145,72 @@ class LayeredTankAudioBackend implements AudioBackend {
       interiorMetalGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
       debrisGain.connect(interiorMetalGain);
       interiorMetalGain.connect(interiorHighpass);
+
+      if (!isPlayerExplosion) {
+        proximityBus = context.createGain();
+        proximityBus.gain.value = 0;
+
+        proximityHighpass = context.createBiquadFilter();
+        proximityHighpass.type = 'highpass';
+        proximityHighpass.frequency.value = 18;
+        proximityHighpass.Q.value = 0.18;
+
+        proximityLowpass = context.createBiquadFilter();
+        proximityLowpass.type = 'lowpass';
+        proximityLowpass.frequency.value = 360;
+        proximityLowpass.Q.value = 0.42;
+
+        proximityHighpass.connect(proximityLowpass);
+        proximityLowpass.connect(proximityBus);
+        proximityBus.connect(context.destination);
+
+        proximityBus.gain.setValueAtTime(0.0001, now);
+        proximityBus.gain.exponentialRampToValueAtTime((0.26 + closeBlast * 0.92) * scale, now + 0.024);
+        proximityBus.gain.exponentialRampToValueAtTime(0.0001, now + 1.7);
+
+        proximityRumbleGain = context.createGain();
+        proximityRumbleGain.gain.setValueAtTime(0.0001, now);
+        proximityRumbleGain.gain.exponentialRampToValueAtTime((0.18 + closeBlast * 0.52) * scale, now + 0.028);
+        proximityRumbleGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.05);
+        thumpGain.connect(proximityRumbleGain);
+        proximityRumbleGain.connect(proximityHighpass);
+
+        proximityShockGain = context.createGain();
+        proximityShockGain.gain.setValueAtTime(0.0001, now + 0.015);
+        proximityShockGain.gain.exponentialRampToValueAtTime((0.16 + closeBlast * 0.46) * scale, now + 0.055);
+        proximityShockGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+        shockwaveGain.connect(proximityShockGain);
+        proximityShockGain.connect(proximityHighpass);
+
+        hullHit = context.createOscillator();
+        hullHit.type = 'triangle';
+        hullHit.frequency.setValueAtTime(96, now);
+        hullHit.frequency.exponentialRampToValueAtTime(34, now + 0.42);
+        hullHitGain = context.createGain();
+        hullHitGain.gain.setValueAtTime(0.0001, now);
+        hullHitGain.gain.exponentialRampToValueAtTime((0.12 + closeBlast * 0.32) * scale, now + 0.014);
+        hullHitGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+        hullHit.connect(hullHitGain);
+        hullHitGain.connect(proximityHighpass);
+        hullHit.start(now);
+        hullHit.stop(now + 0.55);
+
+        pressureNoise = this.createNoiseSource(context, 0.9, 0.14);
+        pressureNoiseFilter = context.createBiquadFilter();
+        pressureNoiseFilter.type = 'bandpass';
+        pressureNoiseFilter.frequency.setValueAtTime(120, now + 0.01);
+        pressureNoiseFilter.frequency.exponentialRampToValueAtTime(58, now + 0.7);
+        pressureNoiseFilter.Q.value = 0.3;
+        pressureNoiseGain = context.createGain();
+        pressureNoiseGain.gain.setValueAtTime(0.0001, now + 0.01);
+        pressureNoiseGain.gain.exponentialRampToValueAtTime((0.12 + closeBlast * 0.28) * scale, now + 0.08);
+        pressureNoiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.85);
+        pressureNoise.connect(pressureNoiseFilter);
+        pressureNoiseFilter.connect(pressureNoiseGain);
+        pressureNoiseGain.connect(proximityHighpass);
+        pressureNoise.start(now + 0.01);
+        pressureNoise.stop(now + 0.9);
+      }
     }
 
     echo.onended = () => {
@@ -1144,11 +1230,21 @@ class LayeredTankAudioBackend implements AudioBackend {
       echo.disconnect();
       echoFilter.disconnect();
       echoGain.disconnect();
+      hullHit?.disconnect();
+      hullHitGain?.disconnect();
+      pressureNoise?.disconnect();
+      pressureNoiseFilter?.disconnect();
+      pressureNoiseGain?.disconnect();
       interiorRumbleGain?.disconnect();
       interiorMetalGain?.disconnect();
       interiorHighpass?.disconnect();
       interiorLowpass?.disconnect();
       interiorBus?.disconnect();
+      proximityRumbleGain?.disconnect();
+      proximityShockGain?.disconnect();
+      proximityHighpass?.disconnect();
+      proximityLowpass?.disconnect();
+      proximityBus?.disconnect();
       this.disposeTransientBus(transient);
     };
   }

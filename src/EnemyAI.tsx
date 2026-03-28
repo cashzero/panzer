@@ -5,7 +5,8 @@ import { useRef } from 'react';
 import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
-import { resolveTankCollision, resolveTreeCollision } from './collision';
+import { steerDirectionAroundBuildings } from './buildings';
+import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -22,7 +23,7 @@ export function EnemyAI() {
   const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
-    const { playerTank: player, enemies, allies, updateEnemy, fireProjectile } = useGameStore.getState();
+    const { playerTank: player, enemies, allies, buildings, updateEnemy, fireProjectile } = useGameStore.getState();
 
     const now = Date.now();
 
@@ -63,6 +64,7 @@ export function EnemyAI() {
 
       // Aim at target
       const dirToPlayer = target.position.clone().sub(enemy.position).normalize();
+      const moveDir = steerDirectionAroundBuildings(enemy.position, dirToPlayer, buildings, 90, 14);
 
       // Movement logic
       let forwardSpeed = 0;
@@ -84,7 +86,7 @@ export function EnemyAI() {
 
       if (dist > preferredRange + rangeDeadzone) {
         // Too far — advance towards target
-        const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
+        const angleToPlayer = Math.atan2(moveDir.x, moveDir.z);
         let rotDiff = angleToPlayer - enemy.rotation;
         rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
 
@@ -99,9 +101,20 @@ export function EnemyAI() {
         }
       } else if (dist < preferredRange - rangeDeadzone) {
         // Too close — reverse away
-        forwardSpeed = -enemyDef.maxReverseSpeed * 0.5;
-        leftSpeed = forwardSpeed;
-        rightSpeed = forwardSpeed;
+        const retreatDir = steerDirectionAroundBuildings(enemy.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14);
+        const retreatAngle = Math.atan2(retreatDir.x, retreatDir.z);
+        let retreatDiff = retreatAngle - enemy.rotation;
+        retreatDiff = Math.atan2(Math.sin(retreatDiff), Math.cos(retreatDiff));
+
+        if (Math.abs(retreatDiff) > 0.16) {
+          rotationSpeed = Math.sign(retreatDiff) * 1.0;
+          leftSpeed = -rotationSpeed * enemyDef.trackWidth / 2;
+          rightSpeed = rotationSpeed * enemyDef.trackWidth / 2;
+        } else {
+          forwardSpeed = -enemyDef.maxReverseSpeed * 0.5;
+          leftSpeed = forwardSpeed;
+          rightSpeed = forwardSpeed;
+        }
       }
 
       // Track damage: destroyed tracks cannot move
@@ -138,6 +151,7 @@ export function EnemyAI() {
       // Tank-tank collision
       const allTanks = [player, ...enemies, ...useGameStore.getState().allies];
       resolveTankCollision(enemy.id, newPos, allTanks);
+      resolveBuildingCollision(newPos, useGameStore.getState().buildings);
 
       // Tree collision
       const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);

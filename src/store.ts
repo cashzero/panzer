@@ -8,9 +8,14 @@ import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef, getAllTankDefs } from './tanks/registry';
 import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
+import { generateTrees } from './trees';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
+import type { RoadNetwork } from './roads';
+import { generateRoadNetwork } from './roads';
+import type { BuildingInstance, FarmlandPlot } from './buildings';
+import { findNearestOpenPosition, generateBuildings, generateFarmlands, projectBuildingsToTerrain } from './buildings';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
 export type AllyBaseMoveOrder = 'follow' | 'hold';
@@ -139,6 +144,10 @@ function getAudioSourceRole(allies: TankData[], tankId: string): AudioSource {
 interface GameState {
   gameScreen: GameScreen;
   mapSize: MapSize;
+  worldSeed: number;
+  roadNetwork: RoadNetwork;
+  buildings: BuildingInstance[];
+  farmlands: FarmlandPlot[];
   playerTank: TankData;
   enemies: TankData[];
   allies: TankData[];
@@ -190,6 +199,8 @@ interface GameState {
   zoomGunnerOut: () => void;
   setLastFireTime: (time: number) => void;
   setMapSize: (size: MapSize) => void;
+  setWorldSeed: (seed: number) => void;
+  regenerateWorld: () => void;
   selectPlayerTank: (tankType: string) => void;
   setPlayerBurst: (remaining: number, nextTime: number) => void;
   setPlayerAutomaticState: (rounds: number, nextTime: number) => void;
@@ -224,6 +235,51 @@ interface GameState {
 }
 
 const GRAVITY = GAME_CONFIG.physics.gravity;
+
+function getMapScale(mapSize: MapSize): number {
+  return MAP_SIZE_VALUES[mapSize] / 1000;
+}
+
+function toWorldPosition(position: [number, number], mapSize: MapSize): [number, number] {
+  const mapScale = getMapScale(mapSize);
+  return [position[0] * mapScale, position[1] * mapScale];
+}
+
+function toOobPosition(position: [number, number], mapSize: MapSize): [number, number] {
+  const mapScale = getMapScale(mapSize);
+  return [position[0] / mapScale, position[1] / mapScale];
+}
+
+function sanitizeOobPosition(position: [number, number], mapSize: MapSize, buildings: BuildingInstance[]): [number, number] {
+  const [worldX, worldZ] = toWorldPosition(position, mapSize);
+  const [safeX, safeZ] = findNearestOpenPosition(worldX, worldZ, buildings, GAME_CONFIG.tank.collisionRadius + 2);
+  return toOobPosition([safeX, safeZ], mapSize);
+}
+
+function sanitizeOobLayout(
+  mapSize: MapSize,
+  buildings: BuildingInstance[],
+  oobPlayerPosition: [number, number],
+  oobEnemies: OOBUnit[],
+  oobAllies: OOBUnit[],
+) {
+  return {
+    oobPlayerPosition: sanitizeOobPosition(oobPlayerPosition, mapSize, buildings),
+    oobEnemies: oobEnemies.map((unit) => ({ ...unit, position: sanitizeOobPosition(unit.position, mapSize, buildings) })),
+    oobAllies: oobAllies.map((unit) => ({ ...unit, position: sanitizeOobPosition(unit.position, mapSize, buildings) })),
+  };
+}
+
+function generateWorld(mapSize: MapSize, seed: number) {
+  const roadNetwork = generateRoadNetwork(mapSize, seed);
+  const buildings = projectBuildingsToTerrain(generateBuildings(mapSize, roadNetwork, seed + 17), roadNetwork);
+  const farmlands = generateFarmlands(buildings, roadNetwork, mapSize, seed + 29);
+  const mapScale = MAP_SIZE_VALUES[mapSize] / 1000;
+  const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands);
+  return { roadNetwork, buildings, farmlands, trees };
+}
+
+const initialWorld = generateWorld('medium', GAME_CONFIG.world.seed);
 
 function createTankData(tankType: string, isPlayer: boolean): TankData {
   const def = getTankDef(tankType);
@@ -266,6 +322,10 @@ function getInitialMagazineRounds(tankType: string): number {
 export const useGameStore = create<GameState>((set, get) => ({
   gameScreen: 'oob-editor',
   mapSize: 'medium',
+  worldSeed: GAME_CONFIG.world.seed,
+  roadNetwork: initialWorld.roadNetwork,
+  buildings: initialWorld.buildings,
+  farmlands: initialWorld.farmlands,
   playerTank: (() => {
     const def = getTankDef('sherman');
     return {
@@ -315,7 +375,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   allyWaypoints: {},
   calibrationDistance: 0,
   gunnerZoom: 1,
-  trees: [],
+  trees: initialWorld.trees,
   cameraShake: 0,
   playerBurstRemaining: 0,
   playerBurstNextFireTime: 0,
@@ -436,7 +496,26 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   setCameraYawAbs: (yaw) => set({ cameraYawAbs: yaw }),
 
-  setMapSize: (size) => set({ mapSize: size }),
+  setMapSize: (size) => {
+    const { worldSeed, oobPlayerPosition, oobEnemies, oobAllies } = get();
+    const world = generateWorld(size, worldSeed);
+    const sanitized = sanitizeOobLayout(size, world.buildings, oobPlayerPosition, oobEnemies, oobAllies);
+    set({ mapSize: size, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, ...sanitized });
+  },
+
+  setWorldSeed: (seed) => {
+    const state = get();
+    const world = generateWorld(state.mapSize, seed);
+    const sanitized = sanitizeOobLayout(state.mapSize, world.buildings, state.oobPlayerPosition, state.oobEnemies, state.oobAllies);
+    set({ worldSeed: seed, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, ...sanitized });
+  },
+
+  regenerateWorld: () => {
+    const state = get();
+    const world = generateWorld(state.mapSize, state.worldSeed);
+    const sanitized = sanitizeOobLayout(state.mapSize, world.buildings, state.oobPlayerPosition, state.oobEnemies, state.oobAllies);
+    set({ roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, ...sanitized });
+  },
 
   selectPlayerTank: (tankType) => {
     const newTank = createTankData(tankType, true);

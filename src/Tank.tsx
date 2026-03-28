@@ -30,9 +30,10 @@ function createTrackTexture() {
 interface TankProps {
   id: string;
   tankType: string;
+  visible?: boolean;
 }
 
-export function Tank({ id, tankType }: TankProps) {
+export function Tank({ id, tankType, visible = true }: TankProps) {
   const def = getTankDef(tankType);
   const caliberScale = Math.max(0.65, (def.caliber || 75) / 75);
   const recoilScale = caliberScale * def.recoilAnimationScale;
@@ -198,7 +199,7 @@ export function Tank({ id, tankType }: TankProps) {
   });
 
   return (
-    <group ref={groupRef} name={`tank-${id}`}>
+    <group ref={groupRef} name={`tank-${id}`} visible={visible}>
       <HullComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} />
       <TracksComponent isLeft={true} trackMat={leftTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.left} />
       <TracksComponent isLeft={false} trackMat={rightTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.right} />

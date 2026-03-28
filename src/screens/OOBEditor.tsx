@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, Suspense } from 'react';
+import { useState, useRef, useCallback, Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { getAmmoDisplayPenetration } from '../penetrationModel';
@@ -21,13 +21,21 @@ interface PlateHoverInfo {
 export function OOBEditor() {
   const oobPlayerTankType = useGameStore((s) => s.oobPlayerTankType);
   const mapSize = useGameStore((s) => s.mapSize);
+  const worldSeed = useGameStore((s) => s.worldSeed);
   const setMapSize = useGameStore((s) => s.setMapSize);
+  const setWorldSeed = useGameStore((s) => s.setWorldSeed);
+  const regenerateWorld = useGameStore((s) => s.regenerateWorld);
   const deployOob = useGameStore((s) => s.deployOob);
   const setGameScreen = useGameStore((s) => s.setGameScreen);
 
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
   const [hoveredListTank, setHoveredListTank] = useState<string | null>(null);
+  const [seedInput, setSeedInput] = useState(String(worldSeed));
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
+
+  useEffect(() => {
+    setSeedInput(String(worldSeed));
+  }, [worldSeed]);
 
   // The preview shows the hovered list tank, or the player's selected tank
   const previewTankType = hoveredListTank ?? oobPlayerTankType;
@@ -74,6 +82,38 @@ export function OOBEditor() {
                 <span className="text-[9px] ml-1 opacity-60">{MAP_SIZE_VALUES[size]}m</span>
               </button>
             ))}
+          </div>
+          <div className="ml-4 flex items-center gap-2">
+            <span className="text-xs text-gray-400 uppercase tracking-widest">Seed</span>
+            <input
+              value={seedInput}
+              onChange={(e) => setSeedInput(e.target.value.replace(/[^0-9-]/g, ''))}
+              className="w-28 border border-gray-700 bg-black px-2 py-1 text-xs tracking-wider text-gray-200 outline-none focus:border-yellow-600"
+            />
+            <button
+              onClick={() => {
+                const parsed = Number.parseInt(seedInput, 10);
+                if (Number.isFinite(parsed)) setWorldSeed(parsed);
+              }}
+              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+            >
+              Apply
+            </button>
+            <button
+              onClick={() => {
+                const nextSeed = Math.floor(Math.random() * 1_000_000_000);
+                setWorldSeed(nextSeed);
+              }}
+              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+            >
+              New Seed
+            </button>
+            <button
+              onClick={regenerateWorld}
+              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+            >
+              Regenerate
+            </button>
           </div>
         </div>
       </div>
