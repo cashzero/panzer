@@ -6,6 +6,7 @@ import { type SwayState } from './tankPhysics';
 
 export interface InputRefs {
   keys: React.MutableRefObject<{ [key: string]: boolean }>;
+  primaryFireHeld: React.MutableRefObject<boolean>;
   arrowKeyPressStartedAt: React.MutableRefObject<{ left: number; right: number; up: number; down: number }>;
   cameraYaw: React.MutableRefObject<number>;
   cameraPitch: React.MutableRefObject<number>;
@@ -22,6 +23,7 @@ export function useInput(onFire: () => void): InputRefs {
   const setCalibrationDistance = useGameStore((state) => state.setCalibrationDistance);
 
   const keys = useRef<{ [key: string]: boolean }>({});
+  const primaryFireHeld = useRef(false);
   const arrowKeyPressStartedAt = useRef({ left: 0, right: 0, up: 0, down: 0 });
   const cameraYaw = useRef(0);
   const cameraPitch = useRef(0);
@@ -90,6 +92,7 @@ export function useInput(onFire: () => void): InputRefs {
     };
     const handleBlur = () => {
       keys.current = {};
+      primaryFireHeld.current = false;
       arrowKeyPressStartedAt.current = { left: 0, right: 0, up: 0, down: 0 };
       isAiming.current = false;
     };
@@ -111,6 +114,7 @@ export function useInput(onFire: () => void): InputRefs {
         document.body.requestPointerLock().catch(() => {});
       }
       if (e.button === 0) {
+        primaryFireHeld.current = true;
         onFire();
       } else if (e.button === 1) {
         e.preventDefault();
@@ -121,6 +125,9 @@ export function useInput(onFire: () => void): InputRefs {
     };
     const handleMouseUp = (e: MouseEvent) => {
       if (useGameStore.getState().isMapMode) return;
+      if (e.button === 0) {
+        primaryFireHeld.current = false;
+      }
       if (e.button === 2) {
         isAiming.current = false;
       }
@@ -159,5 +166,5 @@ export function useInput(onFire: () => void): InputRefs {
     };
   }, [ammoType, toggleAmmo]);
 
-  return { keys, arrowKeyPressStartedAt, cameraYaw, cameraPitch, isAiming, swayPrev, swayState };
+  return { keys, primaryFireHeld, arrowKeyPressStartedAt, cameraYaw, cameraPitch, isAiming, swayPrev, swayState };
 }

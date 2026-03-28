@@ -2,7 +2,6 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
-import { playFireSound, playAutocannonSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
@@ -13,6 +12,7 @@ import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import { clampGunElevation } from './turretAiming';
 import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
+import { audioManager, toAudioVec3 } from './audio';
 
 function computeEngagementMovement(
   ally: TankData,
@@ -143,6 +143,7 @@ export function AllyAI() {
   const aimOffsets = useRef<Record<string, AiAimOffset>>({});
   const accuracyState = useRef<Record<string, AiAccuracyState>>({});
   const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
+  const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
     const store = useGameStore.getState();
@@ -355,42 +356,68 @@ export function AllyAI() {
         fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP, allyDef.weapons.AP.damage, ally.id, allyDef.caliber);
         updateAlly(ally.id, { lastFireTime: now });
         registerAiShot(accuracyState.current, aimOffsets.current, ally.id, engagementTarget.id);
+        audioManager.playShot({
+          source: 'ally',
+          position: toAudioVec3(pos),
+          caliber: allyDef.caliber,
+          burst: !!allyDef.burstCount || !!allyDef.automaticMagazineSize,
+        });
 
-        const distToPlayer = newPos.distanceTo(player.position);
-        if (allyDef.burstCount) {
-          playAutocannonSound(allyDef.caliber, distToPlayer);
-        } else {
-          playFireSound(allyDef.caliber, distToPlayer);
-        }
       };
 
-      // Burst continuation
-      const burst = burstStates.current[ally.id];
-      if (burst && burst.remaining > 0) {
-        if (now >= burst.nextFireTime) {
-          fireAllyRound();
-          burst.remaining--;
-          if (burst.remaining > 0) {
-            burst.nextFireTime = now + (allyDef.burstInterval || 125);
-          } else {
-            lastFireTimes.current[ally.id] = now;
-          }
-        }
-      } else if (
+      if (
         Math.abs(normalizedDiff) < GAME_CONFIG.ai.fireTurretThreshold &&
         Math.abs(elevDiff) < GAME_CONFIG.ai.fireElevationThreshold
       ) {
-        const lastFire = lastFireTimes.current[ally.id] || 0;
-        if (now - lastFire > allyDef.reloadTime + Math.random() * 3000) {
-          fireAllyRound();
+        if (allyDef.automaticMagazineSize && allyDef.automaticFireInterval) {
+          const automatic = automaticStates.current[ally.id] ?? {
+            magazineRounds: allyDef.automaticMagazineSize,
+            nextFireTime: 0,
+          };
+          automaticStates.current[ally.id] = automatic;
 
-          if (allyDef.burstCount && allyDef.burstCount > 1 && allyDef.burstInterval) {
-            burstStates.current[ally.id] = {
-              remaining: allyDef.burstCount - 1,
-              nextFireTime: now + allyDef.burstInterval,
-            };
+          if (automatic.magazineRounds <= 0) {
+            const reloadStartedAt = lastFireTimes.current[ally.id] || 0;
+            if (now - reloadStartedAt <= allyDef.reloadTime) return;
+            automatic.magazineRounds = allyDef.automaticMagazineSize;
+          }
+
+          if (now < automatic.nextFireTime) return;
+
+          fireAllyRound();
+          automatic.magazineRounds--;
+          if (automatic.magazineRounds > 0) {
+            automatic.nextFireTime = now + allyDef.automaticFireInterval;
           } else {
+            automatic.nextFireTime = 0;
             lastFireTimes.current[ally.id] = now;
+          }
+        } else {
+          const burst = burstStates.current[ally.id];
+          if (burst && burst.remaining > 0) {
+            if (now >= burst.nextFireTime) {
+              fireAllyRound();
+              burst.remaining--;
+              if (burst.remaining > 0) {
+                burst.nextFireTime = now + (allyDef.burstInterval || 125);
+              } else {
+                lastFireTimes.current[ally.id] = now;
+              }
+            }
+          } else {
+            const lastFire = lastFireTimes.current[ally.id] || 0;
+            if (now - lastFire > allyDef.reloadTime + Math.random() * 3000) {
+              fireAllyRound();
+
+              if (allyDef.burstCount && allyDef.burstCount > 1 && allyDef.burstInterval) {
+                burstStates.current[ally.id] = {
+                  remaining: allyDef.burstCount - 1,
+                  nextFireTime: now + allyDef.burstInterval,
+                };
+              } else {
+                lastFireTimes.current[ally.id] = now;
+              }
+            }
           }
         }
       }

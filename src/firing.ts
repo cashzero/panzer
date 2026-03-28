@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { useGameStore, type AmmoType, type TankData } from './store';
 import { getTankDef } from './tanks/registry';
 import type { TankDefinition } from './tanks/types';
-import { playFireSound, playAutocannonSound } from './audio';
+import { audioManager, toAudioVec3 } from './audio';
 
 export function randGauss() {
   return (Math.random() - 0.5) + (Math.random() - 0.5);
@@ -63,13 +63,15 @@ function fireOneRound(tank: TankData, def: TankDefinition, ammoType: AmmoType): 
 
   useGameStore.getState().fireProjectile(pos, velocity, ammoType, ammoStats, ammoStats.damage, 'player', def.caliber);
   const caliberScale = (def.caliber || 75) / 75;
-  useGameStore.getState().triggerCameraShake((def.burstCount ? 0.3 : 0.8) * caliberScale);
+  const rapidFire = !!def.burstCount || !!def.automaticMagazineSize;
+  useGameStore.getState().triggerCameraShake((rapidFire ? 0.3 : 0.8) * caliberScale);
+  audioManager.playShot({
+    source: 'player',
+    position: toAudioVec3(pos),
+    caliber: def.caliber || 75,
+    burst: rapidFire,
+  });
 
-  if (def.burstCount) {
-    playAutocannonSound(def.caliber);
-  } else {
-    playFireSound(def.caliber);
-  }
 }
 
 export function fireTank(): void {
@@ -86,6 +88,29 @@ export function fireTank(): void {
   if (state.destroyed) return;
 
   const ammoType = store.ammoType;
+
+  if (playerDef.automaticMagazineSize && playerDef.automaticFireInterval) {
+    let roundsAvailable = store.playerMagazineRounds;
+
+    if (roundsAvailable <= 0) {
+      if (now - lastFireTime < playerDef.reloadTime) return;
+      roundsAvailable = playerDef.automaticMagazineSize;
+    }
+
+    if (now < store.playerNextFireTime) return;
+
+    fireOneRound(state, playerDef, ammoType);
+
+    const roundsRemaining = roundsAvailable - 1;
+    if (roundsRemaining > 0) {
+      store.setPlayerAutomaticState(roundsRemaining, now + playerDef.automaticFireInterval);
+    } else {
+      store.setPlayerAutomaticState(0, 0);
+      store.setLastFireTime(now);
+      store.updatePlayer({ lastFireTime: now });
+    }
+    return;
+  }
 
   if (playerDef.burstCount && playerDef.burstCount > 1 && playerDef.burstInterval) {
     // Burst fire: fire first round, schedule remaining

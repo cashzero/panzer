@@ -35,6 +35,7 @@ interface TankProps {
 export function Tank({ id, tankType }: TankProps) {
   const def = getTankDef(tankType);
   const caliberScale = Math.max(0.65, (def.caliber || 75) / 75);
+  const recoilScale = caliberScale * def.recoilAnimationScale;
 
   const groupRef = useRef<THREE.Group>(null);
   const turretRef = useRef<THREE.Group>(null);
@@ -93,14 +94,14 @@ export function Tank({ id, tankType }: TankProps) {
 
       if (timeSinceFire < 80) {
         const t = timeSinceFire / 80;
-        hullRecoil = -0.32 * caliberScale * t;
-        hullBounce = 0.08 * caliberScale * t;
-        recoilPitch = 0.025 * caliberScale * t;
+        hullRecoil = -0.32 * recoilScale * t;
+        hullBounce = 0.08 * recoilScale * t;
+        recoilPitch = 0.025 * recoilScale * t;
       } else if (timeSinceFire < 420) {
         const t = (timeSinceFire - 80) / 340;
-        hullRecoil = -0.32 * caliberScale * (1 - t);
-        hullBounce = 0.08 * caliberScale * (1 - t);
-        recoilPitch = 0.025 * caliberScale * (1 - t);
+        hullRecoil = -0.32 * recoilScale * (1 - t);
+        hullBounce = 0.08 * recoilScale * (1 - t);
+        recoilPitch = 0.025 * recoilScale * (1 - t);
       }
 
       groupRef.current.position.copy(data.position);
@@ -126,9 +127,9 @@ export function Tank({ id, tankType }: TankProps) {
 
       let recoilOffset = 0;
       if (timeSinceFire < 50) {
-        recoilOffset = -(timeSinceFire / 50) * 0.8;
+        recoilOffset = -(timeSinceFire / 50) * 0.8 * def.recoilAnimationScale;
       } else if (timeSinceFire < 500) {
-        recoilOffset = -0.8 * (1 - (timeSinceFire - 50) / 450);
+        recoilOffset = -0.8 * (1 - (timeSinceFire - 50) / 450) * def.recoilAnimationScale;
       }
 
       gunBarrelRef.current.position.z = recoilOffset;

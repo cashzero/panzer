@@ -292,6 +292,10 @@ function PlayerController() {
     // Update burst fire (autocannon)
     updatePlayerBurst();
 
+    if (input.keys.current['Space'] || input.primaryFireHeld.current) {
+      fireTank();
+    }
+
     updatePlayer({
       position: newPos,
       rotation: newRot,

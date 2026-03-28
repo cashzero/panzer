@@ -3,6 +3,7 @@ import { Vector3, Euler } from 'three';
 import * as THREE from 'three';
 import { v4 as uuidv4 } from 'uuid';
 import { GAME_CONFIG } from './config';
+import { audioManager, toAudioVec3, type AudioSource } from './audio';
 import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef, getAllTankDefs } from './tanks/registry';
 import type { TankAmmoSpec } from './tanks/types';
@@ -130,6 +131,11 @@ function cloneAmmoSpec(ammoSpec: TankAmmoSpec): TankAmmoSpec {
   };
 }
 
+function getAudioSourceRole(allies: TankData[], tankId: string): AudioSource {
+  if (tankId === 'player') return 'player';
+  return allies.some((ally) => ally.id === tankId) ? 'ally' : 'enemy';
+}
+
 interface GameState {
   gameScreen: GameScreen;
   mapSize: MapSize;
@@ -154,6 +160,8 @@ interface GameState {
   cameraShake: number; // current shake intensity (decays over time)
   playerBurstRemaining: number;
   playerBurstNextFireTime: number;
+  playerMagazineRounds: number;
+  playerNextFireTime: number;
   cameraYawAbs: number; // absolute camera yaw (hull rotation + mouse yaw)
 
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number) => void;
@@ -184,6 +192,7 @@ interface GameState {
   setMapSize: (size: MapSize) => void;
   selectPlayerTank: (tankType: string) => void;
   setPlayerBurst: (remaining: number, nextTime: number) => void;
+  setPlayerAutomaticState: (rounds: number, nextTime: number) => void;
 
   // OOB Editor state
   oobPlayerTankType: string;
@@ -250,6 +259,10 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
   };
 }
 
+function getInitialMagazineRounds(tankType: string): number {
+  return getTankDef(tankType).automaticMagazineSize ?? 0;
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   gameScreen: 'oob-editor',
   mapSize: 'medium',
@@ -306,6 +319,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   cameraShake: 0,
   playerBurstRemaining: 0,
   playerBurstNextFireTime: 0,
+  playerMagazineRounds: getInitialMagazineRounds('sherman'),
+  playerNextFireTime: 0,
   cameraYawAbs: 0,
 
   // OOB Editor initial state
@@ -411,6 +426,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       ammoType: 'AP',
       playerBurstRemaining: 0,
       playerBurstNextFireTime: 0,
+      playerMagazineRounds: getInitialMagazineRounds(player.tankType),
+      playerNextFireTime: 0,
       projectiles: [],
       particles: [],
       messages: [],
@@ -423,7 +440,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   selectPlayerTank: (tankType) => {
     const newTank = createTankData(tankType, true);
-    set({ playerTank: newTank, gameScreen: 'playing', ammoType: 'AP', playerBurstRemaining: 0, playerBurstNextFireTime: 0 });
+    set({
+      playerTank: newTank,
+      gameScreen: 'playing',
+      ammoType: 'AP',
+      playerBurstRemaining: 0,
+      playerBurstNextFireTime: 0,
+      playerMagazineRounds: getInitialMagazineRounds(tankType),
+      playerNextFireTime: 0,
+    });
   },
 
   triggerCameraShake: (intensity) => set((state) => ({
@@ -460,6 +485,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   setPlayerBurst: (remaining, nextTime) => set({ playerBurstRemaining: remaining, playerBurstNextFireTime: nextTime }),
+  setPlayerAutomaticState: (rounds, nextTime) => set({ playerMagazineRounds: rounds, playerNextFireTime: nextTime }),
 
   toggleAmmo: () => {
     const playerDef = getTankDef(get().playerTank.tankType);
@@ -572,17 +598,29 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (!projectile) return;
 
     const scale = (projectile.caliber || 75) / 75;
+    const sourceRole = getAudioSourceRole(state.allies, projectile.firedBy);
 
     // Remove projectile
     set((s) => ({ projectiles: s.projectiles.filter((p) => p.id !== projectileId) }));
 
     if (hitTankId === 'ground') {
       get().spawnParticle(projectile.type === 'HE' ? 'he_hit_ground' : 'hit_ground', hitPoint.clone(), hitNormal, scale);
+      audioManager.playImpact({
+        position: toAudioVec3(hitPoint),
+        normal: toAudioVec3(hitNormal),
+        source: sourceRole,
+        target: 'terrain',
+        caliber: projectile.caliber,
+        projectileType: projectile.type,
+        material: 'ground',
+        result: 'ground',
+      });
       return;
     }
 
     const target = hitTankId === 'player' ? state.playerTank : (state.enemies.find((e) => e.id === hitTankId) ?? state.allies.find((a) => a.id === hitTankId));
     if (!target || target.destroyed) return;
+    const targetRole = getAudioSourceRole(state.allies, hitTankId);
 
     // Alert the hit tank — it now knows who attacked it
     if (hitTankId !== 'player') {
@@ -608,6 +646,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().spawnParticle('ricochet_impact', hitPoint.clone(), hitNormal, scale);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
       if (hitTankId === 'player') get().triggerCameraShake(0.4 * scale);
+      audioManager.playImpact({
+        position: toAudioVec3(hitPoint),
+        normal: toAudioVec3(hitNormal),
+        source: sourceRole,
+        target: targetRole,
+        caliber: projectile.caliber,
+        projectileType: projectile.type,
+        material: 'armor',
+        result: 'ricochet',
+      });
 
       // Create reflected projectile so the shell visibly bounces away
       const reflected = computeReflectedVelocity(projectile.velocity, hitNormal);
@@ -630,6 +678,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (actualPen > effectiveArmor) {
       // Penetration!
       get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_penetrate', hitPoint.clone(), hitNormal, scale);
+      audioManager.playImpact({
+        position: toAudioVec3(hitPoint),
+        normal: toAudioVec3(hitNormal),
+        source: sourceRole,
+        target: targetRole,
+        caliber: projectile.caliber,
+        projectileType: projectile.type,
+        material: 'armor',
+        result: projectile.type === 'HE' ? 'blast' : 'penetration',
+      });
 
       if (isTrackHit && trackSide) {
         // Track hit — damage track HP, not main HP
@@ -674,12 +732,27 @@ export const useGameStore = create<GameState>((set, get) => ({
           const distance = state.playerTank.position.distanceTo(target.position);
           if (distance < 45) get().triggerCameraShake(Math.max(0.4, 1.8 - distance / 30));
           get().addMessage('Target Destroyed!', '#ff0000');
+          audioManager.playExplosion({
+            position: toAudioVec3(target.position),
+            source: targetRole,
+            scale,
+          });
         }
       }
     } else {
       // Non-penetration
       get().spawnParticle('non_pen_impact', hitPoint.clone(), hitNormal, scale);
       if (hitTankId === 'player') get().triggerCameraShake(0.5 * scale);
+      audioManager.playImpact({
+        position: toAudioVec3(hitPoint),
+        normal: toAudioVec3(hitNormal),
+        source: sourceRole,
+        target: targetRole,
+        caliber: projectile.caliber,
+        projectileType: projectile.type,
+        material: 'armor',
+        result: projectile.type === 'HE' ? 'blast' : 'non-penetration',
+      });
 
       if (isTrackHit && trackSide && projectile.type === 'HE') {
         // HE splash on track
@@ -717,6 +790,11 @@ export const useGameStore = create<GameState>((set, get) => ({
           const distance = state.playerTank.position.distanceTo(target.position);
           if (distance < 45) get().triggerCameraShake(Math.max(0.4, 1.8 - distance / 30));
           get().addMessage('Target Destroyed!', '#ff0000');
+          audioManager.playExplosion({
+            position: toAudioVec3(target.position),
+            source: targetRole,
+            scale,
+          });
         }
       } else {
         get().addMessage(`Armor not pierced. ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#aaaaaa');

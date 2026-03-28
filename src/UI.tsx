@@ -30,6 +30,8 @@ function OrderButton({
 function ReloadIndicator() {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [burstRemaining, setBurstRemaining] = useState(0);
+  const [magazineRounds, setMagazineRounds] = useState(0);
+  const [magazineSize, setMagazineSize] = useState(0);
 
   useEffect(() => {
     let animationFrameId: number;
@@ -43,6 +45,8 @@ function ReloadIndicator() {
       const def = getTankDef(playerTankType);
 
       setBurstRemaining(store.playerBurstRemaining);
+      setMagazineRounds(store.playerMagazineRounds);
+      setMagazineSize(def.automaticMagazineSize ?? 0);
 
       const remaining = Math.max(0, (def.reloadTime - timeSinceFire) / 1000);
       setSecondsLeft(remaining);
@@ -55,12 +59,23 @@ function ReloadIndicator() {
   }, []);
 
   const isBursting = burstRemaining > 0;
-  const isReady = secondsLeft === 0 && !isBursting;
+  const isAutomatic = magazineSize > 0;
+  const isReloadingMagazine = isAutomatic && magazineRounds === 0 && secondsLeft > 0;
+  const isReady = secondsLeft === 0 && !isBursting && !isReloadingMagazine;
+  const label = isBursting
+    ? `FIRING (${burstRemaining})`
+    : isReloadingMagazine
+      ? `RELOAD ${secondsLeft.toFixed(1)}s`
+      : isAutomatic
+        ? `READY ${magazineRounds}/${magazineSize}`
+        : isReady
+          ? 'READY'
+          : `RELOAD ${secondsLeft.toFixed(1)}s`;
 
   return (
     <div className="mt-4">
       <div className="text-sm text-gray-300 mb-1 font-bold">
-        {isBursting ? `FIRING (${burstRemaining})` : isReady ? 'READY' : `RELOAD ${secondsLeft.toFixed(1)}s`}
+        {label}
       </div>
     </div>
   );
@@ -556,7 +571,7 @@ export function UI() {
         <div>Mouse - Look Around</div>
         <div>Arrows - Aim Gunner Sight</div>
         <div>Hold Right Click - Align Sight to Camera</div>
-        <div>Space - Fire</div>
+        <div>Hold Space / LMB - Fire</div>
         <div>R - Change Ammo</div>
         <div>V / Mid Click - Toggle View</div>
         <div>M - Toggle Map</div>

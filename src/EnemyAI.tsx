@@ -2,7 +2,6 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
-import { playFireSound, playAutocannonSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
@@ -13,12 +12,14 @@ import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import { clampGunElevation } from './turretAiming';
 import type { TankData } from './store';
+import { audioManager, toAudioVec3 } from './audio';
 
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
   const aimOffsets = useRef<Record<string, AiAimOffset>>({});
   const accuracyState = useRef<Record<string, AiAccuracyState>>({});
   const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
+  const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
     const { playerTank: player, enemies, allies, updateEnemy, fireProjectile } = useGameStore.getState();
@@ -209,44 +210,68 @@ export function EnemyAI() {
         fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
         updateEnemy(enemy.id, { lastFireTime: now });
         registerAiShot(accuracyState.current, aimOffsets.current, enemy.id, target.id);
+        audioManager.playShot({
+          source: 'enemy',
+          position: toAudioVec3(pos),
+          caliber: enemyDef.caliber,
+          burst: !!enemyDef.burstCount || !!enemyDef.automaticMagazineSize,
+        });
 
-        const distToPlayer = newPos.distanceTo(player.position);
-        if (enemyDef.burstCount) {
-          playAutocannonSound(enemyDef.caliber, distToPlayer);
-        } else {
-          playFireSound(enemyDef.caliber, distToPlayer);
-        }
       };
 
-      // Continue active burst
-      const burst = burstStates.current[enemy.id];
-      if (burst && burst.remaining > 0) {
-        if (now >= burst.nextFireTime) {
-          fireEnemyRound();
-          burst.remaining--;
-          if (burst.remaining > 0) {
-            burst.nextFireTime = now + (enemyDef.burstInterval || 125);
-          } else {
-            lastFireTimes.current[enemy.id] = now;
-          }
-        }
-      } else if (
+      if (
         Math.abs(normalizedDiff) < GAME_CONFIG.ai.fireTurretThreshold &&
         Math.abs(elevDiff) < GAME_CONFIG.ai.fireElevationThreshold
       ) {
-        // Fire if aimed and reloaded
-        const lastFire = lastFireTimes.current[enemy.id] || 0;
-        if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
-          fireEnemyRound();
+        if (enemyDef.automaticMagazineSize && enemyDef.automaticFireInterval) {
+          const automatic = automaticStates.current[enemy.id] ?? {
+            magazineRounds: enemyDef.automaticMagazineSize,
+            nextFireTime: 0,
+          };
+          automaticStates.current[enemy.id] = automatic;
 
-          if (enemyDef.burstCount && enemyDef.burstCount > 1 && enemyDef.burstInterval) {
-            // Start burst — schedule remaining rounds
-            burstStates.current[enemy.id] = {
-              remaining: enemyDef.burstCount - 1,
-              nextFireTime: now + enemyDef.burstInterval,
-            };
+          if (automatic.magazineRounds <= 0) {
+            const reloadStartedAt = lastFireTimes.current[enemy.id] || 0;
+            if (now - reloadStartedAt <= enemyDef.reloadTime) return;
+            automatic.magazineRounds = enemyDef.automaticMagazineSize;
+          }
+
+          if (now < automatic.nextFireTime) return;
+
+          fireEnemyRound();
+          automatic.magazineRounds--;
+          if (automatic.magazineRounds > 0) {
+            automatic.nextFireTime = now + enemyDef.automaticFireInterval;
           } else {
+            automatic.nextFireTime = 0;
             lastFireTimes.current[enemy.id] = now;
+          }
+        } else {
+          const burst = burstStates.current[enemy.id];
+          if (burst && burst.remaining > 0) {
+            if (now >= burst.nextFireTime) {
+              fireEnemyRound();
+              burst.remaining--;
+              if (burst.remaining > 0) {
+                burst.nextFireTime = now + (enemyDef.burstInterval || 125);
+              } else {
+                lastFireTimes.current[enemy.id] = now;
+              }
+            }
+          } else {
+            const lastFire = lastFireTimes.current[enemy.id] || 0;
+            if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
+              fireEnemyRound();
+
+              if (enemyDef.burstCount && enemyDef.burstCount > 1 && enemyDef.burstInterval) {
+                burstStates.current[enemy.id] = {
+                  remaining: enemyDef.burstCount - 1,
+                  nextFireTime: now + enemyDef.burstInterval,
+                };
+              } else {
+                lastFireTimes.current[enemy.id] = now;
+              }
+            }
           }
         }
       }

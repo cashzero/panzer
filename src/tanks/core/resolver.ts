@@ -53,6 +53,9 @@ export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
     reloadTime: spec.weapons.reloadTime,
     burstCount: spec.weapons.burst?.count,
     burstInterval: spec.weapons.burst?.interval,
+    automaticMagazineSize: spec.weapons.automatic?.magazineSize,
+    automaticFireInterval: spec.weapons.automatic?.fireInterval,
+    recoilAnimationScale: spec.visuals?.recoilAnimationScale ?? 1,
     weapons: {
       AP: cloneAmmoSpec(spec.weapons.ammo.AP),
       APC: spec.weapons.ammo.APC ? cloneAmmoSpec(spec.weapons.ammo.APC) : undefined,

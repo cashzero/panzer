@@ -50,9 +50,9 @@
   "weapons": {
     "caliber": 20,
     "reloadTime": 2500,
-    "burst": {
-      "count": 5,
-      "interval": 125
+    "automatic": {
+      "magazineSize": 10,
+      "fireInterval": 231
     },
     "ammo": {
       "AP": {
@@ -60,9 +60,12 @@
         "velocity": 780,
         "damage": 25,
         "drop": 0.12,
-        "dispersion": 0.005
+        "dispersion": 0.0025
       }
     }
+  },
+  "visuals": {
+    "recoilAnimationScale": 0
   },
   "armorModel": {
     "plates": [

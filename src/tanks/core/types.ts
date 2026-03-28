@@ -79,6 +79,15 @@ export interface TankBurstSpec {
   interval: number;
 }
 
+export interface TankAutomaticSpec {
+  magazineSize: number;
+  fireInterval: number;
+}
+
+export interface TankVisualSpec {
+  recoilAnimationScale?: number;
+}
+
 export interface TankArmorSummary {
   front: number;
   side: number;
@@ -139,12 +148,14 @@ export interface TankSpec {
     caliber: number;
     reloadTime: number;
     burst?: TankBurstSpec;
+    automatic?: TankAutomaticSpec;
     ammo: {
       AP: TankAmmoSpec;
       APC?: TankAmmoSpec;
       HE?: TankAmmoSpec;
     };
   };
+  visuals?: TankVisualSpec;
   armorModel: {
     plates: TankArmorPlateSpec[];
   };
@@ -261,6 +272,9 @@ export interface TankResolvedSpec {
   reloadTime: number;
   burstCount?: number;
   burstInterval?: number;
+  automaticMagazineSize?: number;
+  automaticFireInterval?: number;
+  recoilAnimationScale: number;
   weapons: {
     AP: TankAmmoSpec;
     APC?: TankAmmoSpec;
