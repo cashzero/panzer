@@ -1,170 +1,246 @@
 # Adding a New Tank
 
-Standard procedure for creating a new tank definition. Use `tiger.tsx` as the reference template.
+Tank definitions now live in folder-based modules under `src/tanks/<tankid>/`.
+Use `src/tanks/panzer4/` or `src/tanks/tiger/` as the reference template.
+
+## Folder layout
+
+Create a new folder:
+
+```text
+src/tanks/<tankid>/
+  index.ts
+  tank.json
+  model.json
+```
+
+- `tank.json` stores gameplay, metadata, mounts, mobility, weapons, and armor plate data.
+- `model.json` stores the parametric render tree for hull, tracks, turret, and gun.
+- `index.ts` loads both JSON files, builds the renderer, and exports the tank module.
 
 ## Step-by-step
 
-### 1. Create the tank file
+### 1. Create the tank folder
 
-Create `src/tanks/<tankid>.tsx`. The file has 6 sections:
+Create `src/tanks/<tankid>/` and copy one existing parametric tank folder as a base.
 
-```
-1. Imports
-2. Hull component
-3. Tracks component
-4. Turret component
-5. Gun component
-6. Armor plates function
-7. TankDefinition export
-```
+### 2. Add `index.ts`
 
-### 2. Imports (copy from tiger.tsx)
+Use the standard wrapper:
 
-```tsx
-import { useMemo } from 'react';
-import * as THREE from 'three';
-import { Box, Cylinder } from '@react-three/drei';
-import type { ArmorPlate } from '../armorModel';
-import type { TankDefinition, TankGeometryProps, TankTrackProps, TankGunProps } from './types';
-import { computeAccelFromHpWeight } from '../config';
-```
-
-### 3. Geometry components
-
-Create 4 React components using the prop interfaces from `types.ts`:
-
-| Component | Props | Role |
-|-----------|-------|------|
-| `<Name>Hull` | `TankGeometryProps` (`color`, `destroyedColor`, `destroyed`) | Hull body, glacis, engine deck, rear plate, details (lights, MG, exhaust, tow hooks) |
-| `<Name>Tracks` | `TankTrackProps` (`isLeft`, `trackMat`, `destroyedColor`, `destroyed`) | Track belt (stadium-shaped ExtrudeGeometry), drive sprocket, idler, road wheels |
-| `<Name>Turret` | `TankGeometryProps` | Turret box, bustle, cupola, hatches, smoke launchers, antennas |
-| `<Name>Gun` | `TankGunProps` (`destroyedColor`, `destroyed`) | Mantlet, barrel, muzzle brake, coaxial MG |
-
-Key conventions:
-- **Materials**: create `mat` (main color), `darkMat` (#222), optional `grilleMat` (#111). Always respect `destroyed` flag: `color={destroyed ? destroyedColor : normalColor}`.
-- **Coordinate system**: +Z = front of tank, +Y = up. Hull center is at origin. Turret is mounted via `turretOffset` in the definition (not baked into geometry).
-- **Dimensions**: Use real-world meters. Comment real dimensions at top of file.
-- **Shadows**: Every mesh gets `castShadow receiveShadow`.
-
-#### Track belt pattern (from Tiger)
-
-The tracks use a `useMemo` stadium-shaped `ExtrudeGeometry`:
-- Outer and inner contours form the belt shape (straight top/bottom + semicircles at sprocket/idler)
-- Key params: `cY` (vertical center), `R` (semicircle radius), `halfLen` (half sprocket-to-sprocket distance), `band` (belt thickness), `depth` (track width)
-- Road wheels placed in a loop with `Cylinder` pairs (rubber outer + steel hub)
-- `xPos = sign * trackCenterX` where `sign = isLeft ? -1 : 1`
-- The track mesh is positioned at `[xPos - depth/2, 0, 0]` rotated `[0, PI/2, 0]`
-
-### 4. Armor plates function
-
-```tsx
-function make<Name>Plates(): ArmorPlate[] {
-  return [ ... ];
-}
-```
-
-Each plate:
 ```ts
-{
-  name: string,           // Display name (shown in tooltip)
-  zone: 'hull' | 'turret' | 'track' | 'gun',
-  halfExtents: [x, y, z], // Half-size of OBB box
-  position: [x, y, z],    // Center position relative to parent
-  rotation: [x, y, z],    // Euler XYZ radians
-  armorThickness: number,  // mm
-  isTrack?: 'left' | 'right',  // Only for track plates
-  parent: 'hull' | 'turret' | 'gunGroup',
-}
-```
+import { createParametricRenderer } from '../core/ParametricTankRenderer';
+import { createTankDefinition } from '../core/resolver';
+import type { TankModelSpec, TankModule, TankSpec } from '../core/types';
+import modelJson from './model.json';
+import tankJson from './tank.json';
 
-Standard plate set (minimum):
-- **Hull**: Front Plate, Upper Glacis, Lower Glacis, Side Left, Side Right, Rear, Roof, Engine Deck
-- **Turret**: Front, Side Left, Side Right, Bustle (rear), Roof, Mantlet
-- **Tracks**: Left, Right
+const tank = tankJson as TankSpec;
+const model = modelJson as TankModelSpec;
 
-Plates should closely match the visual geometry positions/rotations. The `halfExtents` define invisible OBB hitboxes used for collision detection and armor tooltips on the selection screen.
+export const definition = createTankDefinition(tank, createParametricRenderer(model));
 
-### 5. TankDefinition export
-
-```tsx
-export const <tankid>Def: TankDefinition = {
-  // Identity
-  id: '<tankid>',              // Unique key, used in registry
-  displayName: 'Display Name',
-  description: '...',          // Shown on tank select screen
-  nationality: 'Country',
-  year: 1942,
-
-  // Combat
-  health: 350,
-  trackHealth: 100,
-  armor: { front: 102, side: 80, rear: 80, turret: 100 },  // Summary values for stat bars
-  color: '#b8a04a',            // Base hull/turret color
-
-  // Mobility
-  maxSpeed: 8,                 // m/s forward
-  maxReverseSpeed: 3,          // m/s reverse
-  acceleration: computeAccelFromHpWeight(700, 57.0),  // derived from hp/weight
-  deceleration: 8,             // m/s²
-  trackWidth: 3.56,            // meters, affects differential steering
-  turnRateLimit: 0.35,         // rad/s max hull rotation
-  rotationalInertia: 1.5,      // rad/s² rotation acceleration
-
-  // Turret/gun traverse
-  turretSpeed: 0.06,           // rad/s
-  gunSpeed: 0.08,              // rad/s
-
-  // Geometry offsets
-  turretOffset: [0, 1.65, 0.2],     // Where turret sits on hull
-  gunPivotOffset: [0, 0.45, 1.5],   // Gun pivot relative to turret
-  muzzleDistance: 4,                  // Barrel length from gun pivot
-  broadPhaseRadius: 5.8,             // Bounding sphere for broad-phase collision
-
-  // Weapons
-  caliber: 88,                 // mm, affects visual effect scale
-  reloadTime: 7000,            // ms between shots
-  burstCount: undefined,       // Set for autocannons (e.g. Panzer II = 5)
-  burstInterval: undefined,    // ms between burst rounds (e.g. Panzer II = 100)
-  weapons: {
-    AP:  { penetration: 132, velocity: 773, damage: 550, drop: 0.08, dispersion: 0.0012 },
-    APC: { penetration: 120, velocity: 773, damage: 650, drop: 0.08, dispersion: 0.0012 },  // Optional
-    HE:  { penetration: 30,  velocity: 773, damage: 700, drop: 0.2,  dispersion: 0.0015 },  // Optional
-  },
-
-  // Armor & geometry
-  plates: make<Name>Plates(),
-  HullComponent: <Name>Hull,
-  TracksComponent: <Name>Tracks,
-  TurretComponent: <Name>Turret,
-  GunComponent: <Name>Gun,
+export const tankModule: TankModule = {
+  definition,
+  spec: tank,
+  model,
+  source: 'parametric',
 };
 ```
 
-**Weapon notes**:
-- `AP` is required. `APC` and `HE` are optional.
-- `dispersion`: radians of random spread. Smaller = more accurate. Reference: Tiger 88mm = 0.0012, Panzer II 20mm autocannon = 0.012.
-- `drop`: gravity multiplier for ballistic arc. Higher = more drop.
-- `velocity`: m/s muzzle velocity.
+No manual registration step is needed. `src/tanks/core/registry.ts` auto-discovers `../*/index.ts` files.
 
-### 6. Register the tank
+### 3. Fill out `tank.json`
 
-In `src/tanks/registry.ts`:
+`tank.json` must match `TankSpec` from `src/tanks/core/types.ts`.
 
-```tsx
-import { <tankid>Def } from './<tankid>';
-// ...
-register(<tankid>Def);
+Top-level structure:
+
+```json
+{
+  "schemaVersion": 1,
+  "id": "<tankid>",
+  "renderMode": "parametric",
+  "catalog": { "sortOrder": 99 },
+  "meta": {
+    "displayName": "Display Name",
+    "description": "Shown on the tank select screen.",
+    "nationality": "Country",
+    "year": 1944
+  },
+  "appearance": {
+    "baseColor": "#7a7754"
+  },
+  "durability": {
+    "health": 250,
+    "trackHealth": 90,
+    "armorSummary": {
+      "front": 80,
+      "side": 30,
+      "rear": 20,
+      "turret": 50
+    }
+  },
+  "mounts": {
+    "turretOffset": [0, 1.4, 0.2],
+    "gunPivotOffset": [0, 0.4, 1.4],
+    "muzzleDistance": 3.5,
+    "broadPhaseRadius": 5.2
+  },
+  "mobility": {
+    "horsepower": 300,
+    "weight": 25,
+    "maxSpeed": 10.5,
+    "maxReverseSpeed": 4,
+    "acceleration": 3.5,
+    "deceleration": 9,
+    "trackWidth": 2.36,
+    "turnRateLimit": 0.48,
+    "rotationalInertia": 2.5
+  },
+  "traverse": {
+    "turretSpeed": 0.26,
+    "gunSpeed": 0.12
+  },
+  "weapons": {
+    "caliber": 75,
+    "reloadTime": 5000,
+    "burst": { "count": 5, "interval": 100 },
+    "ammo": {
+      "AP": { "penetration": 99, "velocity": 740, "damage": 350, "drop": 0.1, "dispersion": 0.0018 },
+      "APC": { "penetration": 126, "velocity": 930, "damage": 250, "drop": 0.08, "dispersion": 0.0015 },
+      "HE": { "penetration": 25, "velocity": 550, "damage": 500, "drop": 0.3, "dispersion": 0.0025 }
+    }
+  },
+  "armorModel": {
+    "plates": []
+  }
+}
 ```
 
-That's it. The tank is now available in the selection screen and can be assigned to enemies/allies in the game.
+Notes:
+- `schemaVersion` is currently `1`.
+- `id` must be unique and match the folder name.
+- `renderMode` should be `"parametric"` for the new structure.
+- `catalog.sortOrder` controls selection-screen ordering.
+- `mobility.acceleration` is stored directly now; it is not derived automatically in the JSON pipeline.
+- `weapons.ammo.AP` is required. `APC` and `HE` are optional.
+- `weapons.burst` is optional and used for burst-fire tanks such as autocannons.
+
+### 4. Define armor plates in `tank.json`
+
+Each entry in `armorModel.plates` must include an `id` plus the armor plate fields used by the combat system:
+
+```json
+{
+  "id": "hull-front-plate",
+  "name": "Hull Front Plate",
+  "zone": "hull",
+  "halfExtents": [1.42, 0.25, 0.075],
+  "position": [0, 1.18, 2.55],
+  "rotation": [-0.17, 0, 0],
+  "armorThickness": 80,
+  "parent": "hull"
+}
+```
+
+Field meanings:
+- `id`: stable unique key for the plate.
+- `name`: display name for tooltips/debugging.
+- `zone`: one of `hull`, `turret`, `track`, or `gun`.
+- `halfExtents`: half-size of the OBB hitbox in meters.
+- `position`: center relative to the owning parent.
+- `rotation`: Euler XYZ radians.
+- `armorThickness`: thickness in mm.
+- `parent`: one of `hull`, `turret`, or `gunGroup`.
+- `isTrack`: required only for track plates, using `left` or `right`.
+
+Recommended minimum coverage:
+- Hull front, upper glacis, lower glacis, both sides, rear, roof, engine deck.
+- Turret front, both sides, rear/bustle, roof, mantlet.
+- Left and right track plates.
+
+Keep hitboxes close to the rendered geometry. These plates drive penetration, ricochet, and selection-screen armor inspection.
+
+### 5. Build `model.json`
+
+`model.json` must match `TankModelSpec`:
+
+```json
+{
+  "schemaVersion": 1,
+  "slots": {
+    "hull": [],
+    "tracksLeft": [],
+    "tracksRight": [],
+    "turret": [],
+    "gun": []
+  }
+}
+```
+
+Each slot contains model nodes. Supported node types are:
+- `group`
+- `box`
+- `cylinder`
+- `extrude`
+- `repeat`
+- `mirror`
+- `helper`
+
+Useful material roles:
+- `hullPrimary`
+- `darkMetal`
+- `grille`
+- `track`
+- `trackRubber`
+- `steel`
+- `lamp`
+- `mantlet`
+- `barrel`
+- `wireframe`
+- `accessory`
+
+Important conventions:
+- +Z is the front of the tank.
+- +Y is up.
+- Use real-world scale in meters.
+- Keep turret and gun geometry centered on their own local origins; placement comes from `mounts` in `tank.json`.
+- The renderer automatically applies `castShadow` and `receiveShadow`.
+- Destroyed-state coloring is handled by `ParametricTankRenderer`; use material roles instead of hardcoded mesh materials.
+
+### 6. Prefer helpers when they match the shape
+
+Current helper ids are defined in `src/tanks/core/types.ts`, but only some are implemented in `src/tanks/core/helpers.tsx`.
+
+Implemented helpers:
+- `hull.side_profile_extrude`
+- `tracks.stadium_belt`
+- `detail.wire_rack_box`
+
+Declared but not yet implemented helpers will warn and render nothing, so do not rely on them unless you add helper support first.
+
+### 7. Verify the module loads
+
+The tank should appear automatically once the folder exports a valid `tankModule` or `definition`.
+
+Run:
+
+```bash
+npm run lint
+```
 
 ## Checklist
 
-- [ ] File created: `src/tanks/<tankid>.tsx`
-- [ ] 4 geometry components: Hull, Tracks, Turret, Gun
-- [ ] All meshes respect `destroyed` / `destroyedColor` props
-- [ ] All meshes have `castShadow receiveShadow`
-- [ ] Armor plates cover all major surfaces and match visual geometry
-- [ ] `TankDefinition` exported with all required fields
-- [ ] Registered in `registry.ts`
-- [ ] `npm run lint` passes (tsc --noEmit)
+- [ ] Folder created: `src/tanks/<tankid>/`
+- [ ] `index.ts` exports `definition` and `tankModule`
+- [ ] `tank.json` matches `TankSpec`
+- [ ] `model.json` matches `TankModelSpec`
+- [ ] Armor plates include stable `id` values and cover major surfaces
+- [ ] Mount offsets and muzzle distance line up with the rendered model
+- [ ] Material roles are used instead of custom per-mesh material logic
+- [ ] `npm run lint` passes
+
+## Legacy note
+
+`src/tanks/core/registry.ts` still supports legacy top-level `src/tanks/*.tsx` tank files, but new work should use the folder-based parametric format.
