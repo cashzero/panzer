@@ -67,6 +67,16 @@ export const GAME_CONFIG = {
   combat: {
     autoRicochetAngle: 70, // degrees
     penetrationVariance: 0.1, // +/- 10%
+    referencePenetrationDistance: 100, // meters
+    generatedPenetration: {
+      velocityBaseFactor: 4.5,
+      caliberFactor: 1 / 30,
+      exponent: {
+        AP: 1.5,
+        APC: 1.6,
+        HE: 0.15,
+      },
+    },
   },
   roads: {
     halfWidth: 4,
@@ -124,7 +134,9 @@ export const GAME_CONFIG = {
       spawnInterval: 350,
     },
     burning_smoke: { lifetime: 5000, color: '#111111', size: 3.5, expand: true,
-      spawnInterval: 150,  // ms between smoke puffs
+      spawnInterval: 150,  // ms between smoke puffs at full intensity
+      initialDelay: 1000,  // ms before wreck smoke begins
+      rampUpDuration: 3500, // ms to reach full smoke density
     },
     tree_hit: { lifetime: 800, color: '#8b6914', size: 2, expand: true },
     default: { lifetime: 500, color: '#ffffff', size: 1, expand: true },

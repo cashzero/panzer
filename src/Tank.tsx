@@ -34,6 +34,7 @@ interface TankProps {
 
 export function Tank({ id, tankType }: TankProps) {
   const def = getTankDef(tankType);
+  const caliberScale = Math.max(0.65, (def.caliber || 75) / 75);
 
   const groupRef = useRef<THREE.Group>(null);
   const turretRef = useRef<THREE.Group>(null);
@@ -82,12 +83,35 @@ export function Tank({ id, tankType }: TankProps) {
 
     if (!data) return;
 
+    const now = Date.now();
+
     if (groupRef.current) {
+      const timeSinceFire = now - (data.lastFireTime || 0);
+      let hullRecoil = 0;
+      let hullBounce = 0;
+      let recoilPitch = 0;
+
+      if (timeSinceFire < 80) {
+        const t = timeSinceFire / 80;
+        hullRecoil = -0.32 * caliberScale * t;
+        hullBounce = 0.08 * caliberScale * t;
+        recoilPitch = 0.025 * caliberScale * t;
+      } else if (timeSinceFire < 420) {
+        const t = (timeSinceFire - 80) / 340;
+        hullRecoil = -0.32 * caliberScale * (1 - t);
+        hullBounce = 0.08 * caliberScale * (1 - t);
+        recoilPitch = 0.025 * caliberScale * (1 - t);
+      }
+
       groupRef.current.position.copy(data.position);
+      if (hullRecoil !== 0 || hullBounce !== 0) {
+        const recoilOffset = new THREE.Vector3(0, hullBounce, hullRecoil).applyAxisAngle(new THREE.Vector3(0, 1, 0), data.rotation);
+        groupRef.current.position.add(recoilOffset);
+      }
 
       const pitch = data.pitch || 0;
       const roll = data.roll || 0;
-      const targetRotation = new THREE.Euler(pitch, data.rotation, roll, 'YXZ');
+      const targetRotation = new THREE.Euler(pitch + recoilPitch, data.rotation, roll, 'YXZ');
       groupRef.current.quaternion.slerp(new THREE.Quaternion().setFromEuler(targetRotation), 0.35);
     }
     if (turretRef.current) {
@@ -96,8 +120,6 @@ export function Tank({ id, tankType }: TankProps) {
     if (gunRef.current) {
       gunRef.current.rotation.x = data.gunElevation + (data.gunSwayOffset || 0);
     }
-
-    const now = Date.now();
 
     if (gunBarrelRef.current) {
       const timeSinceFire = now - (data.lastFireTime || 0);

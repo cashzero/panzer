@@ -1,0 +1,161 @@
+:root {
+  color-scheme: dark;
+  --editor-bg: #10130f;
+  --editor-panel: rgba(23, 28, 22, 0.92);
+  --editor-panel-strong: rgba(29, 35, 28, 0.96);
+  --editor-border: rgba(131, 120, 82, 0.42);
+  --editor-border-strong: rgba(195, 173, 110, 0.5);
+  --editor-text: #e6dcc2;
+  --editor-muted: #a59d84;
+  --editor-olive: #738154;
+  --editor-brass: #c4ab6d;
+  --editor-red: #b46852;
+  --editor-green: #8fa76a;
+  --editor-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(84, 95, 61, 0.2), transparent 38%),
+    linear-gradient(180deg, #171c17 0%, #0d100d 100%);
+  color: var(--editor-text);
+  font-family: 'Courier New', 'Lucida Console', monospace;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.tank-editor-shell {
+  min-height: 100vh;
+  background-image:
+    linear-gradient(rgba(118, 128, 92, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(118, 128, 92, 0.08) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+.editor-panel {
+  background: linear-gradient(180deg, var(--editor-panel-strong) 0%, var(--editor-panel) 100%);
+  border: 1px solid var(--editor-border);
+  box-shadow: var(--editor-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.editor-panel-inset {
+  background: rgba(10, 13, 10, 0.48);
+  border: 1px solid rgba(131, 120, 82, 0.18);
+}
+
+.editor-input,
+.editor-select,
+.editor-textarea {
+  width: 100%;
+  border: 1px solid rgba(131, 120, 82, 0.32);
+  background: rgba(9, 11, 9, 0.72);
+  color: var(--editor-text);
+  padding: 0.55rem 0.65rem;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.editor-input:focus,
+.editor-select:focus,
+.editor-textarea:focus {
+  outline: none;
+  border-color: var(--editor-border-strong);
+  box-shadow: 0 0 0 1px rgba(196, 171, 109, 0.32);
+}
+
+.editor-textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.editor-button {
+  border: 1px solid rgba(131, 120, 82, 0.42);
+  background: rgba(28, 33, 27, 0.78);
+  color: var(--editor-text);
+  padding: 0.6rem 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.editor-button:hover {
+  border-color: var(--editor-border-strong);
+  color: #fff3d2;
+}
+
+.editor-button--primary {
+  background: rgba(93, 105, 67, 0.28);
+  color: #f3e6bc;
+  border-color: rgba(196, 171, 109, 0.52);
+}
+
+.editor-button--danger {
+  background: rgba(98, 47, 39, 0.26);
+  border-color: rgba(180, 104, 82, 0.5);
+}
+
+.editor-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.editor-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196, 171, 109, 0.5) rgba(8, 10, 8, 0.7);
+}
+
+.editor-chip {
+  border: 1px solid rgba(131, 120, 82, 0.34);
+  background: rgba(10, 13, 10, 0.58);
+  color: var(--editor-muted);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-tab {
+  border-bottom: 2px solid transparent;
+  color: var(--editor-muted);
+}
+
+.editor-tab.is-active {
+  color: var(--editor-brass);
+  border-bottom-color: var(--editor-brass);
+}
+
+.editor-status-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  display: inline-block;
+}
+
+.editor-gradient-bar {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196, 171, 109, 0.6), transparent);
+}
+
+.tank-editor-preview-viewport {
+  width: 100%;
+}
+
+.tank-editor-preview-viewport > div,
+.tank-editor-preview-canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}

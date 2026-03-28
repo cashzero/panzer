@@ -43,7 +43,7 @@ export function ProjectileManager() {
 
       // Check collision with ground
       if (checkTerrainCollision(nextPos).hit) {
-        handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0));
+        handleHit(p.id, 'ground', nextPos.clone(), new THREE.Vector3(0, 1, 0));
         return;
       }
 
@@ -58,7 +58,7 @@ export function ProjectileManager() {
         } else {
           updateTree(treeHit.treeIndex, { health: treeHit.newHealth });
         }
-        handleHit(p.id, 'ground', new THREE.Vector3(0, 1, 0)); // consume projectile
+        handleHit(p.id, 'ground', nextPos.clone(), new THREE.Vector3(0, 1, 0)); // consume projectile
         return;
       }
 
@@ -81,7 +81,7 @@ export function ProjectileManager() {
       }
 
       if (closestHit) {
-        handleHit(p.id, closestHit.tankId, closestHit.hit.normal, closestHit.hit.plateInfo);
+        handleHit(p.id, closestHit.tankId, closestHit.hit.worldPoint, closestHit.hit.normal, closestHit.hit.plateInfo);
       }
     });
 

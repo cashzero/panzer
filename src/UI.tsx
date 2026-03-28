@@ -1,6 +1,7 @@
 import { useGameStore, GUNNER_ZOOM_LEVELS, GUNNER_ZOOM_LABELS } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
+import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { getTankDef } from './tanks/registry';
 import type { AllyBaseMoveOrder, AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 
@@ -137,7 +138,11 @@ function GunnerSightOverlay() {
   const gunnerZoom = useGameStore((state) => state.gunnerZoom);
   const playerTankType = useGameStore((state) => state.playerTank.tankType);
   const playerDef = getTankDef(playerTankType);
-  const velocity = (playerDef.weapons[ammoType] ?? playerDef.weapons.AP).velocity;
+  const ammo = playerDef.weapons[ammoType] ?? playerDef.weapons.AP;
+  const velocity = ammo.velocity;
+  const penetrationAtSightDistance = Math.round(
+    getAmmoPenetrationAtDistance(ammo, ammoType, playerDef.caliber, calibrationDistance),
+  );
   const gravity = GAME_CONFIG.physics.gravity;
   const fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
 
@@ -218,6 +223,7 @@ function GunnerSightOverlay() {
         <div>DIST: {calibrationDistance}m</div>
         <div>AMMO: {ammoType}</div>
         <div className="text-sm opacity-80">VEL: {velocity}m/s</div>
+        <div className="text-sm opacity-80">PEN: {penetrationAtSightDistance}mm</div>
       </div>
     </div>
   );
@@ -426,6 +432,66 @@ function MapModeHUD() {
   );
 }
 
+function GunnerFireOverlay() {
+  const [effect, setEffect] = useState({ flash: 0, smoke: 0 });
+
+  useEffect(() => {
+    let raf = 0;
+
+    const update = () => {
+      const { lastFireTime } = useGameStore.getState();
+      const elapsed = Date.now() - lastFireTime;
+
+      if (elapsed >= 0 && elapsed < 420) {
+        const flashProgress = Math.min(elapsed / 120, 1);
+        const smokeProgress = Math.min(elapsed / 420, 1);
+        setEffect({
+          flash: 1 - Math.pow(flashProgress, 0.7),
+          smoke: 1 - Math.pow(smokeProgress, 1.6),
+        });
+      } else {
+        setEffect((prev) => (prev.flash !== 0 || prev.smoke !== 0 ? { flash: 0, smoke: 0 } : prev));
+      }
+
+      raf = requestAnimationFrame(update);
+    };
+
+    update();
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  if (effect.flash <= 0 && effect.smoke <= 0) return null;
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: effect.flash * 0.45,
+          background: 'radial-gradient(circle at center, rgba(255,250,235,0.95) 0%, rgba(255,214,140,0.45) 22%, rgba(255,180,80,0.12) 44%, rgba(255,255,255,0) 68%)',
+        }}
+      />
+      <div
+        className="absolute inset-0"
+        style={{
+          opacity: effect.smoke * 0.75,
+          background: 'radial-gradient(ellipse 72% 58% at 50% 54%, rgba(250,248,242,0.7) 0%, rgba(222,216,206,0.45) 22%, rgba(156,152,146,0.22) 42%, rgba(255,255,255,0) 72%)',
+          transform: `scale(${1 + (1 - effect.smoke) * 0.12})`,
+          filter: 'blur(12px)',
+        }}
+      />
+      <div
+        className="absolute inset-x-[18%] top-[28%] bottom-[18%]"
+        style={{
+          opacity: effect.smoke * 0.42,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(245,243,236,0.26) 30%, rgba(205,201,194,0.22) 62%, rgba(255,255,255,0) 100%)',
+          filter: 'blur(18px)',
+        }}
+      />
+    </div>
+  );
+}
+
 export function UI() {
   const health = useGameStore((state) => state.playerTank.health);
   const maxHealth = useGameStore((state) => state.playerTank.maxHealth);
@@ -439,6 +505,7 @@ export function UI() {
   return (
     <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between font-mono text-white text-shadow">
       {viewMode === 'gunner' && !isMapMode && <GunnerSightOverlay />}
+      {viewMode === 'gunner' && !isMapMode && <GunnerFireOverlay />}
 
       {!isMapMode && <DirectionIndicator />}
 

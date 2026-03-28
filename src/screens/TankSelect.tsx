@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, Suspense } from 'react';
 import { Canvas, useFrame, ThreeEvent } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
+import { getAmmoDisplayPenetration, getReferencePenetrationDistance } from '../penetrationModel';
 import { getAllTankDefs } from '../tanks/registry';
 import type { TankDefinition } from '../tanks/types';
 import type { ArmorPlate } from '../armorModel';
@@ -185,7 +186,8 @@ export function TankPreview({
 export const maxHP = Math.max(...allTanks.map((t) => t.health));
 export const maxArmor = Math.max(...allTanks.map((t) => t.armor.front));
 export const maxSpeed = Math.max(...allTanks.map((t) => t.maxSpeed));
-export const maxPen = Math.max(...allTanks.map((t) => t.weapons.AP.penetration));
+export const penetrationStatLabel = `Pen @${getReferencePenetrationDistance()}m`;
+export const maxPen = Math.max(...allTanks.map((t) => getAmmoDisplayPenetration(t.weapons.AP, 'AP', t.caliber)));
 export const maxReload = Math.max(...allTanks.map((t) => t.reloadTime));
 export const minReload = Math.min(...allTanks.map((t) => t.reloadTime));
 
@@ -207,6 +209,7 @@ export function TankSelect() {
   const mapSize = useGameStore((s) => s.mapSize);
   const setMapSize = useGameStore((s) => s.setMapSize);
   const def = filteredTanks[safeIdx];
+  const displayPenetration = Math.round(getAmmoDisplayPenetration(def.weapons.AP, 'AP', def.caliber));
 
   const handleConfirm = () => {
     setOobPlayerTankType(def.id);
@@ -325,7 +328,7 @@ export function TankSelect() {
             <StatBar label="Hitpoints" value={def.health} max={maxHP} unit=" HP" />
             <StatBar label="Front Armor" value={def.armor.front} max={maxArmor} unit=" mm" />
             <StatBar label="Speed" value={def.maxSpeed} max={maxSpeed} unit=" m/s" />
-            <StatBar label="Penetration" value={def.weapons.AP.penetration} max={maxPen} unit=" mm" />
+            <StatBar label={penetrationStatLabel} value={displayPenetration} max={maxPen} unit=" mm" />
             <StatBar label="Reload" value={reloadScore} max={maxReload} unit="" />
           </div>
 

@@ -5,8 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { GAME_CONFIG } from './config';
 import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef, getAllTankDefs } from './tanks/registry';
+import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
+import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
@@ -30,10 +32,11 @@ export interface Particle {
 
 export interface Projectile {
   id: string;
+  origin: Vector3;
   position: Vector3;
   velocity: Vector3;
   type: AmmoType;
-  penetration: number;
+  ammoSpec: TankAmmoSpec;
   damage: number;
   caliber: number;
   firedBy: string;
@@ -115,6 +118,18 @@ function spawnTankDestructionEffect(
   }
 }
 
+function cloneAmmoSpec(ammoSpec: TankAmmoSpec): TankAmmoSpec {
+  return {
+    ...ammoSpec,
+    historicalPenetration: ammoSpec.historicalPenetration
+      ? {
+          standard: ammoSpec.historicalPenetration.standard,
+          points: ammoSpec.historicalPenetration.points.map((point) => ({...point})),
+        }
+      : undefined,
+  };
+}
+
 interface GameState {
   gameScreen: GameScreen;
   mapSize: MapSize;
@@ -141,13 +156,13 @@ interface GameState {
   playerBurstNextFireTime: number;
   cameraYawAbs: number; // absolute camera yaw (hull rotation + mouse yaw)
 
-  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, pen: number, dmg: number, firedBy: string, caliber: number) => void;
+  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number) => void;
   removeProjectile: (id: string) => void;
   updateProjectiles: (dt: number) => void;
   updatePlayer: (updates: Partial<TankData>) => void;
   updateEnemy: (id: string, updates: Partial<TankData>) => void;
   addMessage: (text: string, color: string) => void;
-  handleHit: (projectileId: string, hitTankId: string, hitNormal: Vector3, plateInfo?: ArmorPlateHitInfo) => void;
+  handleHit: (projectileId: string, hitTankId: string, hitPoint: Vector3, hitNormal: Vector3, plateInfo?: ArmorPlateHitInfo) => void;
   spawnEnemy: (position: Vector3, tankType?: string) => void;
   spawnAlly: (position: Vector3, tankType?: string) => void;
   updateAlly: (id: string, updates: Partial<TankData>) => void;
@@ -489,12 +504,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
   setLastFireTime: (time) => set({ lastFireTime: time }),
 
-  fireProjectile: (pos, vel, type, pen, dmg, firedBy, caliber) => {
+  fireProjectile: (pos, vel, type, ammoSpec, dmg, firedBy, caliber) => {
     const scale = caliber / 75;
     set((state) => ({
       projectiles: [
         ...state.projectiles,
-        { id: uuidv4(), position: pos, velocity: vel, type, penetration: pen, damage: dmg, caliber, firedBy, createdAt: Date.now() },
+        {
+          id: uuidv4(),
+          origin: pos.clone(),
+          position: pos.clone(),
+          velocity: vel.clone(),
+          type,
+          ammoSpec: cloneAmmoSpec(ammoSpec),
+          damage: dmg,
+          caliber,
+          firedBy,
+          createdAt: Date.now(),
+        },
       ],
     }));
     get().spawnParticle('fire', pos, vel.clone().normalize(), scale);
@@ -540,7 +566,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     }, 3000);
   },
 
-  handleHit: (projectileId, hitTankId, hitNormal, plateInfo) => {
+  handleHit: (projectileId, hitTankId, hitPoint, hitNormal, plateInfo) => {
     const state = get();
     const projectile = state.projectiles.find((p) => p.id === projectileId);
     if (!projectile) return;
@@ -551,7 +577,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((s) => ({ projectiles: s.projectiles.filter((p) => p.id !== projectileId) }));
 
     if (hitTankId === 'ground') {
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_ground' : 'hit_ground', projectile.position, hitNormal, scale);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_ground' : 'hit_ground', hitPoint.clone(), hitNormal, scale);
       return;
     }
 
@@ -579,7 +605,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Auto-ricochet — spawn visible bouncing shell
     if (isAutoRicochet) {
-      get().spawnParticle('hit_bounce', projectile.position, hitNormal, scale);
+      get().spawnParticle('hit_bounce', hitPoint.clone(), hitNormal, scale);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
       if (hitTankId === 'player') get().triggerCameraShake(0.4 * scale);
 
@@ -587,8 +613,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       const reflected = computeReflectedVelocity(projectile.velocity, hitNormal);
       set((s) => ({
         projectiles: [...s.projectiles, {
-          id: uuidv4(), position: projectile.position.clone(), velocity: reflected,
-          type: projectile.type, penetration: 0, damage: 0, caliber: projectile.caliber,
+          id: uuidv4(), origin: projectile.position.clone(), position: projectile.position.clone(), velocity: reflected,
+          type: projectile.type, ammoSpec: projectile.ammoSpec, damage: 0, caliber: projectile.caliber,
           firedBy: projectile.firedBy, ricochet: true, createdAt: Date.now(),
         }],
       }));
@@ -596,11 +622,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     const effectiveArmor = computeEffectiveArmor(baseArmor, angleRad);
-    const actualPen = rollPenetration(projectile.penetration);
+    const impactDistance = projectile.origin.distanceTo(hitPoint);
+    const actualPen = rollPenetration(
+      getAmmoPenetrationAtDistance(projectile.ammoSpec, projectile.type, projectile.caliber, impactDistance),
+    );
 
     if (actualPen > effectiveArmor) {
       // Penetration!
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_penetrate', projectile.position, hitNormal, scale);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_penetrate', hitPoint.clone(), hitNormal, scale);
 
       if (isTrackHit && trackSide) {
         // Track hit — damage track HP, not main HP
@@ -649,7 +678,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
     } else {
       // Non-penetration
-      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_bounce', projectile.position, hitNormal, scale);
+      get().spawnParticle(projectile.type === 'HE' ? 'he_hit_penetrate' : 'hit_bounce', hitPoint.clone(), hitNormal, scale);
       if (hitTankId === 'player') get().triggerCameraShake(0.5 * scale);
 
       if (isTrackHit && trackSide && projectile.type === 'HE') {

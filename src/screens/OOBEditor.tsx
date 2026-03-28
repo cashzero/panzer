@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { getAmmoDisplayPenetration } from '../penetrationModel';
 import { getTankDef } from '../tanks/registry';
 import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
-import { TankPreview, StatBar, maxHP, maxArmor, maxSpeed, maxPen, maxReload, minReload } from './TankSelect';
+import { TankPreview, StatBar, maxHP, maxArmor, maxSpeed, maxPen, maxReload, minReload, penetrationStatLabel } from './TankSelect';
 import { OOBTankList } from './OOBTankList';
 import { OOBMiniMap } from './OOBMiniMap';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -32,6 +33,7 @@ export function OOBEditor() {
   const previewTankType = hoveredListTank ?? oobPlayerTankType;
   const previewDef = getTankDef(previewTankType);
   const reloadScore = maxReload - previewDef.reloadTime + minReload;
+  const previewPenetration = Math.round(getAmmoDisplayPenetration(previewDef.weapons.AP, 'AP', previewDef.caliber));
 
   const handlePlateHover = useCallback((info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => {
     if (!info) { setHoveredPlate(null); return; }
@@ -152,7 +154,7 @@ export function OOBEditor() {
             <StatBar label="Hitpoints" value={previewDef.health} max={maxHP} unit=" HP" />
             <StatBar label="Front Armor" value={previewDef.armor.front} max={maxArmor} unit=" mm" />
             <StatBar label="Speed" value={previewDef.maxSpeed} max={maxSpeed} unit=" m/s" />
-            <StatBar label="Penetration" value={previewDef.weapons.AP.penetration} max={maxPen} unit=" mm" />
+            <StatBar label={penetrationStatLabel} value={previewPenetration} max={maxPen} unit=" mm" />
             <StatBar label="Reload" value={reloadScore} max={maxReload} unit="" />
           </div>
           <div className="text-[10px] text-gray-500 flex gap-3 mt-1">
