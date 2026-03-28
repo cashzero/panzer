@@ -28,11 +28,11 @@
 - [ ] Display detailed stats in `MissionResult.tsx`
 
 ### 2.4 Impact / Ricochet Sound Effects [M]
-- [ ] Add `playImpactSound('penetrate' | 'ricochet' | 'ground')` to `audio.ts`
-- [ ] Call appropriate sound in `store.ts` `handleHit` based on penetration result
+- [ ] Replace the generated impact / ricochet / ground backend in `audio.ts` with sample-based playback
+- [ ] Tune `store.ts` `handleHit` event mapping and levels against the new transient backend
 
 ### 2.5 Ambient Battlefield Sounds [S]
-- [ ] Add `initAmbientSounds()` to `audio.ts` (distant artillery, wind loops)
+- [ ] Add ambient loop support to `audio.ts` (distant artillery, wind loops)
 
 ---
 
@@ -48,6 +48,12 @@
 - [ ] Add difficulty presets to `config.ts` (scale AI accuracy, reload time, enemy HP)
 - [ ] Add `difficulty` field to `store.ts`
 - [ ] Read difficulty-adjusted config in `EnemyAI.tsx`
+
+### 3.5 Line-of-Sight Spotting [M]
+- [ ] Add spotted/hidden state for tanks to `store.ts`
+- [ ] Use terrain / tree occlusion checks before AI can target enemies in `EnemyAI.tsx` and `AllyAI.tsx`
+- [ ] Hide unspotted enemies from `MapMode.tsx` and reduce HUD information until detected
+- [ ] Add spotting range / reveal delay tuning to `config.ts`
 
 ### 2.6 Sky and Clouds [S]
 - [ ] Parameterize `Sky` sunPosition in `GameScene.tsx`, add drei `<Cloud>`
