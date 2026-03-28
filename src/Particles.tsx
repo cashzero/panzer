@@ -259,10 +259,31 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     for (let i = 0; i < sc(15); i++) cone('spark', 1.5, (12 + Math.random() * 12) * sv, 0.5 * s, '#ffdd44', 0.4 + Math.random() * 0.4, 0);
     for (let i = 0; i < sc(8); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (2.0 + Math.random() * 2) * s, '#333333', 1, (Math.random() - 0.5) * 2);
   } else if (type === 'tank_explosion') {
-    add('flash', 0, 0, 0, 0, 0, 0, 8.0, '#ffffff', 0.2, 0);
-    for (let i = 0; i < 8; i++) cone('fireball', 2, 3 + Math.random() * 5, 4.5 + Math.random() * 4, '#ff5500', 0.5, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < 15; i++) cone('smoke', 2, 5 + Math.random() * 6, 5.0 + Math.random() * 5, '#222222', 1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < 25; i++) cone('debris', 2.5, 15 + Math.random() * 20, 0.3 + Math.random() * 0.5, '#111111', 0.9, 0);
+    add('flash', 0, 0, 0, 0, 0, 0, 11.0 * s, '#ffffff', 0.16, 0);
+    add('flash', 0, 0.4 * s, 0, 0, 0, 0, 8.5 * s, '#ffb347', 0.35, 0);
+    add('fireball', 0, 0.6 * s, 0, 0, 5 * sv, 0, 7.0 * s, '#ffdd88', 0.22, (Math.random() - 0.5) * 2);
+    add('fireball', 0, 0.8 * s, 0, 0, 4 * sv, 0, 5.5 * s, '#ff5a1f', 0.4, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(18); i++) {
+      const ox = (Math.random() - 0.5) * 3.2 * s;
+      const oz = (Math.random() - 0.5) * 3.2 * s;
+      const oy = Math.random() * 1.8 * s;
+      add(
+        'fireball',
+        ox,
+        oy,
+        oz,
+        ox * 1.8,
+        (4 + Math.random() * 6) * sv,
+        oz * 1.8,
+        (3.8 + Math.random() * 3.8) * s,
+        i < 6 ? '#fff1b8' : (i < 12 ? '#ff8a2a' : '#ff4d00'),
+        0.28 + Math.random() * 0.35,
+        (Math.random() - 0.5) * 2.5
+      );
+    }
+    for (let i = 0; i < sc(22); i++) cone('smoke', 2.6, (6 + Math.random() * 7) * sv, (5.5 + Math.random() * 5.5) * s, i < 10 ? '#2a2a2a' : '#4a3421', 1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(36); i++) cone('debris', 2.8, (16 + Math.random() * 24) * sv, (0.28 + Math.random() * 0.5) * s, i < 12 ? '#3b2d1f' : '#111111', 0.95, 0);
+    for (let i = 0; i < sc(30); i++) cone('spark', 2.2, (18 + Math.random() * 20) * sv, (0.5 + Math.random() * 0.35) * s, i < 10 ? '#fff2a8' : '#ff9f1c', 0.45 + Math.random() * 0.3, 0);
   } else if (type === 'fire') {
     const nv = n.clone().multiplyScalar(4 * sv);
     add('flash', 0, 0, 0, 0, 0, 0, 3.0 * s, '#ffaa00', 0.2, 0);
