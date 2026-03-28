@@ -21,7 +21,7 @@ export interface TurretAimingInput {
   hullPitch: number;
   hullRoll: number;
   isAiming: boolean;
-  arrowKeys: { left: boolean; right: boolean; up: boolean; down: boolean };
+  arrowKeys: { left: number; right: number; up: number; down: number };
   calibrationDistance: number;
   ammoVelocity: number;
   turretSpeed: number;
@@ -35,6 +35,16 @@ export interface TurretAimingResult {
   turretRotation: number;
   gunElevation: number;
   sightPitch: number;
+}
+
+const MANUAL_AIM_RAMP_TIME = 0.25;
+const MANUAL_AIM_MIN_SPEED_SCALE = 0.18;
+
+function getManualAimSpeed(maxSpeed: number, holdTime: number) {
+  if (holdTime <= 0) return 0;
+  const progress = THREE.MathUtils.clamp(holdTime / MANUAL_AIM_RAMP_TIME, 0, 1);
+  const ramp = THREE.MathUtils.smoothstep(progress, 0, 1);
+  return maxSpeed * THREE.MathUtils.lerp(MANUAL_AIM_MIN_SPEED_SCALE, 1, ramp);
 }
 
 export function computeTurretAiming(input: TurretAimingInput): TurretAimingResult {
@@ -83,14 +93,12 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
       currentSightPitch += Math.sign(pitchDiff) * Math.min(Math.abs(pitchDiff), gunSpeed);
     }
   } else {
-    // Arrow keys directly move the sight (and thus the turret)
-    // Use half speed for precise manual aiming
-    const manualTurretSpeed = turretSpeed * 0.5;
-    const manualGunSpeed = gunSpeed * 0.5;
-    if (input.arrowKeys.left) newTurretRot += manualTurretSpeed;
-    if (input.arrowKeys.right) newTurretRot -= manualTurretSpeed;
-    if (input.arrowKeys.up) currentSightPitch += manualGunSpeed;
-    if (input.arrowKeys.down) currentSightPitch -= manualGunSpeed;
+    // Arrow keys directly move the sight (and thus the turret), ramping from
+    // fine-adjustment speed to each tank's full traverse/elevation rate.
+    if (input.arrowKeys.left > 0) newTurretRot += getManualAimSpeed(turretSpeed, input.arrowKeys.left);
+    if (input.arrowKeys.right > 0) newTurretRot -= getManualAimSpeed(turretSpeed, input.arrowKeys.right);
+    if (input.arrowKeys.up > 0) currentSightPitch += getManualAimSpeed(gunSpeed, input.arrowKeys.up);
+    if (input.arrowKeys.down > 0) currentSightPitch -= getManualAimSpeed(gunSpeed, input.arrowKeys.down);
   }
 
   currentSightPitch = THREE.MathUtils.clamp(currentSightPitch, minSightPitch, maxSightPitch);

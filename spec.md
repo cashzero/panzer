@@ -11,6 +11,7 @@ There are three distinct aim points in the game:
 1. **Gunner Sight Aim Point**:
    - Controlled by the Arrow Keys.
    - The Gunner Sight is physically locked to the turret. Moving the Gunner Sight with arrow keys directly rotates the turret (yaw) and the gun (pitch).
+   - Arrow-key manual aiming ramps from a slow fine-adjustment speed to full traverse/elevation speed while the key is held.
 
 2. **Gun Aim Point**:
    - Identical to the Gunner Sight Aim Point in terms of yaw.
@@ -77,7 +78,7 @@ Completed TODO items are removed from `todo.md` and documented here.
 - Press V / mouse middle button to toggle gunner view (first person with gunner sight)
 - In gunner sight, use PageUp/PageDown to calibrate distance
 - Tank moving dust effect
-- Multi-layer procedural fire audio (crack + boom + punch)
+- Layered player engine audio backend in `src/audio.ts` with lazy Web Audio unlock, 3D listener sync, and generated spatial shot/impact/explosion transients
 - Enemy tank movement AI (approach, retreat, terrain-following)
 - Procedural terrain with sine wave height formula (flattened center)
 - Tank-tank collision model (circle-based XZ-plane collision preventing tanks from overlapping)
@@ -90,7 +91,6 @@ Completed TODO items are removed from `todo.md` and documented here.
 - Enemy AI steady-aim zeroing (8s stationary → dispersion reduced to 15%)
 - Three playable tank types: Sherman (player), Tiger I, Panzer III (enemies) with per-tank armor profiles
 - 11 particle effect types (fire, hit_penetrate, hit_bounce, hit_ground, he_hit_ground, he_hit_penetrate, tank_explosion, dust, dust_low, tree_hit, burning_smoke)
-- Procedural engine sound with dynamic RPM/gear frequency mapping
 - AP and HE ammunition toggle (R key) with distinct ballistic properties
 - Gun sway system with 4 vibration layers (base harmonic, terrain, inertial, centrifugal)
 - Body rock oscillation (pitch, roll, vertical bounce) at speed

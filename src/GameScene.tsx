@@ -10,7 +10,6 @@ import { EnemyAI } from './EnemyAI';
 import { AllyAI } from './AllyAI';
 import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
-import { initEngineSound, updateEngineSound } from './audio';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight, raycastTerrain } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
@@ -28,6 +27,7 @@ import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
 import { generateTrees } from './trees';
 import { MAP_SIZE_VALUES } from './store';
+import { audioManager, toAudioVec3 } from './audio';
 
 function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
@@ -86,6 +86,42 @@ function PlayerSky() {
       <Sky sunPosition={[100, 20, 100]} distance={50000} />
     </group>
   );
+}
+
+function AudioSync() {
+  const { camera } = useThree();
+  const forwardRef = useRef(new THREE.Vector3());
+  const upRef = useRef(new THREE.Vector3());
+
+  useFrame(() => {
+    const state = useGameStore.getState();
+    const viewMode = state.isMapMode ? 'map' : state.viewMode;
+    const playerDef = getTankDef(state.playerTank.tankType);
+
+    camera.getWorldDirection(forwardRef.current);
+    upRef.current.set(0, 1, 0).applyQuaternion(camera.quaternion).normalize();
+
+    audioManager.setListenerPose({
+      position: toAudioVec3(camera.position),
+      forward: toAudioVec3(forwardRef.current),
+      up: toAudioVec3(upRef.current),
+      viewMode,
+    });
+
+    audioManager.syncPlayerEngine({
+      position: toAudioVec3(state.playerTank.position),
+      rpm: state.playerTank.destroyed ? 0 : state.playerTank.engineRPM,
+      gear: state.playerTank.destroyed ? 0 : state.playerTank.gear,
+      speed: state.playerTank.destroyed ? 0 : state.playerTank.speed,
+      maxSpeed: playerDef.maxSpeed,
+      leftTrackSpeed: state.playerTank.destroyed ? 0 : state.playerTank.leftTrackSpeed,
+      rightTrackSpeed: state.playerTank.destroyed ? 0 : state.playerTank.rightTrackSpeed,
+      destroyed: state.playerTank.destroyed,
+      viewMode,
+    });
+  });
+
+  return null;
 }
 
 function PlayerController() {
@@ -170,9 +206,6 @@ function PlayerController() {
       player.engineRPM || GAME_CONFIG.tank.idleRPM,
       throttle !== 0 || steering !== 0, delta
     );
-    initEngineSound();
-    updateEngineSound(engine.rpm);
-
     // Camera direction
     const camYawAbs = newRot + input.cameraYaw.current;
     const camPitch = input.cameraPitch.current;
@@ -185,6 +218,7 @@ function PlayerController() {
 
     // Turret aiming
     const ammoStats = playerDef.weapons[useGameStore.getState().ammoType]!;
+    const now = performance.now();
     const aiming = computeTurretAiming({
       currentTurretRot: player.turretRotation,
       currentGunElev: player.gunElevation,
@@ -195,10 +229,10 @@ function PlayerController() {
       hullRoll: roll,
       isAiming: input.isAiming.current,
       arrowKeys: {
-        left: !!input.keys.current['ArrowLeft'],
-        right: !!input.keys.current['ArrowRight'],
-        up: !!input.keys.current['ArrowUp'],
-        down: !!input.keys.current['ArrowDown'],
+        left: input.keys.current['ArrowLeft'] ? (now - input.arrowKeyPressStartedAt.current.left) / 1000 : 0,
+        right: input.keys.current['ArrowRight'] ? (now - input.arrowKeyPressStartedAt.current.right) / 1000 : 0,
+        up: input.keys.current['ArrowUp'] ? (now - input.arrowKeyPressStartedAt.current.up) / 1000 : 0,
+        down: input.keys.current['ArrowDown'] ? (now - input.arrowKeyPressStartedAt.current.down) / 1000 : 0,
       },
       calibrationDistance: useGameStore.getState().calibrationDistance,
       ammoVelocity: ammoStats.velocity,
@@ -315,6 +349,7 @@ export function GameScene() {
           <Terrain />
           <Trees />
           <PlayerController />
+          <AudioSync />
 
           {isMapMode ? (
             <>

@@ -6,6 +6,7 @@ import { type SwayState } from './tankPhysics';
 
 export interface InputRefs {
   keys: React.MutableRefObject<{ [key: string]: boolean }>;
+  arrowKeyPressStartedAt: React.MutableRefObject<{ left: number; right: number; up: number; down: number }>;
   cameraYaw: React.MutableRefObject<number>;
   cameraPitch: React.MutableRefObject<number>;
   isAiming: React.MutableRefObject<boolean>;
@@ -21,6 +22,7 @@ export function useInput(onFire: () => void): InputRefs {
   const setCalibrationDistance = useGameStore((state) => state.setCalibrationDistance);
 
   const keys = useRef<{ [key: string]: boolean }>({});
+  const arrowKeyPressStartedAt = useRef({ left: 0, right: 0, up: 0, down: 0 });
   const cameraYaw = useRef(0);
   const cameraPitch = useRef(0);
   const isAiming = useRef(false);
@@ -32,10 +34,18 @@ export function useInput(onFire: () => void): InputRefs {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const wasPressed = !!keys.current[e.code];
       keys.current[e.code] = true;
       const store = useGameStore.getState();
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
         e.preventDefault();
+        if (!wasPressed) {
+          const now = performance.now();
+          if (e.code === 'ArrowLeft') arrowKeyPressStartedAt.current.left = now;
+          if (e.code === 'ArrowRight') arrowKeyPressStartedAt.current.right = now;
+          if (e.code === 'ArrowUp') arrowKeyPressStartedAt.current.up = now;
+          if (e.code === 'ArrowDown') arrowKeyPressStartedAt.current.down = now;
+        }
       }
       if (e.code === 'Space') {
         e.preventDefault();
@@ -71,7 +81,18 @@ export function useInput(onFire: () => void): InputRefs {
       }
       if (e.code === 'KeyR') toggleAmmo();
     };
-    const handleKeyUp = (e: KeyboardEvent) => { keys.current[e.code] = false; };
+    const handleKeyUp = (e: KeyboardEvent) => {
+      keys.current[e.code] = false;
+      if (e.code === 'ArrowLeft') arrowKeyPressStartedAt.current.left = 0;
+      if (e.code === 'ArrowRight') arrowKeyPressStartedAt.current.right = 0;
+      if (e.code === 'ArrowUp') arrowKeyPressStartedAt.current.up = 0;
+      if (e.code === 'ArrowDown') arrowKeyPressStartedAt.current.down = 0;
+    };
+    const handleBlur = () => {
+      keys.current = {};
+      arrowKeyPressStartedAt.current = { left: 0, right: 0, up: 0, down: 0 };
+      isAiming.current = false;
+    };
     const handleMouseMove = (e: MouseEvent) => {
       if (document.pointerLockElement === document.body) {
         const viewMode = useGameStore.getState().viewMode;
@@ -123,6 +144,7 @@ export function useInput(onFire: () => void): InputRefs {
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('blur', handleBlur);
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     return () => {
@@ -132,9 +154,10 @@ export function useInput(onFire: () => void): InputRefs {
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
       window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('blur', handleBlur);
       window.removeEventListener('contextmenu', e => e.preventDefault());
     };
   }, [ammoType, toggleAmmo]);
 
-  return { keys, cameraYaw, cameraPitch, isAiming, swayPrev, swayState };
+  return { keys, arrowKeyPressStartedAt, cameraYaw, cameraPitch, isAiming, swayPrev, swayState };
 }
