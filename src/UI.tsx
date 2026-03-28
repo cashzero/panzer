@@ -2,7 +2,29 @@ import { useGameStore, GUNNER_ZOOM_LEVELS, GUNNER_ZOOM_LABELS } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
-import type { TankData } from './store';
+import type { AllyBaseMoveOrder, AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
+
+const MAP_BUTTON_CLASS = 'pointer-events-auto rounded border px-2 py-1 text-xs font-bold tracking-wide transition-colors';
+
+function OrderButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`${MAP_BUTTON_CLASS} ${active ? 'border-yellow-300 bg-yellow-700/70 text-yellow-100' : 'border-gray-600 bg-black/50 text-gray-300 hover:border-yellow-500 hover:text-yellow-200'}`}
+    >
+      {children}
+    </button>
+  );
+}
 
 function ReloadIndicator() {
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -318,26 +340,86 @@ function MapModeHUD() {
   const selectedAllyId = useGameStore((state) => state.selectedAllyId);
   const allies = useGameStore((state) => state.allies);
   const selectedAlly = selectedAllyId ? allies.find(a => a.id === selectedAllyId) : null;
-  const hasWaypoint = useGameStore((state) => selectedAllyId ? !!state.allyWaypoints[selectedAllyId] : false);
+  const baseMoveOrder = useGameStore((state) => selectedAllyId ? state.allyBaseMoveOrders[selectedAllyId] : undefined) ?? 'follow';
+  const fireOrder = useGameStore((state) => selectedAllyId ? state.allyFireOrders[selectedAllyId] : undefined) ?? 'fire-at-will';
+  const engagementPosture = useGameStore((state) => selectedAllyId ? state.allyEngagementPostures[selectedAllyId] : undefined) ?? 'fire-from-position';
+  const waypoint = useGameStore((state) => selectedAllyId ? state.allyWaypoints[selectedAllyId] : undefined);
+  const effectiveMoveOrder: AllyEffectiveMoveOrder = waypoint ? 'move' : (baseMoveOrder as AllyBaseMoveOrder);
+  const setAllyBaseMoveOrder = useGameStore((state) => state.setAllyBaseMoveOrder);
+  const setAllyFireOrder = useGameStore((state) => state.setAllyFireOrder);
+  const setAllyEngagementPosture = useGameStore((state) => state.setAllyEngagementPosture);
+  const clearAllyWaypoint = useGameStore((state) => state.clearAllyWaypoint);
 
   return (
-    <div className="mt-4 text-xl font-bold text-yellow-400 animate-pulse">
-      MAP MODE ACTIVE
-      <div className="text-sm text-gray-300 font-normal mt-1">
+    <div data-map-hud="true" className="pointer-events-auto mt-4 max-w-md bg-black/55 p-3 text-sm font-bold text-yellow-400 border border-yellow-900/70 rounded">
+      <div className="text-xl animate-pulse">MAP MODE ACTIVE</div>
+      <div className="mt-1 text-sm text-gray-300 font-normal">
         WASD/Drag - Pan | Scroll - Zoom | M - Exit
       </div>
-      <div className="text-sm font-normal mt-2">
+      <div className="mt-3 text-sm font-normal">
         {selectedAlly ? (
-          <>
-            <div className="text-yellow-300">
-              Selected: <span className="uppercase">{selectedAlly.tankType}</span>
+          <div className="space-y-3">
+            <div>
+              <div className="text-yellow-300">
+                Selected: <span className="uppercase">{selectedAlly.tankType}</span>
+              </div>
+              <div className="mt-1 text-gray-400">
+                Task: <span className="text-white uppercase">{effectiveMoveOrder}</span> | Fire: <span className="text-white uppercase">{fireOrder}</span>
+              </div>
+              <div className="mt-1 text-gray-400">
+                Posture: <span className="text-white uppercase">{engagementPosture}</span>
+              </div>
+              <div className="mt-1 text-gray-400">
+                {waypoint ? 'Right-click to update waypoint' : 'Right-click to assign waypoint'}
+              </div>
             </div>
-            <div className="text-gray-400 mt-1">
-              {hasWaypoint ? 'Right-click to change waypoint' : 'Right-click to set waypoint'}
+
+            <div>
+              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Movement</div>
+              <div className="flex flex-wrap gap-2">
+                <OrderButton active={baseMoveOrder === 'follow' && !waypoint} onClick={() => selectedAllyId && setAllyBaseMoveOrder(selectedAllyId, 'follow')}>
+                  Follow
+                </OrderButton>
+                <OrderButton active={baseMoveOrder === 'hold' && !waypoint} onClick={() => selectedAllyId && setAllyBaseMoveOrder(selectedAllyId, 'hold')}>
+                  Hold
+                </OrderButton>
+                {waypoint && selectedAllyId && (
+                  <OrderButton active={true} onClick={() => clearAllyWaypoint(selectedAllyId)}>
+                    Clear Waypoint
+                  </OrderButton>
+                )}
+              </div>
             </div>
-          </>
+
+            <div>
+              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Fire Control</div>
+              <div className="flex flex-wrap gap-2">
+                <OrderButton active={fireOrder === 'hold-fire'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'hold-fire')}>
+                  Hold Fire
+                </OrderButton>
+                <OrderButton active={fireOrder === 'return-fire'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'return-fire')}>
+                  Return Fire
+                </OrderButton>
+                <OrderButton active={fireOrder === 'fire-at-will'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'fire-at-will')}>
+                  Fire At Will
+                </OrderButton>
+              </div>
+            </div>
+
+            <div>
+              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Engagement</div>
+              <div className="flex flex-wrap gap-2">
+                <OrderButton active={engagementPosture === 'fire-from-position'} onClick={() => selectedAllyId && setAllyEngagementPosture(selectedAllyId, 'fire-from-position')}>
+                  Fire In Place
+                </OrderButton>
+                <OrderButton active={engagementPosture === 'advance-and-fire'} onClick={() => selectedAllyId && setAllyEngagementPosture(selectedAllyId, 'advance-and-fire')}>
+                  Advance And Fire
+                </OrderButton>
+              </div>
+            </div>
+          </div>
         ) : (
-          <div className="text-gray-400">Left-click an ally to select</div>
+          <div className="text-gray-400">Left-click an ally to select, then right-click to issue a waypoint</div>
         )}
       </div>
     </div>

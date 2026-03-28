@@ -51,14 +51,18 @@ export const GAME_CONFIG = {
   },
   ai: {
     detectionDistance: 800,
+    returnFireThreatDistance: 180,
+    moveArrivalDistance: 5,
     alertDecayTime: 30000, // ms — alert from being hit decays after 30s
     turretSpeed: 0.05,
     gunSpeed: 0.1,
-    aimDispersion: 0.005, // rad (~0.3°) — per-enemy aim offset that drifts over time
-    fireDispersion: 0.003, // rad — additional random spread applied at fire time
-    zeroInTime: 8, // seconds of steady aiming to reach minimum dispersion
-    zeroInMinFactor: 0.15, // minimum dispersion multiplier (15% of base) when fully zeroed
-    movementThreshold: 0.5, // m/s — speed below this counts as "stationary"
+    initialAimDispersion: 0.0022, // rad — first-shot aim offset before any correction shots
+    minAimDispersion: 0.00045, // rad — persistent aim offset after walking rounds onto target
+    initialFireDispersion: 0.0012, // rad — first-shot random spread at trigger pull
+    minFireDispersion: 0.0002, // rad — trigger-pull spread after enough ranging shots
+    shotsToMaxAccuracy: 4, // shots on the same target to reach best practical precision
+    fireTurretThreshold: 0.012, // rad (~0.7°) — require tighter lateral alignment before firing
+    fireElevationThreshold: 0.01, // rad (~0.57°) — require tighter elevation alignment before firing
   },
   combat: {
     autoRicochetAngle: 70, // degrees
@@ -100,7 +104,7 @@ export const GAME_CONFIG = {
     hit_penetrate: { lifetime: 800, color: '#ff3300', size: 2, expand: true },
     hit_bounce: { lifetime: 400, color: '#ffff00', size: 0.8, expand: false },
     hit_ground: { lifetime: 1000, color: '#8b5a2b', size: 3, expand: true },
-    tank_explosion: { lifetime: 1500, color: '#ff5500', size: 5, expand: true },
+    tank_explosion: { lifetime: 2200, color: '#ff5500', size: 8, expand: true },
     he_hit_ground: { lifetime: 1200, color: '#ff5500', size: 4, expand: true },
     he_hit_penetrate: { lifetime: 1000, color: '#ff4400', size: 3.5, expand: true },
     dust: { lifetime: 2000, color: '#c2b280', size: 2.5, expand: true,

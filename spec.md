@@ -101,6 +101,7 @@ Completed TODO items are removed from `todo.md` and documented here.
 - Per-gun dispersion: each weapon has an inherent `dispersion` (radians) applied as random yaw/pitch spread at fire time. Larger high-velocity guns (Tiger 88mm, 0.003 rad) are tightest; autocannons (Panzer II 20mm, 0.012 rad) are widest. Applies to both player and enemy fire.
 - GunAimPoint (yellow circle) uses terrain raycast to find the actual world hit point where the aim ray intersects terrain, ensuring consistent screen position across third-person and gunner views regardless of camera position or FOV. Binary-search refinement (10 iterations) on 2m stepping ray for precision.
 - Instanced rendering: TreeRenderer uses InstancedMesh (4 meshes: trunks, deciduous canopy, 2× conifer cones). Particles converted from per-effect React components to pooled Points (3 pools: additive+dust, additive+spark, normal+smoke) + InstancedMesh (debris boxes) with custom shaders — reduces draw calls from hundreds to 4.
+- Ally command modes: map-selected allies now use separate movement and fire-control orders. Base movement stance is `follow` or `hold`; issuing a waypoint temporarily switches the ally into `move` until the waypoint is cleared or reached, then it returns to its base stance. Fire control supports `hold-fire` (track targets without shooting), `return-fire` (engage only when alerted or threatened nearby), and `fire-at-will`. Map mode shows the active orders and provides waypoint assignment and cancellation UI.
 
 ## Map Mode
 

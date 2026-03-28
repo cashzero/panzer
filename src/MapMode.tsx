@@ -18,6 +18,10 @@ export function MapCameraController() {
   const raycaster = useRef(new THREE.Raycaster());
   const groundPlane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
 
+  const isHudEvent = (target: EventTarget | null) => {
+    return target instanceof HTMLElement && !!target.closest('[data-map-hud="true"]');
+  };
+
   /** Raycast mouse position to the ground plane, returns world XZ point */
   const getGroundPoint = (clientX: number, clientY: number): THREE.Vector3 | null => {
     const ndc = new THREE.Vector2(
@@ -51,6 +55,8 @@ export function MapCameraController() {
     };
 
     const handleMouseDown = (e: MouseEvent) => {
+      if (isHudEvent(e.target)) return;
+
       if (e.button === 0) {
         mapDragging.current = true;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
@@ -60,6 +66,13 @@ export function MapCameraController() {
     };
 
     const handleMouseUp = (e: MouseEvent) => {
+      if (isHudEvent(e.target)) {
+        mapDragging.current = false;
+        lastMousePos.current = null;
+        mouseDownPos.current = null;
+        return;
+      }
+
       if (e.button === 0) {
         mapDragging.current = false;
 
@@ -82,6 +95,8 @@ export function MapCameraController() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
+      if (isHudEvent(e.target)) return;
+
       if (mapDragging.current && lastMousePos.current) {
         const dx = e.clientX - lastMousePos.current.x;
         const dy = e.clientY - lastMousePos.current.y;
@@ -93,6 +108,8 @@ export function MapCameraController() {
     };
 
     const handleContextMenu = (e: MouseEvent) => {
+      if (isHudEvent(e.target)) return;
+
       e.preventDefault();
       handleRightClick(e.clientX, e.clientY);
     };
@@ -148,7 +165,7 @@ export function MapCameraController() {
     if (!worldPoint) return;
 
     const y = getTerrainHeight(worldPoint.x, worldPoint.z);
-    useGameStore.getState().setAllyWaypoint(selectedId, { x: worldPoint.x, y, z: worldPoint.z });
+    useGameStore.getState().issueAllyMoveOrder(selectedId, { x: worldPoint.x, y, z: worldPoint.z });
   };
 
   useFrame((_state, delta) => {

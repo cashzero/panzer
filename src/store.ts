@@ -10,6 +10,10 @@ import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPen
 import { stepProjectile } from './projectilePhysics';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
+export type AllyBaseMoveOrder = 'follow' | 'hold';
+export type AllyEffectiveMoveOrder = AllyBaseMoveOrder | 'move';
+export type AllyFireOrder = 'hold-fire' | 'return-fire' | 'fire-at-will';
+export type AllyEngagementPosture = 'fire-from-position' | 'advance-and-fire';
 
 // Gunner sight zoom levels: FOV values in degrees (lower = more zoom)
 export const GUNNER_ZOOM_LEVELS = [20, 10, 5, 2.5] as const;
@@ -95,6 +99,22 @@ export interface OOBUnit {
 const AXIS_NATIONALITIES: Record<string, boolean> = { 'Germany': true };
 export function isAxisNationality(nationality: string) { return !!AXIS_NATIONALITIES[nationality]; }
 
+function spawnTankDestructionEffect(
+  spawnParticle: GameState['spawnParticle'],
+  position: Vector3,
+) {
+  const bursts = [
+    { offset: new Vector3(0, 1.8, 0), scale: 1.8 },
+    { offset: new Vector3(1.2, 1.3, 0.7), scale: 1.15 },
+    { offset: new Vector3(-1.1, 1.2, -0.8), scale: 1.1 },
+    { offset: new Vector3(0.6, 2.2, -1.0), scale: 0.9 },
+  ];
+
+  for (const burst of bursts) {
+    spawnParticle('tank_explosion', position.clone().add(burst.offset), new Vector3(0, 1, 0), burst.scale);
+  }
+}
+
 interface GameState {
   gameScreen: GameScreen;
   mapSize: MapSize;
@@ -109,6 +129,9 @@ interface GameState {
   viewMode: 'third-person' | 'gunner';
   isMapMode: boolean;
   selectedAllyId: string | null;
+  allyBaseMoveOrders: Record<string, AllyBaseMoveOrder>;
+  allyFireOrders: Record<string, AllyFireOrder>;
+  allyEngagementPostures: Record<string, AllyEngagementPosture>;
   allyWaypoints: Record<string, { x: number; y: number; z: number }>;
   calibrationDistance: number;
   gunnerZoom: number; // index into GUNNER_ZOOM_LEVELS
@@ -134,7 +157,10 @@ interface GameState {
   toggleViewMode: () => void;
   toggleMapMode: () => void;
   selectAlly: (id: string | null) => void;
-  setAllyWaypoint: (allyId: string, position: { x: number; y: number; z: number }) => void;
+  setAllyBaseMoveOrder: (allyId: string, order: AllyBaseMoveOrder) => void;
+  setAllyFireOrder: (allyId: string, order: AllyFireOrder) => void;
+  setAllyEngagementPosture: (allyId: string, posture: AllyEngagementPosture) => void;
+  issueAllyMoveOrder: (allyId: string, position: { x: number; y: number; z: number }) => void;
   clearAllyWaypoint: (allyId: string) => void;
   setCalibrationDistance: (dist: number) => void;
   zoomGunnerIn: () => void;
@@ -255,6 +281,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   viewMode: 'third-person',
   isMapMode: false,
   selectedAllyId: null,
+  allyBaseMoveOrders: {},
+  allyFireOrders: {},
+  allyEngagementPostures: {},
   allyWaypoints: {},
   calibrationDistance: 0,
   gunnerZoom: 1,
@@ -350,10 +379,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       return t;
     });
 
+    const allyBaseMoveOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'follow' as AllyBaseMoveOrder]));
+    const allyFireOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-at-will' as AllyFireOrder]));
+    const allyEngagementPostures = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-from-position' as AllyEngagementPosture]));
+
     set({
       playerTank: player,
       enemies,
       allies,
+      allyBaseMoveOrders,
+      allyFireOrders,
+      allyEngagementPostures,
+      allyWaypoints: {},
+      selectedAllyId: null,
       gameScreen: 'playing',
       ammoType: 'AP',
       playerBurstRemaining: 0,
@@ -422,7 +460,20 @@ export const useGameStore = create<GameState>((set, get) => ({
   toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'third-person' ? 'gunner' : 'third-person' })),
   toggleMapMode: () => set((state) => ({ isMapMode: !state.isMapMode })),
   selectAlly: (id) => set({ selectedAllyId: id }),
-  setAllyWaypoint: (allyId, position) => set((state) => ({
+  setAllyBaseMoveOrder: (allyId, order) => set((state) => {
+    const { [allyId]: _, ...restWaypoints } = state.allyWaypoints;
+    return {
+      allyBaseMoveOrders: { ...state.allyBaseMoveOrders, [allyId]: order },
+      allyWaypoints: restWaypoints,
+    };
+  }),
+  setAllyFireOrder: (allyId, order) => set((state) => ({
+    allyFireOrders: { ...state.allyFireOrders, [allyId]: order },
+  })),
+  setAllyEngagementPosture: (allyId, posture) => set((state) => ({
+    allyEngagementPostures: { ...state.allyEngagementPostures, [allyId]: posture },
+  })),
+  issueAllyMoveOrder: (allyId, position) => set((state) => ({
     allyWaypoints: { ...state.allyWaypoints, [allyId]: position },
   })),
   clearAllyWaypoint: (allyId) => set((state) => {
@@ -590,7 +641,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         get().addMessage(`Penetration! ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#00ff00');
         if (destroyed) {
-          get().spawnParticle('tank_explosion', target.position, new THREE.Vector3(0, 1, 0));
+          spawnTankDestructionEffect(get().spawnParticle, target.position);
+          const distance = state.playerTank.position.distanceTo(target.position);
+          if (distance < 45) get().triggerCameraShake(Math.max(0.4, 1.8 - distance / 30));
           get().addMessage('Target Destroyed!', '#ff0000');
         }
       }
@@ -631,7 +684,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         get().addMessage(`HE Splash! ${faceName} (-${Math.round(splashDamage)} HP)`, '#ffaa00');
         if (destroyed) {
-          get().spawnParticle('tank_explosion', target.position, new THREE.Vector3(0, 1, 0));
+          spawnTankDestructionEffect(get().spawnParticle, target.position);
+          const distance = state.playerTank.position.distanceTo(target.position);
+          if (distance < 45) get().triggerCameraShake(Math.max(0.4, 1.8 - distance / 30));
           get().addMessage('Target Destroyed!', '#ff0000');
         }
       } else {

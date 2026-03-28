@@ -33,8 +33,9 @@ function WaypointMarker({ allyId }: { allyId: string }) {
     const wp = useGameStore.getState().allyWaypoints[allyId];
     const ally = useGameStore.getState().allies.find(a => a.id === allyId);
     const isSelected = useGameStore.getState().selectedAllyId === allyId;
+    const isMoveOrder = !!wp;
 
-    if (!wp || !ally || !groupRef.current) {
+    if (!wp || !ally || !groupRef.current || !isMoveOrder) {
       if (groupRef.current) groupRef.current.visible = false;
       return;
     }

@@ -8,13 +8,14 @@ import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
-import { computeMuzzleAndDirection, applyDispersion, randGauss } from './firing';
+import { computeMuzzleAndDirection, applyDispersion } from './firing';
+import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import type { TankData } from './store';
 
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
-  const aimOffsets = useRef<{ [id: string]: { azimuth: number; elevation: number; nextChangeTime: number } }>({});
-  const steadyAim = useRef<{ [id: string]: { time: number; lastEnemyPos: THREE.Vector3; lastPlayerPos: THREE.Vector3 } }>({});
+  const aimOffsets = useRef<Record<string, AiAimOffset>>({});
+  const accuracyState = useRef<Record<string, AiAccuracyState>>({});
   const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
@@ -152,38 +153,7 @@ export function EnemyAI() {
       const roll = orientation.roll + bodyRock.rollOffset;
       newPos.y = orientation.adjustedY + bodyRock.yOffset;
 
-      // Steady-aim tracking: accumulate time when both tanks are stationary
-      const moveThresh = GAME_CONFIG.ai.movementThreshold;
-      const sa = steadyAim.current[enemy.id];
-      const enemySpeed = Math.abs(forwardSpeed);
-      const targetSpeed = Math.abs(target.speed || 0);
-      const bothStationary = enemySpeed < moveThresh && targetSpeed < moveThresh;
-
-      if (!sa) {
-        steadyAim.current[enemy.id] = { time: 0, lastEnemyPos: newPos.clone(), lastPlayerPos: target.position.clone() };
-      } else if (bothStationary) {
-        sa.time += delta;
-        sa.lastEnemyPos.copy(newPos);
-        sa.lastPlayerPos.copy(target.position);
-      } else {
-        sa.time = 0;
-        sa.lastEnemyPos.copy(newPos);
-        sa.lastPlayerPos.copy(target.position);
-      }
-
-      // Zeroing factor: 1.0 at start, decays to zeroInMinFactor over zeroInTime seconds
-      const aimTime = steadyAim.current[enemy.id].time;
-      const zeroProgress = Math.min(aimTime / GAME_CONFIG.ai.zeroInTime, 1);
-      const zeroFactor = 1 - zeroProgress * (1 - GAME_CONFIG.ai.zeroInMinFactor);
-
-      // Aim dispersion: per-enemy offset that drifts, scaled by zeroing factor
-      if (!aimOffsets.current[enemy.id] || now > aimOffsets.current[enemy.id].nextChangeTime) {
-        aimOffsets.current[enemy.id] = {
-          azimuth: randGauss() * GAME_CONFIG.ai.aimDispersion * zeroFactor,
-          elevation: randGauss() * GAME_CONFIG.ai.aimDispersion * zeroFactor,
-          nextChangeTime: now + 1000 + Math.random() * 2000,
-        };
-      }
+      const accuracy = ensureAiAccuracyState(accuracyState.current, aimOffsets.current, enemy.id, target.id);
       const aimOff = aimOffsets.current[enemy.id];
 
       // Simple aiming: rotate hull towards player slowly, turret faster
@@ -227,12 +197,13 @@ export function EnemyAI() {
         const aiTank = { position: newPos, rotation: newRot, pitch, roll, turretRotation: newTurretRot, gunElevation: newGunElev } as TankData;
         const { pos, dir } = computeMuzzleAndDirection(aiTank, enemyDef, { turretSwayOffset: 0, gunSwayOffset: 0 });
         const gunDisp = enemyDef.weapons.AP.dispersion || 0;
-        const fireDisp = GAME_CONFIG.ai.fireDispersion * zeroFactor + gunDisp;
+        const fireDisp = getAiFireDispersion(accuracy.shotsOnTarget) + gunDisp;
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
         fireProjectile(pos, velocity, 'AP', enemyDef.weapons.AP.penetration, enemyDef.weapons.AP.damage, enemy.id, enemyDef.caliber);
         updateEnemy(enemy.id, { lastFireTime: now });
+        registerAiShot(accuracyState.current, aimOffsets.current, enemy.id, target.id);
 
         const distToPlayer = newPos.distanceTo(player.position);
         if (enemyDef.burstCount) {
@@ -254,7 +225,10 @@ export function EnemyAI() {
             lastFireTimes.current[enemy.id] = now;
           }
         }
-      } else if (Math.abs(normalizedDiff) < 0.03 && Math.abs(elevDiff) < 0.03) {
+      } else if (
+        Math.abs(normalizedDiff) < GAME_CONFIG.ai.fireTurretThreshold &&
+        Math.abs(elevDiff) < GAME_CONFIG.ai.fireElevationThreshold
+      ) {
         // Fire if aimed and reloaded
         const lastFire = lastFireTimes.current[enemy.id] || 0;
         if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
