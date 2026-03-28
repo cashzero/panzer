@@ -18,33 +18,47 @@
       },
       {
         "id": "right-side-profile",
-        "type": "helper",
-        "helper": "hull.side_profile_extrude",
+        "type": "group",
         "position": [1.3, 0.88, -0.2],
-        "rotation": [0, -1.5707963267948966, 0.7],
-        "params": {
-          "shape": {
-            "outline": [[-2.2, -0.43], [-2.2, 0.43], [1.82, 0.43], [2.95, -0.43]]
-          },
-          "depth": 0.12,
-          "bevelEnabled": false,
-          "materialRole": "hullPrimary"
-        }
+        "rotation": [0, 0, 0.7],
+        "children": [
+          {
+            "id": "panel",
+            "type": "helper",
+            "helper": "hull.side_profile_extrude",
+            "rotation": [0, -1.5707963267948966, 0],
+            "params": {
+              "shape": {
+                "outline": [[-2.2, -0.43], [-2.2, 0.43], [1.82, 0.43], [2.95, -0.43]]
+              },
+              "depth": 0.12,
+              "bevelEnabled": false,
+              "materialRole": "hullPrimary"
+            }
+          }
+        ]
       },
       {
         "id": "left-side-profile",
-        "type": "helper",
-        "helper": "hull.side_profile_extrude",
+        "type": "group",
         "position": [-1.3, 0.88, -0.2],
-        "rotation": [0, 1.5707963267948966, -0.7],
-        "params": {
-          "shape": {
-            "outline": [[2.2, -0.43], [2.2, 0.43], [-1.82, 0.43], [-2.95, -0.43]]
-          },
-          "depth": 0.12,
-          "bevelEnabled": false,
-          "materialRole": "hullPrimary"
-        }
+        "rotation": [0, 0, -0.7],
+        "children": [
+          {
+            "id": "panel",
+            "type": "helper",
+            "helper": "hull.side_profile_extrude",
+            "rotation": [0, 1.5707963267948966, 0],
+            "params": {
+              "shape": {
+                "outline": [[2.2, -0.43], [2.2, 0.43], [-1.82, 0.43], [-2.95, -0.43]]
+              },
+              "depth": 0.12,
+              "bevelEnabled": false,
+              "materialRole": "hullPrimary"
+            }
+          }
+        ]
       },
       {
         "id": "sponson-fill",
