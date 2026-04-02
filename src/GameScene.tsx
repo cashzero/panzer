@@ -123,6 +123,16 @@ function AudioSync() {
   return null;
 }
 
+function TrackRepairManager() {
+  const updateTrackRepairs = useGameStore((state) => state.updateTrackRepairs);
+
+  useFrame((_, delta) => {
+    updateTrackRepairs(delta);
+  });
+
+  return null;
+}
+
 function PlayerController() {
   const { camera } = useThree();
   const updatePlayer = useGameStore((state) => state.updatePlayer);
@@ -349,6 +359,7 @@ export function GameScene() {
           <Terrain />
           <Buildings />
           <Trees />
+          <TrackRepairManager />
           <PlayerController />
           <AudioSync />
 

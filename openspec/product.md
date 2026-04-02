@@ -37,7 +37,9 @@ There are three distinct aim points in the game:
 
 3. Viewpoint
    - Controlled by the Mouse (free-look camera).
-   - Holding Right Click makes the Gunner Sight (and thus the turret) align with the Viewpoint.
+   - Holding Right Click resolves the screen center to a concrete world target point and makes the Gunner Sight (and thus the turret) pursue that designated target rather than only matching camera direction.
+   - The designated target uses the nearest valid hit along the screen-center ray, including tanks, buildings, trees, and terrain, with a stable fallback point when nothing is hit.
+   - Switching from third-person into gunner view preserves the same designated target semantics while calibration distance continues to control bore zero relative to the sight line.
 
 ## Armor And Penetration Model
 
@@ -84,13 +86,15 @@ Tracks:
   - That track's speed is locked to 0
   - Tank can only pivot toward the dead track side
   - Both tracks destroyed -> fully immobilized
+  - A destroyed track can recover through time-based field repair while the tank remains stationary and out of active combat
 - Visual: destroyed track turns dark red
-- HUD shows track HP bars
+- HUD reports which track is damaged rather than showing per-track HP bars
 
 ## HUD And UI
 
 - The HUD should present only essential combat information during active play.
-- Core HUD elements include vehicle health, left and right track health, active ammunition type, calibration distance, and important combat messages.
+- Core HUD elements include vehicle health, damaged-track status, active ammunition type, calibration distance, and important combat messages.
+- Gunner view should avoid redundant vehicle-status clutter that competes with the sight picture.
 - Readability takes priority over decorative noise; information must remain legible during camera motion and effects.
 - UI styling should reinforce the WW2 vehicle and instrument aesthetic rather than modern minimalist game UI patterns.
 

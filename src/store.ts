@@ -22,6 +22,9 @@ export type AllyBaseMoveOrder = 'follow' | 'hold';
 export type AllyEffectiveMoveOrder = AllyBaseMoveOrder | 'move';
 export type AllyFireOrder = 'hold-fire' | 'return-fire' | 'fire-at-will';
 export type AllyEngagementPosture = 'fire-from-position' | 'advance-and-fire';
+type TrackSide = 'left' | 'right';
+
+const TRACK_SIDES: TrackSide[] = ['left', 'right'];
 
 // Gunner sight zoom levels: FOV values in degrees (lower = more zoom)
 export const GUNNER_ZOOM_LEVELS = [20, 10, 5, 2.5] as const;
@@ -82,6 +85,10 @@ export interface TankData {
   trackHealth: { left: number; right: number };
   trackMaxHealth: { left: number; right: number };
   trackDestroyed: { left: boolean; right: boolean };
+  trackRepairProgress: { left: number; right: number };
+  trackRepairActive: { left: boolean; right: boolean };
+  trackRepairBlockedUntil: number;
+  lastCombatTime: number;
 
   // Awareness
   alertedBy?: string; // ID of tank that last hit us
@@ -177,6 +184,7 @@ interface GameState {
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number) => void;
   removeProjectile: (id: string) => void;
   updateProjectiles: (dt: number) => void;
+  updateTrackRepairs: (dt: number) => void;
   updatePlayer: (updates: Partial<TankData>) => void;
   updateEnemy: (id: string, updates: Partial<TankData>) => void;
   addMessage: (text: string, color: string) => void;
@@ -309,12 +317,120 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     trackHealth: { left: def.trackHealth, right: def.trackHealth },
     trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
     trackDestroyed: { left: false, right: false },
+    trackRepairProgress: { left: 0, right: 0 },
+    trackRepairActive: { left: false, right: false },
+    trackRepairBlockedUntil: 0,
+    lastCombatTime: 0,
     speed: 0,
     engineRPM: GAME_CONFIG.tank.idleRPM,
     gear: 0,
     leftTrackSpeed: 0,
     rightTrackSpeed: 0,
   };
+}
+
+function markTankUnderCombatPressure(now: number): Pick<TankData, 'lastCombatTime' | 'trackRepairBlockedUntil' | 'trackRepairActive'> {
+  return {
+    lastCombatTime: now,
+    trackRepairBlockedUntil: now + GAME_CONFIG.tank.trackRepair.recentCombatPauseMs,
+    trackRepairActive: { left: false, right: false },
+  };
+}
+
+function applyTrackDamageToTank(tank: TankData, side: TrackSide, damage: number, now: number) {
+  const newTrackHealth = Math.max(0, tank.trackHealth[side] - damage);
+  const trackDead = newTrackHealth <= 0;
+
+  return {
+    updates: {
+      trackHealth: { ...tank.trackHealth, [side]: newTrackHealth },
+      trackDestroyed: { ...tank.trackDestroyed, [side]: trackDead },
+      trackRepairProgress: { ...tank.trackRepairProgress, [side]: 0 },
+      trackRepairActive: { ...tank.trackRepairActive, [side]: false },
+      ...markTankUnderCombatPressure(now),
+    } satisfies Partial<TankData>,
+    newTrackHealth,
+    trackDead,
+  };
+}
+
+function isTankStationaryForRepair(tank: TankData, isPlayerInMapMode: boolean): boolean {
+  if (isPlayerInMapMode) return true;
+
+  const threshold = GAME_CONFIG.tank.trackRepair.stationarySpeedThreshold;
+  return Math.abs(tank.speed) <= threshold
+    && Math.abs(tank.leftTrackSpeed) <= threshold
+    && Math.abs(tank.rightTrackSpeed) <= threshold;
+}
+
+function updateTankTrackRepairState(tank: TankData, dtMs: number, now: number, isPlayerInMapMode: boolean) {
+  let nextTank = tank;
+  const events: string[] = [];
+  const durationMs = GAME_CONFIG.tank.trackRepair.durationMs;
+  const restoredFraction = GAME_CONFIG.tank.trackRepair.restoredHealthFraction;
+  const combatPauseMs = GAME_CONFIG.tank.trackRepair.recentCombatPauseMs;
+  const safeState = !tank.destroyed
+    && isTankStationaryForRepair(tank, isPlayerInMapMode)
+    && now >= tank.trackRepairBlockedUntil
+    && now - tank.lastCombatTime >= combatPauseMs;
+
+  for (const side of TRACK_SIDES) {
+    const wasDestroyed = nextTank.trackDestroyed[side];
+    const wasActive = nextTank.trackRepairActive[side];
+    const wasProgress = nextTank.trackRepairProgress[side];
+
+    if (!wasDestroyed) {
+      if (wasActive || wasProgress > 0) {
+        nextTank = {
+          ...nextTank,
+          trackRepairActive: { ...nextTank.trackRepairActive, [side]: false },
+          trackRepairProgress: { ...nextTank.trackRepairProgress, [side]: 0 },
+        };
+      }
+      continue;
+    }
+
+    if (!safeState) {
+      if (wasActive) {
+        nextTank = {
+          ...nextTank,
+          trackRepairActive: { ...nextTank.trackRepairActive, [side]: false },
+        };
+        if (tank.isPlayer) {
+          events.push(`${side === 'left' ? 'Left' : 'Right'} track repair paused`);
+        }
+      }
+      continue;
+    }
+
+    const nextProgress = Math.min(durationMs, wasProgress + dtMs);
+    nextTank = {
+      ...nextTank,
+      trackRepairActive: { ...nextTank.trackRepairActive, [side]: nextProgress < durationMs },
+      trackRepairProgress: { ...nextTank.trackRepairProgress, [side]: nextProgress < durationMs ? nextProgress : 0 },
+    };
+
+    if (!wasActive && tank.isPlayer) {
+      events.push(`${wasProgress > 0 ? 'Resuming' : 'Repairing'} ${side === 'left' ? 'left' : 'right'} track`);
+    }
+
+    if (nextProgress >= durationMs) {
+      const restoredHealth = Math.max(1, Math.round(nextTank.trackMaxHealth[side] * restoredFraction));
+      nextTank = {
+        ...nextTank,
+        trackHealth: { ...nextTank.trackHealth, [side]: restoredHealth },
+        trackDestroyed: { ...nextTank.trackDestroyed, [side]: false },
+        trackRepairActive: { ...nextTank.trackRepairActive, [side]: false },
+        trackRepairProgress: { ...nextTank.trackRepairProgress, [side]: 0 },
+      };
+
+      if (tank.isPlayer) {
+        events.push(`${side === 'left' ? 'Left' : 'Right'} track repaired`);
+      }
+    }
+  }
+
+  return { nextTank, events };
 }
 
 function getInitialMagazineRounds(tankType: string): number {
@@ -581,23 +697,47 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   fireProjectile: (pos, vel, type, ammoSpec, dmg, firedBy, caliber) => {
     const scale = caliber / 75;
-    set((state) => ({
-      projectiles: [
-        ...state.projectiles,
-        {
-          id: uuidv4(),
-          origin: pos.clone(),
-          position: pos.clone(),
-          velocity: vel.clone(),
-          type,
-          ammoSpec: cloneAmmoSpec(ammoSpec),
-          damage: dmg,
-          caliber,
-          firedBy,
-          createdAt: Date.now(),
-        },
-      ],
-    }));
+    const now = Date.now();
+    set((state) => {
+      const projectile = {
+        id: uuidv4(),
+        origin: pos.clone(),
+        position: pos.clone(),
+        velocity: vel.clone(),
+        type,
+        ammoSpec: cloneAmmoSpec(ammoSpec),
+        damage: dmg,
+        caliber,
+        firedBy,
+        createdAt: now,
+      };
+
+      if (firedBy === 'player') {
+        return {
+          projectiles: [...state.projectiles, projectile],
+          playerTank: {
+            ...state.playerTank,
+            ...markTankUnderCombatPressure(now),
+          },
+        };
+      }
+
+      if (state.allies.some((ally) => ally.id === firedBy)) {
+        return {
+          projectiles: [...state.projectiles, projectile],
+          allies: state.allies.map((ally) => ally.id === firedBy
+            ? { ...ally, ...markTankUnderCombatPressure(now) }
+            : ally),
+        };
+      }
+
+      return {
+        projectiles: [...state.projectiles, projectile],
+        enemies: state.enemies.map((enemy) => enemy.id === firedBy
+          ? { ...enemy, ...markTankUnderCombatPressure(now) }
+          : enemy),
+      };
+    });
     get().spawnParticle('fire', pos, vel.clone().normalize(), scale);
   },
 
@@ -619,6 +759,31 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return { projectiles: newProjectiles };
     });
+  },
+
+  updateTrackRepairs: (dt) => {
+    const state = get();
+    const dtMs = dt * 1000;
+    const now = Date.now();
+    const events: string[] = [];
+
+    const playerResult = updateTankTrackRepairState(state.playerTank, dtMs, now, state.isMapMode);
+    const enemyResults = state.enemies.map((enemy) => updateTankTrackRepairState(enemy, dtMs, now, false));
+    const allyResults = state.allies.map((ally) => updateTankTrackRepairState(ally, dtMs, now, false));
+
+    events.push(...playerResult.events);
+    enemyResults.forEach((result) => events.push(...result.events));
+    allyResults.forEach((result) => events.push(...result.events));
+
+    set({
+      playerTank: playerResult.nextTank,
+      enemies: enemyResults.map((result) => result.nextTank),
+      allies: allyResults.map((result) => result.nextTank),
+    });
+
+    for (const event of events) {
+      get().addMessage(event, event.includes('paused') ? '#ffaa00' : '#7CFC00');
+    }
   },
 
   updatePlayer: (updates) => {
@@ -643,6 +808,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   handleHit: (projectileId, hitTankId, hitPoint, hitNormal, plateInfo) => {
     const state = get();
+    const now = Date.now();
     const projectile = state.projectiles.find((p) => p.id === projectileId);
     if (!projectile) return;
 
@@ -673,7 +839,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Alert the hit tank — it now knows who attacked it
     if (hitTankId !== 'player') {
-      const alertUpdate = { alertedBy: projectile.firedBy, alertedAt: Date.now() };
+      const alertUpdate = { alertedBy: projectile.firedBy, alertedAt: now };
       if (state.allies.some(a => a.id === hitTankId)) {
         get().updateAlly(hitTankId, alertUpdate);
       } else {
@@ -740,18 +906,15 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       if (isTrackHit && trackSide) {
         // Track hit — damage track HP, not main HP
-        const newTrackHealth = Math.max(0, target.trackHealth[trackSide] - projectile.damage);
-        const trackDead = newTrackHealth <= 0;
-        const updatedTrackHealth = { ...target.trackHealth, [trackSide]: newTrackHealth };
-        const updatedTrackDestroyed = { ...target.trackDestroyed, [trackSide]: trackDead };
+        const { updates, newTrackHealth, trackDead } = applyTrackDamageToTank(target, trackSide, projectile.damage, now);
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updatePlayer(updates);
           get().triggerCameraShake(0.7 * scale);
         } else if (state.allies.some(a => a.id === hitTankId)) {
-          get().updateAlly(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updateAlly(hitTankId, updates);
         } else {
-          get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updateEnemy(hitTankId, updates);
         }
 
         if (trackDead) {
@@ -761,18 +924,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
       } else {
         // Normal armor hit — damage main HP
-        const { damage: actualDamage, newHealth, destroyed } = computeDamage(
+        const { newHealth, destroyed } = computeDamage(
           projectile.type, projectile.damage, actualPen, effectiveArmor, target.health
         );
-        const destroyedAt = destroyed ? Date.now() : target.destroyedAt;
+        const destroyedAt = destroyed ? now : target.destroyedAt;
+        const impactUpdates = { health: newHealth, destroyed, destroyedAt, ...markTankUnderCombatPressure(now) };
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ health: newHealth, destroyed, destroyedAt });
+          get().updatePlayer(impactUpdates);
           get().triggerCameraShake(1.0 * scale);
         } else if (state.allies.some(a => a.id === hitTankId)) {
-          get().updateAlly(hitTankId, { health: newHealth, destroyed, destroyedAt });
+          get().updateAlly(hitTankId, impactUpdates);
         } else {
-          get().updateEnemy(hitTankId, { health: newHealth, destroyed, destroyedAt });
+          get().updateEnemy(hitTankId, impactUpdates);
         }
 
         get().addMessage(`Penetration! ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#00ff00');
@@ -806,32 +970,35 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (isTrackHit && trackSide && projectile.type === 'HE') {
         // HE splash on track
         const splashDamage = computeHESplashDamage(projectile.damage);
-        const newTrackHealth = Math.max(0, target.trackHealth[trackSide] - splashDamage);
-        const trackDead = newTrackHealth <= 0;
-        const updatedTrackHealth = { ...target.trackHealth, [trackSide]: newTrackHealth };
-        const updatedTrackDestroyed = { ...target.trackDestroyed, [trackSide]: trackDead };
+        const { updates, trackDead } = applyTrackDamageToTank(target, trackSide, splashDamage, now);
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updatePlayer(updates);
         } else if (state.allies.some(a => a.id === hitTankId)) {
-          get().updateAlly(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updateAlly(hitTankId, updates);
         } else {
-          get().updateEnemy(hitTankId, { trackHealth: updatedTrackHealth, trackDestroyed: updatedTrackDestroyed });
+          get().updateEnemy(hitTankId, updates);
         }
-        get().addMessage(`HE Splash on ${faceName}! (-${Math.round(splashDamage)} track HP)`, '#ffaa00');
+        get().addMessage(
+          trackDead
+            ? `${trackSide === 'left' ? 'Left' : 'Right'} Track Destroyed!`
+            : `HE Splash on ${faceName}! (-${Math.round(splashDamage)} track HP)`,
+          trackDead ? '#ff4400' : '#ffaa00',
+        );
       } else if (projectile.type === 'HE' && !isTrackHit) {
         // HE splash on armor
         const splashDamage = computeHESplashDamage(projectile.damage);
         const newHealth = Math.max(0, target.health - splashDamage);
         const destroyed = newHealth <= 0;
-        const destroyedAt = destroyed ? Date.now() : target.destroyedAt;
+        const destroyedAt = destroyed ? now : target.destroyedAt;
+        const splashUpdates = { health: newHealth, destroyed, destroyedAt, ...markTankUnderCombatPressure(now) };
 
         if (hitTankId === 'player') {
-          get().updatePlayer({ health: newHealth, destroyed, destroyedAt });
+          get().updatePlayer(splashUpdates);
         } else if (state.allies.some(a => a.id === hitTankId)) {
-          get().updateAlly(hitTankId, { health: newHealth, destroyed, destroyedAt });
+          get().updateAlly(hitTankId, splashUpdates);
         } else {
-          get().updateEnemy(hitTankId, { health: newHealth, destroyed, destroyedAt });
+          get().updateEnemy(hitTankId, splashUpdates);
         }
         get().addMessage(`HE Splash! ${faceName} (-${Math.round(splashDamage)} HP)`, '#ffaa00');
         if (destroyed) {

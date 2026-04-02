@@ -44,6 +44,12 @@ export const GAME_CONFIG = {
     trackDamage: {
       trackArmor: 20, // mm
     },
+    trackRepair: {
+      durationMs: 12000,
+      restoredHealthFraction: 0.4,
+      stationarySpeedThreshold: 0.15,
+      recentCombatPauseMs: 4000,
+    },
   },
   camera: {
     distance: 12,

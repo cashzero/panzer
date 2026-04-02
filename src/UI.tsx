@@ -189,30 +189,30 @@ function GunnerSightOverlay() {
   );
 }
 
-function TrackHPDisplay() {
-  const trackHealth = useGameStore((state) => state.playerTank.trackHealth);
-  const trackMaxHealth = useGameStore((state) => state.playerTank.trackMaxHealth);
+function TrackDamageStatus() {
   const trackDestroyed = useGameStore((state) => state.playerTank.trackDestroyed);
+  const trackRepairActive = useGameStore((state) => state.playerTank.trackRepairActive);
+  const trackRepairProgress = useGameStore((state) => state.playerTank.trackRepairProgress);
 
-  const renderBar = (label: string, hp: number, maxHp: number, dead: boolean) => (
-    <div className="flex items-center gap-2">
-      <span className="text-xs text-gray-400 w-16">{label}</span>
-      <div className="w-32 h-3 bg-gray-800 border border-gray-600">
-        <div
-          className={`h-full transition-all duration-300 ${dead ? 'bg-red-700' : 'bg-amber-500'}`}
-          style={{ width: `${Math.max(0, (hp / maxHp) * 100)}%` }}
-        />
-      </div>
-      <span className={`text-xs ${dead ? 'text-red-500 font-bold' : 'text-gray-300'}`}>
-        {dead ? 'DESTROYED' : `${Math.round(hp)}/${maxHp}`}
-      </span>
-    </div>
-  );
+  const statuses: string[] = [];
+
+  if (trackDestroyed.left) {
+    statuses.push(trackRepairActive.left ? 'Left track damaged - repairing' : trackRepairProgress.left > 0 ? 'Left track damaged - repair paused' : 'Left track damaged');
+  }
+
+  if (trackDestroyed.right) {
+    statuses.push(trackRepairActive.right ? 'Right track damaged - repairing' : trackRepairProgress.right > 0 ? 'Right track damaged - repair paused' : 'Right track damaged');
+  }
+
+  if (statuses.length === 0) return null;
 
   return (
     <div className="mt-2 flex flex-col gap-1">
-      {renderBar('L TRACK', trackHealth.left, trackMaxHealth.left, trackDestroyed.left)}
-      {renderBar('R TRACK', trackHealth.right, trackMaxHealth.right, trackDestroyed.right)}
+      {statuses.map((status) => (
+        <div key={status} className="text-sm font-bold text-red-400">
+          {status}
+        </div>
+      ))}
     </div>
   );
 }
@@ -480,7 +480,7 @@ export function UI() {
             />
           </div>
         </div>
-        {/* <TrackHPDisplay /> */}
+        {viewMode !== 'gunner' && <TrackDamageStatus />}
         <div className="mt-4 text-xl">
           Ammo: <span className={ammoType === 'AP' ? 'text-yellow-400' : ammoType === 'APC' ? 'text-orange-400' : 'text-red-400 font-bold'}>{ammoType}</span>
         </div>
@@ -515,7 +515,7 @@ export function UI() {
         <div>WASD - Move</div>
         <div>Mouse - Look Around</div>
         <div>Arrows - Aim Gunner Sight</div>
-        <div>Hold Right Click - Align Sight to Camera</div>
+        <div>Hold Right Click - Designate Center Target</div>
         <div>Hold Space / LMB - Fire</div>
         <div>R - Change Ammo</div>
         <div>V / Mid Click - Toggle View</div>

@@ -47,6 +47,7 @@ Completed roadmap items are documented here.
 - Tank selection includes a rotating 3D preview, stat bars, description, nationality, year, and deploy flow.
 - Armor plate hover tooltips in tank selection show plate name, zone, thickness, and slope, while highlighting the hovered plate and pausing auto-rotation.
 - Map mode provides a tactical top-down view with pan, zoom, marker rendering, and state reset on exit.
+- Track damage and repair are surfaced through damage-state HUD text and combat messages rather than per-track HP bars, and gunner view keeps that status block hidden.
 
 ## Audio And Effects
 
