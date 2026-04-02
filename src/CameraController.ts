@@ -9,12 +9,14 @@ export interface CameraParams {
   lookDir: THREE.Vector3;
   aimGunPivotWorld: THREE.Vector3;
   aimDir: THREE.Vector3;
+  designatedAimTarget?: THREE.Vector3;
+  gunnerAimTarget?: THREE.Vector3;
   shakeIntensity?: number;
   gunnerZoom?: number; // index into GUNNER_ZOOM_LEVELS
 }
 
 export function updateCamera(params: CameraParams): void {
-  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, shakeIntensity = 0, gunnerZoom = 0 } = params;
+  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, designatedAimTarget, gunnerAimTarget, shakeIntensity = 0, gunnerZoom = 0 } = params;
 
   if (viewMode === 'third-person') {
     camera.up.set(0, 1, 0);
@@ -24,7 +26,7 @@ export function updateCamera(params: CameraParams): void {
     const camPos = targetPos.clone().sub(lookDir.clone().multiplyScalar(cameraDistance));
 
     camera.position.copy(camPos);
-    camera.lookAt(targetPos.clone().add(lookDir.clone().multiplyScalar(100)));
+    camera.lookAt(designatedAimTarget ?? targetPos.clone().add(lookDir.clone().multiplyScalar(100)));
     (camera as THREE.PerspectiveCamera).fov = 60;
   } else {
     // Gunner view stays centered on the calibrated sight line.
@@ -32,7 +34,7 @@ export function updateCamera(params: CameraParams): void {
 
     const camPos = aimGunPivotWorld.clone().add(aimDir.clone().multiplyScalar(4.5));
     camera.position.copy(camPos);
-    camera.lookAt(camPos.clone().add(aimDir.clone().multiplyScalar(100)));
+    camera.lookAt(gunnerAimTarget ?? camPos.clone().add(aimDir.clone().multiplyScalar(100)));
     (camera as THREE.PerspectiveCamera).fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
   }
 

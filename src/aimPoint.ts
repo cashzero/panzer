@@ -13,10 +13,33 @@ export interface AimPointInput {
   tankType: string;
 }
 
+export interface AimGeometryInput {
+  position: THREE.Vector3;
+  rotation: number;
+  pitch: number;
+  roll: number;
+  turretRotation: number;
+  turretSwayOffset: number;
+  tankType: string;
+}
+
 export interface AimPointResult {
   gunSightAimPoint: THREE.Vector3;
   aimDir: THREE.Vector3;
   aimGunPivotWorld: THREE.Vector3;
+}
+
+export function computeAimGunPivotWorld(input: AimGeometryInput): THREE.Vector3 {
+  const aimTankEuler = new THREE.Euler(input.pitch, input.rotation, input.roll, 'YXZ');
+  const aimTankQuat = new THREE.Quaternion().setFromEuler(aimTankEuler);
+
+  const aimTurretEuler = new THREE.Euler(0, input.turretRotation + input.turretSwayOffset, 0, 'YXZ');
+  const aimTurretQuat = new THREE.Quaternion().setFromEuler(aimTurretEuler);
+  const aimWorldTurretQuat = aimTankQuat.clone().multiply(aimTurretQuat);
+
+  const playerDef = getTankDef(input.tankType);
+  const aimTurretPosWorld = input.position.clone().add(new THREE.Vector3(...playerDef.turretOffset).applyQuaternion(aimTankQuat));
+  return aimTurretPosWorld.clone().add(new THREE.Vector3(...playerDef.gunPivotOffset).applyQuaternion(aimWorldTurretQuat));
 }
 
 export function computeAimPoint(input: AimPointInput): AimPointResult {
@@ -32,9 +55,15 @@ export function computeAimPoint(input: AimPointInput): AimPointResult {
   const aimGunQuat = new THREE.Quaternion().setFromEuler(aimGunEuler);
   const aimWorldGunQuat = aimWorldTurretQuat.clone().multiply(aimGunQuat);
 
-  const playerDef = getTankDef(input.tankType);
-  const aimTurretPosWorld = input.position.clone().add(new THREE.Vector3(...playerDef.turretOffset).applyQuaternion(aimTankQuat));
-  const aimGunPivotWorld = aimTurretPosWorld.clone().add(new THREE.Vector3(...playerDef.gunPivotOffset).applyQuaternion(aimWorldTurretQuat));
+  const aimGunPivotWorld = computeAimGunPivotWorld({
+    position: input.position,
+    rotation: input.rotation,
+    pitch: input.pitch,
+    roll: input.roll,
+    turretRotation: input.turretRotation,
+    turretSwayOffset: input.turretSwayOffset,
+    tankType: input.tankType,
+  });
 
   const aimDir = new THREE.Vector3(0, 0, 1).applyQuaternion(aimWorldGunQuat);
   const gunSightAimPoint = aimGunPivotWorld.clone().add(aimDir.clone().multiplyScalar(500));

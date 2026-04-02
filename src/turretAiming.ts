@@ -29,6 +29,8 @@ export interface TurretAimingInput {
   gunSpeed: number;
   minGunElevation?: number;
   maxGunElevation?: number;
+  designatedTarget?: THREE.Vector3 | null;
+  aimOriginWorld?: THREE.Vector3;
   delta: number;
 }
 
@@ -63,15 +65,20 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
   let newTurretRot = input.currentTurretRot;
 
   if (input.isAiming) {
-    // Align sight (and thus turret) to viewpoint (camera), accounting for hull tilt.
-    // Transform world-space camera direction into the hull's local frame so that
-    // the turret truly aims where the camera looks regardless of terrain slope.
-    const camYawWorld = input.hullRotation + input.cameraYaw;
-    const worldDir = new THREE.Vector3(
-      Math.sin(camYawWorld) * Math.cos(input.cameraPitch),
-      Math.sin(input.cameraPitch),
-      Math.cos(camYawWorld) * Math.cos(input.cameraPitch)
-    ).normalize();
+    let worldDir: THREE.Vector3;
+    if (input.designatedTarget && input.aimOriginWorld) {
+      worldDir = input.designatedTarget.clone().sub(input.aimOriginWorld).normalize();
+    } else {
+      // Align sight (and thus turret) to viewpoint (camera), accounting for hull tilt.
+      // Transform world-space camera direction into the hull's local frame so that
+      // the turret truly aims where the camera looks regardless of terrain slope.
+      const camYawWorld = input.hullRotation + input.cameraYaw;
+      worldDir = new THREE.Vector3(
+        Math.sin(camYawWorld) * Math.cos(input.cameraPitch),
+        Math.sin(input.cameraPitch),
+        Math.cos(camYawWorld) * Math.cos(input.cameraPitch)
+      ).normalize();
+    }
 
     const hullQuat = new THREE.Quaternion().setFromEuler(
       new THREE.Euler(input.hullPitch, input.hullRotation, input.hullRoll, 'YXZ')
@@ -85,12 +92,12 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
     let yawDiff = targetTurretYaw - input.currentTurretRot;
     yawDiff = Math.atan2(Math.sin(yawDiff), Math.cos(yawDiff));
 
-    if (Math.abs(yawDiff) > 0.01) {
+    if (Math.abs(yawDiff) > 0) {
       newTurretRot += Math.sign(yawDiff) * Math.min(Math.abs(yawDiff), turretSpeed);
     }
 
     let pitchDiff = targetSightPitch - currentSightPitch;
-    if (Math.abs(pitchDiff) > 0.01) {
+    if (Math.abs(pitchDiff) > 0) {
       currentSightPitch += Math.sign(pitchDiff) * Math.min(Math.abs(pitchDiff), gunSpeed);
     }
   } else {

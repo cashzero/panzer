@@ -68,6 +68,7 @@ export interface TankData {
   gunSightAimPoint: Vector3; // 3D world position of the gun sight aim point
   aimDir: Vector3; // Gun sight direction (unit vector)
   aimGunPivotWorld: Vector3; // Gun pivot position in world space
+  designatedAimTarget: Vector3; // Shared world-space target designated by the current view center
   health: number;
   maxHealth: number;
   armor: {
@@ -307,6 +308,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     gunSightAimPoint: new Vector3(0, 0, 500),
     aimDir: new Vector3(0, 0, 1),
     aimGunPivotWorld: new Vector3(0, 0, 0),
+    designatedAimTarget: new Vector3(0, 0, 500),
     health: def.health,
     maxHealth: def.health,
     armor: { ...def.armor },

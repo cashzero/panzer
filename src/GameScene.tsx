@@ -11,7 +11,7 @@ import { AllyAI } from './AllyAI';
 import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
-import { getTerrainHeight, raycastTerrain } from './Terrain';
+import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
 import { MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
@@ -20,13 +20,14 @@ import { computeTerrainOrientation, computeTrackMovement, updateGunSway, compute
 import { useInput } from './useInput';
 import { fireTank, updatePlayerBurst } from './firing';
 import { computeTurretAiming } from './turretAiming';
-import { computeAimPoint } from './aimPoint';
+import { computeAimGunPivotWorld, computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees } from './TreeRenderer';
 import { Buildings } from './BuildingRenderer';
 import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
 import { audioManager, toAudioVec3 } from './audio';
+import { resolveDesignatedAimTarget } from './designatedAimTarget';
 
 function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
@@ -49,18 +50,7 @@ function GunAimPoint() {
   useFrame(() => {
     const player = useGameStore.getState().playerTank;
     if (player.destroyed || !groupRef.current) return;
-
-    // Raycast the current sight line against terrain for a stable world-space marker.
-    // This visual follows the same calibrated sight reference as the gunner camera.
-    const hit = raycastTerrain(player.aimGunPivotWorld, player.aimDir, 2000);
-    if (hit) {
-      groupRef.current.position.copy(hit);
-    } else {
-      // Aiming at sky - fallback to a point within camera far plane.
-      groupRef.current.position.copy(
-        player.aimGunPivotWorld.clone().add(player.aimDir.clone().multiplyScalar(800))
-      );
-    }
+    groupRef.current.position.copy(player.gunSightAimPoint);
   });
 
   return (
@@ -137,6 +127,7 @@ function PlayerController() {
   const { camera } = useThree();
   const updatePlayer = useGameStore((state) => state.updatePlayer);
   const input = useInput(fireTank);
+  const previousViewMode = useRef<'third-person' | 'gunner'>(useGameStore.getState().viewMode);
 
   useFrame((state, delta) => {
     const player = useGameStore.getState().playerTank;
@@ -226,6 +217,29 @@ function PlayerController() {
       Math.cos(camYawAbs) * Math.cos(camPitch)
     ).normalize();
 
+    const viewMode = useGameStore.getState().viewMode;
+    const aimingFromThirdPerson = viewMode === 'third-person' && input.isAiming.current;
+    const preservedTransitionTarget = viewMode === 'gunner' && previousViewMode.current === 'third-person'
+      ? player.designatedAimTarget.clone()
+      : null;
+    const cameraTargetPos = newPos.clone().add(new THREE.Vector3(0, GAME_CONFIG.camera.heightOffset, 0));
+    const cameraPos = cameraTargetPos.clone().sub(lookDir.clone().multiplyScalar(GAME_CONFIG.camera.distance));
+    const thirdPersonDesignatedTarget = viewMode === 'third-person'
+      ? resolveDesignatedAimTarget(cameraPos, lookDir, 2000, 'player')
+      : null;
+    const designatedTargetForAiming = aimingFromThirdPerson
+      ? thirdPersonDesignatedTarget?.point ?? null
+      : preservedTransitionTarget;
+    const currentAimOriginWorld = computeAimGunPivotWorld({
+      position: newPos,
+      rotation: newRot,
+      pitch,
+      roll,
+      turretRotation: player.turretRotation,
+      turretSwayOffset: 0,
+      tankType: player.tankType,
+    });
+
     // Turret aiming
     const ammoStats = playerDef.weapons[useGameStore.getState().ammoType]!;
     const now = performance.now();
@@ -251,6 +265,8 @@ function PlayerController() {
       gunSpeed: playerDef.gunSpeed,
       minGunElevation: playerDef.minGunElevation,
       maxGunElevation: playerDef.maxGunElevation,
+      designatedTarget: designatedTargetForAiming,
+      aimOriginWorld: designatedTargetForAiming ? currentAimOriginWorld : undefined,
       delta,
     });
 
@@ -281,8 +297,26 @@ function PlayerController() {
     // Camera shake decay
     useGameStore.getState().decayCameraShake(delta);
 
+    const actualGunAimTarget = resolveDesignatedAimTarget(
+      aimResult.aimGunPivotWorld,
+      aimResult.aimDir,
+      2000,
+      'player',
+    ).point;
+
+    const hasManualGunnerAim = input.keys.current['ArrowLeft']
+      || input.keys.current['ArrowRight']
+      || input.keys.current['ArrowUp']
+      || input.keys.current['ArrowDown'];
+
+    let designatedAimTarget = thirdPersonDesignatedTarget?.point ?? player.designatedAimTarget;
+    if (viewMode === 'gunner') {
+      designatedAimTarget = hasManualGunnerAim
+        ? actualGunAimTarget
+        : (preservedTransitionTarget ?? player.designatedAimTarget);
+    }
+
     // Camera placement
-    const viewMode = useGameStore.getState().viewMode;
     const shakeIntensity = useGameStore.getState().cameraShake;
     updateCamera({
       camera, viewMode,
@@ -290,6 +324,8 @@ function PlayerController() {
       lookDir,
       aimGunPivotWorld: aimResult.aimGunPivotWorld,
       aimDir: aimResult.aimDir,
+      designatedAimTarget,
+      gunnerAimTarget: actualGunAimTarget,
       shakeIntensity,
       gunnerZoom: useGameStore.getState().gunnerZoom,
     });
@@ -317,15 +353,18 @@ function PlayerController() {
       gunElevation: aiming.gunElevation,
       turretSwayOffset,
       gunSwayOffset,
-      gunSightAimPoint: aimResult.gunSightAimPoint,
+      gunSightAimPoint: actualGunAimTarget,
       aimDir: aimResult.aimDir,
       aimGunPivotWorld: aimResult.aimGunPivotWorld,
+      designatedAimTarget,
       speed: forwardSpeed,
       leftTrackSpeed: leftSpeed,
       rightTrackSpeed: rightSpeed,
       engineRPM: engine.rpm,
       gear: engine.gear,
     });
+
+    previousViewMode.current = viewMode;
   });
 
   return null;

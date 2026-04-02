@@ -40,6 +40,7 @@ There are three distinct aim points in the game:
    - Holding Right Click resolves the screen center to a concrete world target point and makes the Gunner Sight (and thus the turret) pursue that designated target rather than only matching camera direction.
    - The designated target uses the nearest valid hit along the screen-center ray, including tanks, buildings, trees, and terrain, with a stable fallback point when nothing is hit.
    - Switching from third-person into gunner view preserves the same designated target semantics while calibration distance continues to control bore zero relative to the sight line.
+   - Player right-click target pursuit should continue until the sight converges on the designated target, rather than stopping early because the remaining yaw or pitch error falls under a coarse tolerance threshold.
 
 ## Armor And Penetration Model
 
