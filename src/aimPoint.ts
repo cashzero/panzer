@@ -27,7 +27,7 @@ export function computeAimPoint(input: AimPointInput): AimPointResult {
   const aimTurretQuat = new THREE.Quaternion().setFromEuler(aimTurretEuler);
   const aimWorldTurretQuat = aimTankQuat.clone().multiply(aimTurretQuat);
 
-  // Sight direction: uses sightPitch so the aim point aligns with the viewpoint when right-clicking
+  // Sight direction follows the calibrated sight line rather than the bore axis.
   const aimGunEuler = new THREE.Euler(-input.sightPitch + input.gunSwayOffset, 0, 0, 'YXZ');
   const aimGunQuat = new THREE.Quaternion().setFromEuler(aimGunEuler);
   const aimWorldGunQuat = aimWorldTurretQuat.clone().multiply(aimGunQuat);

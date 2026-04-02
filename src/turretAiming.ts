@@ -14,6 +14,7 @@ export function clampGunElevation(
 
 export interface TurretAimingInput {
   currentTurretRot: number;
+  currentSightPitch: number;
   currentGunElev: number;
   cameraYaw: number;
   cameraPitch: number;
@@ -57,8 +58,8 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
   const minSightPitch = -maxGunElevation - angleOffset;
   const maxSightPitch = -minGunElevation - angleOffset;
 
-  // Current sight pitch is derived from actual gun elevation
-  let currentSightPitch = -input.currentGunElev - angleOffset;
+  // Keep the calibrated sight line persistent so changing zero does not move the view center.
+  let currentSightPitch = input.currentSightPitch;
   let newTurretRot = input.currentTurretRot;
 
   if (input.isAiming) {

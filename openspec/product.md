@@ -22,8 +22,9 @@ There are three distinct aim points in the game:
 2. Gun Aim Point
    - Identical to the Gunner Sight Aim Point in terms of yaw.
    - The only difference is an elevation offset determined by the calibration distance.
-   - Therefore, using the arrow keys directly moves the gun aim point, just with a vertical offset applied.
-   - The calibration distance is controlled by PageUp / PageDown and the Mouse Wheel.
+   - The center dot in gunner view is the active calibrated point of impact for the selected range.
+   - Therefore, using the arrow keys directly moves the gun aim point, while the selected calibration distance changes where the shell is zeroed relative to that sight line.
+   - The calibration distance is controlled by PageUp / PageDown.
 
 3. Viewpoint
    - Controlled by the Mouse (free-look camera).

@@ -1,4 +1,4 @@
-import { useGameStore, GUNNER_ZOOM_LEVELS, GUNNER_ZOOM_LABELS } from './store';
+import { useGameStore, GUNNER_ZOOM_LABELS } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
@@ -149,7 +149,6 @@ function PhysicsHUD() {
 function GunnerSightOverlay() {
   const calibrationDistance = useGameStore((state) => state.calibrationDistance);
   const ammoType = useGameStore((state) => state.ammoType);
-  
   const gunnerZoom = useGameStore((state) => state.gunnerZoom);
   const playerTankType = useGameStore((state) => state.playerTank.tankType);
   const playerDef = getTankDef(playerTankType);
@@ -158,79 +157,25 @@ function GunnerSightOverlay() {
   const penetrationAtSightDistance = Math.round(
     getAmmoPenetrationAtDistance(ammo, ammoType, playerDef.caliber, calibrationDistance),
   );
-  const gravity = GAME_CONFIG.physics.gravity;
-  const fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
-
-  // Calculate elevation angle for a given distance using the same ballistic
-  // formula as the actual gun aiming: θ = 0.5 * asin(d*g / v²)
-  const getElevationAngle = (d: number, v: number) => {
-    if (d === 0) return 0;
-    const sin2Theta = (d * gravity) / (v * v);
-    if (sin2Theta > 1) return null; // Beyond max range
-    return 0.5 * Math.asin(sin2Theta);
-  };
-
-  // Convert elevation angle to viewport height offset (vh units)
-  const angleToVh = (angle: number) => {
-    const tanFovHalf = Math.tan((fov / 2) * (Math.PI / 180));
-    return 50 * (Math.tan(angle) / tanFovHalf);
-  };
-
-  // Max range for this ammo type: v² / g
-  const maxRange = (velocity * velocity) / gravity;
-
-  // Generate distance markings dynamically based on projectile ballistics
-  const markings = [];
-  for (let d = 0; d <= 5000; d += 200) {
-    if (d > maxRange) break; // Can't reach beyond max range
-    const angle = getElevationAngle(d, velocity);
-    if (angle === null) break;
-    const vh = angleToVh(angle);
-    if (vh > 150) break; // Stop generating if it goes way off screen
-    markings.push({ dist: d, vh });
-  }
-
-  // The camera follows the bore axis (gun barrel direction).
-  // The reticle center = screen center = bore axis.
-  // Distance markings show shell drop below center — the user lines up
-  // the calibrated distance mark with the target to aim correctly.
 
   return (
     <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
       {/* Black vignette/mask */}
       <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_40%,black_70%)]" />
 
-      {/* Reticle container — no vertical shift, bore axis stays at center */}
-      <div
-        className="relative w-full h-full flex items-center justify-center"
-      >
+      {/* The center dot is the active zero for the selected calibration distance. */}
+      <div className="relative w-full h-full flex items-center justify-center">
         {/* Main horizontal line */}
         <div className="absolute w-1/2 h-0.5 bg-red-500/80" />
         {/* Main vertical line */}
         <div className="absolute h-[200%] w-0.5 bg-red-500/80" />
-        
-        {/* Distance markings — calibrated distance mark is highlighted */}
-        <div className="absolute top-1/2 left-1/2">
-          {markings.map(({ dist, vh }) => {
-            const isCalibrated = dist === calibrationDistance;
-            return (
-              <div
-                key={dist}
-                className={`absolute border-b ${isCalibrated ? 'w-16 border-yellow-400' : 'w-12 border-red-500/80'}`}
-                style={{ top: `${vh}vh`, left: isCalibrated ? '-32px' : '-24px' }}
-              >
-                <span className={`absolute left-[68px] text-sm font-bold -translate-y-1/2 ${isCalibrated ? 'text-yellow-400' : 'text-red-500/80'}`}>{dist}</span>
-              </div>
-            );
-          })}
-        </div>
 
         {/* Center dot */}
         <div className="absolute w-1 h-1 bg-red-500 rounded-full" />
+        <div className="absolute top-1/2 left-1/2 ml-3 mt-3 text-xs font-bold tracking-widest text-yellow-400/90">
+          ZERO {calibrationDistance}m
+        </div>
       </div>
-
-      {/* Fixed Bore Axis Indicator (Center of Screen) */}
-      <div className="absolute top-1/2 left-1/2 w-4 h-4 border-2 border-green-500/30 rounded-full -translate-x-1/2 -translate-y-1/2" />
 
       {/* Info panel */}
       <div className="absolute bottom-10 left-10 text-red-500 font-mono text-xl">

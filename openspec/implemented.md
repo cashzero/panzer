@@ -7,8 +7,9 @@ Completed roadmap items are documented here.
 - Gunner view toggles with `V` or mouse middle button.
 - Gunner view supports range calibration with `PageUp` and `PageDown`.
 - Gunner view supports multi-step zoom control.
+- Gunner sight zeroing keeps the center dot as the calibrated point of impact for the selected distance, with the current zero shown in the HUD.
 - The player tank update loop is split into focused modules for input, firing, turret aiming, aim point calculation, camera placement, and tank physics.
-- GunAimPoint uses terrain raycasting so the aim indicator stays aligned across third-person and gunner views.
+- GunAimPoint uses terrain raycasting so the sight-line indicator stays aligned across third-person and gunner views.
 - An order-of-battle editor lets the player configure allies, enemies, map size, and world seed before deployment.
 
 ## Vehicles, Weapons, And Combat

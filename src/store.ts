@@ -58,6 +58,7 @@ export interface TankData {
   pitch?: number; // X-axis rotation of hull
   roll?: number; // Z-axis rotation of hull
   turretRotation: number; // Y-axis rotation relative to hull
+  sightPitch: number; // X-axis rotation of the calibrated sight line
   gunElevation: number; // X-axis rotation of gun
   turretSwayOffset: number;
   gunSwayOffset: number;
@@ -291,6 +292,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     pitch: 0,
     roll: 0,
     turretRotation: 0,
+    sightPitch: 0,
     gunElevation: 0,
     turretSwayOffset: 0,
     gunSwayOffset: 0,
@@ -326,39 +328,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   roadNetwork: initialWorld.roadNetwork,
   buildings: initialWorld.buildings,
   farmlands: initialWorld.farmlands,
-  playerTank: (() => {
-    const def = getTankDef('sherman');
-    return {
-      id: 'player',
-      tankType: 'sherman',
-      position: new Vector3(0, 0, 0),
-      rotation: 0,
-      pitch: 0,
-      roll: 0,
-      turretRotation: 0,
-      gunElevation: 0,
-      turretSwayOffset: 0,
-      gunSwayOffset: 0,
-      gunSightAimPoint: new Vector3(0, 0, 500),
-    aimDir: new Vector3(0, 0, 1),
-    aimGunPivotWorld: new Vector3(0, 0, 0),
-      health: def.health,
-      maxHealth: def.health,
-      armor: { ...def.armor },
-      isPlayer: true,
-      destroyed: false,
-      destroyedAt: 0,
-      lastFireTime: 0,
-      trackHealth: { left: def.trackHealth, right: def.trackHealth },
-      trackMaxHealth: { left: def.trackHealth, right: def.trackHealth },
-      trackDestroyed: { left: false, right: false },
-      speed: 0,
-      engineRPM: GAME_CONFIG.tank.idleRPM,
-      gear: 0,
-      leftTrackSpeed: 0,
-      rightTrackSpeed: 0,
-    };
-  })(),
+  playerTank: createTankData('sherman', true),
   enemies: [],
   allies: [],
   projectiles: [],

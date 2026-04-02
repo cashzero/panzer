@@ -50,13 +50,13 @@ function GunAimPoint() {
     const player = useGameStore.getState().playerTank;
     if (player.destroyed || !groupRef.current) return;
 
-    // Raycast aimDir against terrain to find the concrete world hit point.
-    // A fixed world point projects consistently from any camera position/FOV.
+    // Raycast the current sight line against terrain for a stable world-space marker.
+    // This visual follows the same calibrated sight reference as the gunner camera.
     const hit = raycastTerrain(player.aimGunPivotWorld, player.aimDir, 2000);
     if (hit) {
       groupRef.current.position.copy(hit);
     } else {
-      // Aiming at sky — fallback to a point within camera far plane
+      // Aiming at sky - fallback to a point within camera far plane.
       groupRef.current.position.copy(
         player.aimGunPivotWorld.clone().add(player.aimDir.clone().multiplyScalar(800))
       );
@@ -221,6 +221,7 @@ function PlayerController() {
     const now = performance.now();
     const aiming = computeTurretAiming({
       currentTurretRot: player.turretRotation,
+      currentSightPitch: player.sightPitch,
       currentGunElev: player.gunElevation,
       cameraYaw: input.cameraYaw.current,
       cameraPitch: input.cameraPitch.current,
@@ -302,6 +303,7 @@ function PlayerController() {
       pitch,
       roll,
       turretRotation: aiming.turretRotation,
+      sightPitch: aiming.sightPitch,
       gunElevation: aiming.gunElevation,
       turretSwayOffset,
       gunSwayOffset,

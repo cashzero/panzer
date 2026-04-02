@@ -27,7 +27,7 @@ export function updateCamera(params: CameraParams): void {
     camera.lookAt(targetPos.clone().add(lookDir.clone().multiplyScalar(100)));
     (camera as THREE.PerspectiveCamera).fov = 60;
   } else {
-    // Gunner view — camera follows bore axis (gun barrel direction)
+    // Gunner view stays centered on the calibrated sight line.
     camera.up.set(0, 1, 0);
 
     const camPos = aimGunPivotWorld.clone().add(aimDir.clone().multiplyScalar(4.5));
