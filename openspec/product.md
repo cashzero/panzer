@@ -10,6 +10,15 @@ This app is a WW2 tank battle simulator. All visual design - UI, HUD, color pale
 - Combat should emphasize readable armor interactions, ballistic drop, and terrain-aware movement over arcade-style instant lethality.
 - Tactical awareness should come from direct sightlines, the HUD, and map mode rather than omniscient battlefield information.
 
+## Movement And Steering
+
+- Tank steering should feel like a heavy tracked vehicle rather than a neutral-spin arcade vehicle.
+- Stationary pivot turning remains available for alignment, but it is slower and less effective than low-speed forward steering.
+- Low-speed forward motion is the most effective steering regime for normal driving.
+- Steering while moving may trade a small amount of speed for a tighter line, preserving momentum without excessive understeer.
+- High-speed steering should remain broad and deliberate rather than snapping into tight turns.
+- Per-tank mobility tuning should preserve handling differences between lighter, medium, and heavy vehicles while following the same steering behavior contract.
+
 ## Aiming System
 
 There are three distinct aim points in the game:

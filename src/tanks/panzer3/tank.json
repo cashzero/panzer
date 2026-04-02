@@ -38,8 +38,8 @@
     "acceleration": 4.880269058295964,
     "deceleration": 9,
     "trackWidth": 2.38,
-    "turnRateLimit": 0.55,
-    "rotationalInertia": 3
+    "turnRateLimit": 0.58,
+    "rotationalInertia": 3.2
   },
   "traverse": {
     "turretSpeed": 0.15,

@@ -301,22 +301,30 @@ export function computeTrackTargets(params: {
   let right = 0;
 
   if (throttle !== 0) {
-    const baseSpeed = throttle > 0 ? maxSpeed : -maxReverseSpeed;
+    const topSpeed = throttle > 0 ? maxSpeed : maxReverseSpeed;
+    const baseSpeed = (throttle > 0 ? 1 : -1) * topSpeed;
+    const currentSpeed = (currentLeftTrackSpeed + currentRightTrackSpeed) / 2;
+    const speedRatio = Math.min(1, Math.abs(currentSpeed) / Math.max(topSpeed, 0.01));
+
     left = baseSpeed;
     right = baseSpeed;
 
-    // Speed-dependent inner track factor: less differential at higher speeds
-    const currentSpeed = (currentLeftTrackSpeed + currentRightTrackSpeed) / 2;
-    const speedRatio = Math.min(1, Math.abs(currentSpeed) / maxSpeed);
-    const innerTrackFactor = 0.6 + 0.25 * speedRatio;
+    if (steering !== 0) {
+      // Low-speed forward motion is the strongest steering regime.
+      const movingSpeedScale = THREE.MathUtils.lerp(0.84, 0.96, speedRatio);
+      const innerTrackFactor = THREE.MathUtils.lerp(0.18, 0.58, speedRatio);
 
-    if (steering > 0) {
-      left *= innerTrackFactor;
-    } else if (steering < 0) {
-      right *= innerTrackFactor;
+      left *= movingSpeedScale;
+      right *= movingSpeedScale;
+
+      if (steering > 0) {
+        left *= innerTrackFactor;
+      } else {
+        right *= innerTrackFactor;
+      }
     }
   } else if (steering !== 0) {
-    const pivotSpeed = maxSpeed * 0.15;
+    const pivotSpeed = maxSpeed * 0.055;
     left = -steering * pivotSpeed;
     right = steering * pivotSpeed;
   }
@@ -340,11 +348,26 @@ export function accelerateTrackSpeeds(params: {
 }): TrackTargets {
   const { currentLeft, currentRight, targetLeft, targetRight, acceleration, deceleration, delta } = params;
 
-  const accelLeft = (targetLeft === 0) ? deceleration : acceleration;
-  const accelRight = (targetRight === 0) ? deceleration : acceleration;
-
   let left = currentLeft;
   let right = currentRight;
+
+  const getResponseRate = (current: number, target: number) => {
+    if (target === current) return 0;
+    if (target === 0) return deceleration;
+
+    const sameDirection = Math.sign(current) === Math.sign(target) || current === 0;
+    const targetMagnitude = Math.abs(target);
+    const currentMagnitude = Math.abs(current);
+
+    if (!sameDirection || targetMagnitude < currentMagnitude) {
+      return deceleration;
+    }
+
+    return acceleration;
+  };
+
+  const accelLeft = getResponseRate(currentLeft, targetLeft);
+  const accelRight = getResponseRate(currentRight, targetRight);
 
   if (left < targetLeft) left = Math.min(left + accelLeft * delta, targetLeft);
   else if (left > targetLeft) left = Math.max(left - accelLeft * delta, targetLeft);
