@@ -59,9 +59,9 @@ No test framework is configured. No ESLint — only `tsc` for type checking.
 
 **Tank definitions** (`tanks/`): Each tank type (Sherman, Tiger I, Panzer III, Panzer II) has its own file defining procedural geometry, armor plate layout, weapon stats, and metadata. Registered via `tanks/registry.ts`.
 
-**Armor & penetration**: Multi-plate OBB collision system. Each tank has ~20 armor plates with individual thickness. Impact angle, auto-ricochet (>70°), effective armor calculation, and post-pen damage scaling. Detailed in `spec.md`.
+**Armor & penetration**: Multi-plate OBB collision system. Each tank has ~20 armor plates with individual thickness. Impact angle, auto-ricochet (>70°), effective armor calculation, and post-pen damage scaling. Detailed in `openspec/product.md`.
 
-**Aiming system** (detailed in `spec.md`): Three distinct aim points — gunner sight (arrow keys), gun aim point (with ballistic elevation offset), and viewpoint (free-look mouse camera). Distance calibration via PageUp/PageDown affects ballistic drop compensation. Terrain raycast for accurate aim point positioning.
+**Aiming system** (detailed in `openspec/product.md`): Three distinct aim points — gunner sight (arrow keys), gun aim point (with ballistic elevation offset), and viewpoint (free-look mouse camera). Distance calibration via PageUp/PageDown affects ballistic drop compensation. Terrain raycast for accurate aim point positioning.
 
 **Camera modes**: Third-person (default), gunner view (first-person zoomed, V key), map view (top-down tactical, M key).
 
@@ -69,9 +69,15 @@ No test framework is configured. No ESLint — only `tsc` for type checking.
 
 **Path alias**: `@/*` maps to project root in both TypeScript and Vite.
 
-## TODO Workflow
+## OpenSpec Workflow
 
-- `todo.md` contains active TODO items.
-- When an item is completed, move it from `todo.md` to the "Implemented Features" section in `spec.md`.
-- `spec.md` contains the aiming system specification and documented implemented features.
+OpenSpec is the canonical documentation system for this repository. Write and maintain product, roadmap, and implementation documentation in `openspec/`.
+
+- `openspec/product.md` contains the gameplay and design specification.
+- `openspec/roadmap.md` contains active roadmap items and unfinished work.
+- `openspec/implemented.md` records shipped capabilities that already exist in the codebase.
+- `openspec/conventions.md` defines the OpenSpec document format and writing rules.
+- `openspec/README.md` is the index for the OpenSpec docs.
+- When an item is completed, move it from `openspec/roadmap.md` to `openspec/implemented.md`.
+- When intended behavior changes, update `openspec/product.md` as part of the same work.
 
