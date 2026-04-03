@@ -226,40 +226,39 @@ interface DirectionMarker {
 }
 
 function DirectionIndicator() {
-  const [markers, setMarkers] = useState<DirectionMarker[]>([]);
+  const playerTank = useGameStore((state) => state.playerTank);
+  const enemies = useGameStore((state) => state.enemies);
+  const allies = useGameStore((state) => state.allies);
+  const cameraYawAbs = useGameStore((state) => state.cameraYawAbs);
+  const playerSideSpotting = useGameStore((state) => state.playerSideSpotting);
 
-  useEffect(() => {
-    let raf: number;
-    const update = () => {
-      const { playerTank, enemies, allies, cameraYawAbs, playerSideSpotting } = useGameStore.getState();
-      const px = playerTank.position.x;
-      const pz = playerTank.position.z;
-      const playerYaw = cameraYawAbs; // camera viewpoint direction
+  const px = playerTank.position.x;
+  const pz = playerTank.position.z;
+  const playerYaw = cameraYawAbs;
 
-      const toMarker = (t: TankData, color: string, label: string): DirectionMarker => {
-        const dx = t.position.x - px;
-        const dz = t.position.z - pz;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        // atan2 gives angle from +Z axis (forward). Subtract player yaw to get relative bearing.
-        let bearing = -(Math.atan2(dx, dz) - playerYaw);
-        // Normalize to -PI..PI
-        bearing = ((bearing + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
-        return { angle: bearing * (180 / Math.PI), distance: dist, label, color, destroyed: false };
-      };
+  const toMarker = (t: TankData, color: string, label: string): DirectionMarker => {
+    const dx = t.position.x - px;
+    const dz = t.position.z - pz;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    // atan2 gives angle from +Z axis (forward). Invert the relative angle so
+    // the HUD bar matches the screen-space left/right camera motion.
+    let bearing = -(Math.atan2(dx, dz) - playerYaw);
+    // Normalize to -PI..PI
+    bearing = ((bearing + Math.PI) % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI) - Math.PI;
+    return { angle: bearing * (180 / Math.PI), distance: dist, label, color, destroyed: false };
+  };
 
-      const m: DirectionMarker[] = [];
-      enemies.forEach((e, i) => {
-        if (!e.destroyed && playerSideSpotting[e.id]?.spotted) {
-          m.push(toMarker(e, '#ef4444', `E${i + 1}`));
-        }
-      });
-      allies.forEach((a, i) => { if (!a.destroyed) m.push(toMarker(a, '#3b82f6', `A${i + 1}`)); });
-      setMarkers(m);
-      raf = requestAnimationFrame(update);
-    };
-    update();
-    return () => cancelAnimationFrame(raf);
-  }, []);
+  const markers: DirectionMarker[] = [];
+  enemies.forEach((e, i) => {
+    if (!e.destroyed && playerSideSpotting[e.id]?.spotted) {
+      markers.push(toMarker(e, '#ef4444', `E${i + 1}`));
+    }
+  });
+  allies.forEach((a, i) => {
+    if (!a.destroyed) {
+      markers.push(toMarker(a, '#3b82f6', `A${i + 1}`));
+    }
+  });
 
   if (markers.length === 0) return null;
 
