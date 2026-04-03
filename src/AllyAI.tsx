@@ -6,7 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings, type BuildingInstance } from './buildings';
-import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
+import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -20,9 +20,19 @@ function computeEngagementMovement(
   target: TankData,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
+  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  allTanks: TankData[],
 ) {
   const dirToEnemy = target.position.clone().sub(ally.position).normalize();
-  const moveDir = steerDirectionAroundBuildings(ally.position, dirToEnemy, buildings, 90, 14);
+  const moveDir = chooseAvoidanceDirection(
+    ally.position,
+    steerDirectionAroundBuildings(ally.position, dirToEnemy, buildings, 90, 14),
+    ally.id,
+    allTanks,
+    trees,
+    buildings,
+    { ignoreTankIds: [target.id] },
+  );
   const playerDef = getTankDef(target.tankType);
   const allyPen = getAmmoDisplayPenetration(allyDef.weapons.AP, 'AP', allyDef.caliber);
   const targetPen = getAmmoDisplayPenetration(playerDef.weapons.AP, 'AP', playerDef.caliber);
@@ -51,7 +61,14 @@ function computeEngagementMovement(
       rightSpeed = forwardSpeed;
     }
   } else if (ally.position.distanceTo(target.position) < preferredRange - rangeDeadzone) {
-    const retreatDir = steerDirectionAroundBuildings(ally.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14);
+    const retreatDir = chooseAvoidanceDirection(
+      ally.position,
+      steerDirectionAroundBuildings(ally.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14),
+      ally.id,
+      allTanks,
+      trees,
+      buildings,
+    );
     const retreatAngle = Math.atan2(retreatDir.x, retreatDir.z);
     let retreatDiff = retreatAngle - ally.rotation;
     retreatDiff = Math.atan2(Math.sin(retreatDiff), Math.cos(retreatDiff));
@@ -98,13 +115,22 @@ function computeMoveToPoint(
   destination: THREE.Vector3,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
+  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  allTanks: TankData[],
 ) {
   const distToWp = ally.position.distanceTo(destination);
   if (distToWp <= GAME_CONFIG.ai.moveArrivalDistance) {
     return { forwardSpeed: 0, rotationSpeed: 0, leftSpeed: 0, rightSpeed: 0, arrived: true };
   }
 
-  const dirToWp = steerDirectionAroundBuildings(ally.position, destination.clone().sub(ally.position).normalize(), buildings, 85, 14);
+  const dirToWp = chooseAvoidanceDirection(
+    ally.position,
+    steerDirectionAroundBuildings(ally.position, destination.clone().sub(ally.position).normalize(), buildings, 85, 14),
+    ally.id,
+    allTanks,
+    trees,
+    buildings,
+  );
   const angleToWp = Math.atan2(dirToWp.x, dirToWp.z);
   let rotDiff = angleToWp - ally.rotation;
   rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
@@ -129,13 +155,23 @@ function computeFollowMovement(
   player: TankData,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
+  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  allTanks: TankData[],
 ) {
   const distToPlayer = ally.position.distanceTo(player.position);
   if (distToPlayer <= 50) {
     return { forwardSpeed: 0, rotationSpeed: 0, leftSpeed: 0, rightSpeed: 0 };
   }
 
-  const dirToPlayer = steerDirectionAroundBuildings(ally.position, player.position.clone().sub(ally.position).normalize(), buildings, 85, 14);
+  const dirToPlayer = chooseAvoidanceDirection(
+    ally.position,
+    steerDirectionAroundBuildings(ally.position, player.position.clone().sub(ally.position).normalize(), buildings, 85, 14),
+    ally.id,
+    allTanks,
+    trees,
+    buildings,
+    { ignoreTankIds: [player.id] },
+  );
   const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
   let rotDiff = angleToPlayer - ally.rotation;
   rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
@@ -233,9 +269,10 @@ export function AllyAI() {
       let newPos = ally.position.clone();
       let leftSpeed = 0;
       let rightSpeed = 0;
+      const allTanks = [player, ...enemies, ...allies];
 
       if (moveOrder === 'move' && waypoint) {
-          const moveResult = computeMoveToPoint(ally, new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z), allyDef, buildings);
+          const moveResult = computeMoveToPoint(ally, new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z), allyDef, buildings, trees, allTanks);
         forwardSpeed = moveResult.forwardSpeed;
         rotationSpeed = moveResult.rotationSpeed;
         leftSpeed = moveResult.leftSpeed;
@@ -245,7 +282,7 @@ export function AllyAI() {
           clearAllyWaypoint(ally.id);
         }
       } else if (moveOrder === 'follow') {
-        const followResult = computeFollowMovement(ally, player, allyDef, buildings);
+        const followResult = computeFollowMovement(ally, player, allyDef, buildings, trees, allTanks);
         forwardSpeed = followResult.forwardSpeed;
         rotationSpeed = followResult.rotationSpeed;
         leftSpeed = followResult.leftSpeed;
@@ -254,7 +291,7 @@ export function AllyAI() {
 
       if (engagementTarget && moveOrder !== 'move' && fireOrder === 'fire-at-will') {
         const combatMove = engagementPosture === 'advance-and-fire'
-          ? computeEngagementMovement(ally, engagementTarget, allyDef, buildings)
+          ? computeEngagementMovement(ally, engagementTarget, allyDef, buildings, trees, allTanks)
           : computeFireFromPositionMovement(ally, engagementTarget, allyDef);
         forwardSpeed = combatMove.forwardSpeed;
         rotationSpeed = combatMove.rotationSpeed;
@@ -297,7 +334,6 @@ export function AllyAI() {
       newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
       // Collision with all tanks
-      const allTanks = [player, ...enemies, ...allies];
       resolveTankCollision(ally.id, newPos, allTanks);
       resolveBuildingCollision(newPos, useGameStore.getState().buildings);
 

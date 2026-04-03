@@ -6,7 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings } from './buildings';
-import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
+import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -28,6 +28,7 @@ export function EnemyAI() {
       enemies,
       allies,
       buildings,
+      trees,
       enemySideSpotting,
       updateEnemy,
       fireProjectile,
@@ -71,9 +72,19 @@ export function EnemyAI() {
       // Only engage if within detection range or alerted
       if (dist > GAME_CONFIG.ai.detectionDistance && !alerted) return;
 
+      const allTanks = [player, ...enemies, ...allies];
+
       // Aim at target
       const dirToPlayer = target.position.clone().sub(enemy.position).normalize();
-      const moveDir = steerDirectionAroundBuildings(enemy.position, dirToPlayer, buildings, 90, 14);
+      const moveDir = chooseAvoidanceDirection(
+        enemy.position,
+        steerDirectionAroundBuildings(enemy.position, dirToPlayer, buildings, 90, 14),
+        enemy.id,
+        allTanks,
+        trees,
+        buildings,
+        { ignoreTankIds: [target.id] },
+      );
 
       // Movement logic
       let forwardSpeed = 0;
@@ -110,7 +121,14 @@ export function EnemyAI() {
         }
       } else if (dist < preferredRange - rangeDeadzone) {
         // Too close — reverse away
-        const retreatDir = steerDirectionAroundBuildings(enemy.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14);
+        const retreatDir = chooseAvoidanceDirection(
+          enemy.position,
+          steerDirectionAroundBuildings(enemy.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14),
+          enemy.id,
+          allTanks,
+          trees,
+          buildings,
+        );
         const retreatAngle = Math.atan2(retreatDir.x, retreatDir.z);
         let retreatDiff = retreatAngle - enemy.rotation;
         retreatDiff = Math.atan2(Math.sin(retreatDiff), Math.cos(retreatDiff));
@@ -158,15 +176,14 @@ export function EnemyAI() {
       newPos.y = getTerrainHeight(newPos.x, newPos.z);
 
       // Tank-tank collision
-      const allTanks = [player, ...enemies, ...useGameStore.getState().allies];
       resolveTankCollision(enemy.id, newPos, allTanks);
       resolveBuildingCollision(newPos, useGameStore.getState().buildings);
 
       // Tree collision
-      const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);
+      const treeResult = resolveTreeCollision(newPos, forwardSpeed, trees);
       if (treeResult.knockedTreeIndex !== null) {
         const idx = treeResult.knockedTreeIndex;
-        const tree = useGameStore.getState().trees[idx];
+        const tree = trees[idx];
         const fallDir = Math.atan2(newPos.x - tree.position[0], newPos.z - tree.position[2]);
         useGameStore.getState().updateTree(idx, { fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
         useGameStore.getState().spawnParticle('tree_hit', new THREE.Vector3(tree.position[0], tree.position[1] + 2, tree.position[2]), new THREE.Vector3(0, 1, 0));
