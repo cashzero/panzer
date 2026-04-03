@@ -6,7 +6,7 @@ import { testProjectileAgainstTank } from './armorModel';
 import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import { GAME_CONFIG } from './config';
-import { checkTerrainCollision, checkTreeCollision, checkBuildingCollision } from './projectilePhysics';
+import { checkTerrainCollision, checkTreeRayCollision, checkBuildingCollision } from './projectilePhysics';
 
 export function ProjectileManager() {
   const projectiles = useGameStore((state) => state.projectiles);
@@ -49,16 +49,19 @@ export function ProjectileManager() {
 
       // Check collision with trees
       const trees = useGameStore.getState().trees;
-      const treeHit = checkTreeCollision(nextPos, trees, GAME_CONFIG.trees.collisionRadius);
+      const treeHit = checkTreeRayCollision(ray, rayLength, trees, GAME_CONFIG.trees.collisionRadius);
       if (treeHit) {
-        const { spawnParticle, updateTree } = useGameStore.getState();
-        spawnParticle('tree_hit', nextPos.clone(), treeHit.normal);
-        if (treeHit.shouldFall) {
-          updateTree(treeHit.treeIndex, { health: 0, fallen: true, fallDirection: treeHit.fallDirection, fallProgress: 0.01 });
-        } else {
-          updateTree(treeHit.treeIndex, { health: treeHit.newHealth });
-        }
-        handleHit(p.id, 'ground', nextPos.clone(), new THREE.Vector3(0, 1, 0)); // consume projectile
+        const { spawnParticle, updateTree, removeProjectile } = useGameStore.getState();
+        const tree = trees[treeHit.treeIndex];
+        const fallDirection = Math.atan2(ray.direction.x, ray.direction.z);
+        spawnParticle('tree_hit', treeHit.point.clone(), treeHit.normal, (p.caliber || 75) / 75);
+        updateTree(treeHit.treeIndex, {
+          health: 0,
+          fallen: true,
+          fallDirection,
+          fallProgress: tree.fallen ? tree.fallProgress : 0.01,
+        });
+        removeProjectile(p.id);
         return;
       }
 
