@@ -435,31 +435,59 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     for (let i = 0; i < sc(15); i++) cone('spark', 1.5, (12 + Math.random() * 12) * sv, 0.5 * s, '#ffdd44', 0.4 + Math.random() * 0.4, 0);
     for (let i = 0; i < sc(8); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (2.0 + Math.random() * 2) * s, '#333333', 1, (Math.random() - 0.5) * 2);
   } else if (type === 'tank_explosion') {
-    add('flash', 0, 0, 0, 0, 0, 0, 11.0 * s, '#ffffff', 0.16, 0);
-    add('flash', 0, 0.4 * s, 0, 0, 0, 0, 8.5 * s, '#ffb347', 0.35, 0);
-    add('fireball', 0, 0.6 * s, 0, 0, 5 * sv, 0, 7.0 * s, '#ffdd88', 0.22, (Math.random() - 0.5) * 2);
-    add('fireball', 0, 0.8 * s, 0, 0, 4 * sv, 0, 5.5 * s, '#ff5a1f', 0.4, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(18); i++) {
-      const ox = (Math.random() - 0.5) * 3.2 * s;
-      const oz = (Math.random() - 0.5) * 3.2 * s;
-      const oy = Math.random() * 1.8 * s;
-      add(
-        'fireball',
-        ox,
-        oy,
-        oz,
-        ox * 1.8,
-        (4 + Math.random() * 6) * sv,
-        oz * 1.8,
-        (3.8 + Math.random() * 3.8) * s,
-        i < 6 ? '#fff1b8' : (i < 12 ? '#ff8a2a' : '#ff4d00'),
-        0.28 + Math.random() * 0.35,
-        (Math.random() - 0.5) * 2.5
-      );
-    }
-    for (let i = 0; i < sc(22); i++) cone('smoke', 2.6, (6 + Math.random() * 7) * sv, (5.5 + Math.random() * 5.5) * s, i < 10 ? '#2a2a2a' : '#4a3421', 1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(26); i++) cone('debris', 1.7, (8 + Math.random() * 11) * sv, (0.28 + Math.random() * 0.42) * s, i < 9 ? '#3b2d1f' : '#111111', 0.95, 0);
-    for (let i = 0; i < sc(30); i++) cone('spark', 2.2, (18 + Math.random() * 20) * sv, (0.5 + Math.random() * 0.35) * s, i < 10 ? '#fff2a8' : '#ff9f1c', 0.45 + Math.random() * 0.3, 0);
+    // Large blast silhouette with restrained fragment size.
+    const radialBurst = (
+      subType: SubState['type'],
+      count: number,
+      radius: number,
+      lateralSpeedMin: number,
+      lateralSpeedMax: number,
+      upSpeedMin: number,
+      upSpeedMax: number,
+      scaleMin: number,
+      scaleMax: number,
+      colorA: string,
+      colorB: string,
+      lifeMin: number,
+      lifeMax: number,
+      rotScale: number,
+    ) => {
+      for (let i = 0; i < sc(count); i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radiusJitter = radius * (0.35 + Math.random() * 0.65);
+        const ox = Math.cos(angle) * radiusJitter * s;
+        const oz = Math.sin(angle) * radiusJitter * s;
+        const oy = Math.random() * 0.9 * s;
+        const lateralSpeed = (lateralSpeedMin + Math.random() * (lateralSpeedMax - lateralSpeedMin)) * sv;
+        const upSpeed = (upSpeedMin + Math.random() * (upSpeedMax - upSpeedMin)) * sv;
+        add(
+          subType,
+          ox,
+          oy,
+          oz,
+          Math.cos(angle) * lateralSpeed,
+          upSpeed,
+          Math.sin(angle) * lateralSpeed,
+          (scaleMin + Math.random() * (scaleMax - scaleMin)) * s,
+          i < Math.ceil(count / 2) ? colorA : colorB,
+          lifeMin + Math.random() * (lifeMax - lifeMin),
+          (Math.random() - 0.5) * rotScale,
+        );
+      }
+    };
+
+    add('flash', 0, 0, 0, 0, 0, 0, 22.0 * s, '#ffffff', 0.13, 0);
+    add('flash', 0, 0.22 * s, 0, 0, 0, 0, 16.0 * s, '#ffe6bf', 0.22, 0);
+    add('flash', 0, 0.4 * s, 0, 0, 0, 0, 10.5 * s, '#ffb870', 0.3, 0);
+    add('shockwave', 0, 0.14 * s, 0, 0, 0, 0, 11.0 * s, '#f5ead8', 0.2, Math.random() * Math.PI * 2);
+    add('shockwave', 0, 0.32 * s, 0, 0, 0, 0, 7.0 * s, '#ddd4c8', 0.26, Math.random() * Math.PI * 2);
+    add('shockwave', 0, 0.56 * s, 0, 0, 0, 0, 4.2 * s, '#b9b0a3', 0.32, Math.random() * Math.PI * 2);
+    add('fireball', 0, 0.55 * s, 0, 0, 5.5 * sv, 0, 8.0 * s, '#ffe5ac', 0.16, (Math.random() - 0.5) * 1.6);
+    add('fireball', 0, 0.92 * s, 0, 0, 4.2 * sv, 0, 6.0 * s, '#ff7426', 0.24, (Math.random() - 0.5) * 1.8);
+    radialBurst('fireball', 18, 2.2, 7.5, 12.5, 1.5, 4.0, 1.8, 3.9, '#ffe0b0', '#ff9f3c', 0.12, 0.24, 2.0);
+    radialBurst('smoke', 42, 2.4, 6.0, 10.0, 1.8, 4.2, 2.6, 4.8, '#141414', '#3b3026', 1.15, 1.45, 2.0);
+    radialBurst('spark', 34, 1.9, 13.0, 20.0, 0.8, 2.6, 0.28, 0.42, '#fff0b0', '#ff9f1c', 0.28, 0.46, 0);
+    radialBurst('debris', 10, 1.5, 10.0, 14.0, 0.4, 1.6, 0.05, 0.1, '#3b2d1f', '#111111', 0.65, 0.8, 0);
   } else if (type === 'fire') {
     const nv = n.clone().multiplyScalar(6.5 * sv);
     add('muzzleFlash', n.x * 0.55 * s, n.y * 0.55 * s, n.z * 0.55 * s, 0, 0, 0, 7.5 * s, '#fff8eb', 0.32, 0);
