@@ -28,6 +28,7 @@ import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
 import { audioManager, toAudioVec3 } from './audio';
 import { resolveDesignatedAimTarget } from './designatedAimTarget';
+import { collectVisibleTargetIds } from './spotting';
 
 function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
@@ -108,6 +109,30 @@ function AudioSync() {
       destroyed: state.playerTank.destroyed,
       viewMode,
     });
+  });
+
+  return null;
+}
+
+function SpottingSystem() {
+  useFrame(() => {
+    const state = useGameStore.getState();
+    const now = Date.now();
+    const playerSideVisible = collectVisibleTargetIds(
+      [state.playerTank, ...state.allies],
+      state.enemies,
+      state.trees,
+      state.buildings,
+    );
+    const enemySideVisible = collectVisibleTargetIds(
+      state.enemies,
+      [state.playerTank, ...state.allies],
+      state.trees,
+      state.buildings,
+    );
+
+    state.refreshSpotting('player', playerSideVisible, now);
+    state.refreshSpotting('enemy', enemySideVisible, now);
   });
 
   return null;
@@ -372,6 +397,9 @@ function PlayerController() {
 
 export function GameScene() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
+  const spottedEnemyIds = useGameStore(useShallow((state) => state.enemies
+    .filter((enemy) => state.playerSideSpotting[enemy.id]?.spotted)
+    .map((enemy) => enemy.id)));
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
   const viewMode = useGameStore((state) => state.viewMode);
@@ -400,12 +428,13 @@ export function GameScene() {
           <Trees />
           <TrackRepairManager />
           <PlayerController />
+          <SpottingSystem />
           <AudioSync />
 
           {isMapMode ? (
             <>
               <MapMarker id="player" isPlayer />
-              {enemyIds.map((id) => (
+              {spottedEnemyIds.map((id) => (
                 <MapMarker key={id} id={id} />
               ))}
               {allyIds.map((id) => (

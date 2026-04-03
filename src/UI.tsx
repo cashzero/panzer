@@ -231,7 +231,7 @@ function DirectionIndicator() {
   useEffect(() => {
     let raf: number;
     const update = () => {
-      const { playerTank, enemies, allies, cameraYawAbs } = useGameStore.getState();
+      const { playerTank, enemies, allies, cameraYawAbs, playerSideSpotting } = useGameStore.getState();
       const px = playerTank.position.x;
       const pz = playerTank.position.z;
       const playerYaw = cameraYawAbs; // camera viewpoint direction
@@ -248,7 +248,11 @@ function DirectionIndicator() {
       };
 
       const m: DirectionMarker[] = [];
-      enemies.forEach((e, i) => { if (!e.destroyed) m.push(toMarker(e, '#ef4444', `E${i + 1}`)); });
+      enemies.forEach((e, i) => {
+        if (!e.destroyed && playerSideSpotting[e.id]?.spotted) {
+          m.push(toMarker(e, '#ef4444', `E${i + 1}`));
+        }
+      });
       allies.forEach((a, i) => { if (!a.destroyed) m.push(toMarker(a, '#3b82f6', `A${i + 1}`)); });
       setMarkers(m);
       raf = requestAnimationFrame(update);

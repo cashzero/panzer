@@ -163,13 +163,14 @@ export function AllyAI() {
 
   useFrame((state, delta) => {
     const store = useGameStore.getState();
-    const {
-      playerTank: player,
-      enemies,
-      allies,
-      updateAlly,
-      fireProjectile,
-      allyWaypoints,
+      const {
+        playerTank: player,
+        enemies,
+        allies,
+        playerSideSpotting,
+        updateAlly,
+        fireProjectile,
+        allyWaypoints,
       allyBaseMoveOrders,
       allyFireOrders,
       clearAllyWaypoint,
@@ -195,6 +196,7 @@ export function AllyAI() {
       let closestDist = Infinity;
       for (const enemy of enemies) {
         if (enemy.destroyed) continue;
+        if (!playerSideSpotting[enemy.id]?.spotted) continue;
         const d = ally.position.distanceTo(enemy.position);
         if (d < closestDist) {
           closestDist = d;

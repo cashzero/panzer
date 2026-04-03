@@ -22,6 +22,7 @@ export type AllyBaseMoveOrder = 'follow' | 'hold';
 export type AllyEffectiveMoveOrder = AllyBaseMoveOrder | 'move';
 export type AllyFireOrder = 'hold-fire' | 'return-fire' | 'fire-at-will';
 export type AllyEngagementPosture = 'fire-from-position' | 'advance-and-fire';
+export type SpottingSide = 'player' | 'enemy';
 type TrackSide = 'left' | 'right';
 
 const TRACK_SIDES: TrackSide[] = ['left', 'right'];
@@ -51,6 +52,12 @@ export interface Projectile {
   firedBy: string;
   ricochet?: boolean;
   createdAt: number;
+}
+
+export interface SpottingContact {
+  spotted: boolean;
+  visibleSince: number;
+  lastVisibleAt: number;
 }
 
 export interface TankData {
@@ -122,10 +129,10 @@ function spawnTankDestructionEffect(
   position: Vector3,
 ) {
   const bursts = [
-    { offset: new Vector3(0, 1.8, 0), scale: 1.8 },
-    { offset: new Vector3(1.2, 1.3, 0.7), scale: 1.15 },
-    { offset: new Vector3(-1.1, 1.2, -0.8), scale: 1.1 },
-    { offset: new Vector3(0.6, 2.2, -1.0), scale: 0.9 },
+    { offset: new Vector3(0, 1.85, 0), scale: 2.2 },
+    { offset: new Vector3(1.0, 1.35, 0.65), scale: 1.1 },
+    { offset: new Vector3(-0.95, 1.25, -0.7), scale: 1.0 },
+    { offset: new Vector3(0.35, 2.15, -0.95), scale: 0.9 },
   ];
 
   for (const burst of bursts) {
@@ -181,6 +188,8 @@ interface GameState {
   playerMagazineRounds: number;
   playerNextFireTime: number;
   cameraYawAbs: number; // absolute camera yaw (hull rotation + mouse yaw)
+  playerSideSpotting: Record<string, SpottingContact>;
+  enemySideSpotting: Record<string, SpottingContact>;
 
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number) => void;
   removeProjectile: (id: string) => void;
@@ -242,6 +251,8 @@ interface GameState {
   setCameraYawAbs: (yaw: number) => void;
   initTrees: (trees: TreeInstance[]) => void;
   updateTree: (index: number, updates: Partial<TreeInstance>) => void;
+  refreshSpotting: (observerSide: SpottingSide, visibleTargetIds: string[], now: number) => void;
+  isTankSpottedBySide: (tankId: string, observerSide: SpottingSide) => boolean;
 }
 
 const GRAVITY = GAME_CONFIG.physics.gravity;
@@ -439,6 +450,52 @@ function getInitialMagazineRounds(tankType: string): number {
   return getTankDef(tankType).automaticMagazineSize ?? 0;
 }
 
+function createSpottingContact(): SpottingContact {
+  return {
+    spotted: false,
+    visibleSince: 0,
+    lastVisibleAt: 0,
+  };
+}
+
+function buildSpottingMap(tanks: TankData[]): Record<string, SpottingContact> {
+  return Object.fromEntries(tanks.map((tank) => [tank.id, createSpottingContact()]));
+}
+
+function updateSpottingMap(
+  current: Record<string, SpottingContact>,
+  targetIds: string[],
+  visibleTargetIds: string[],
+  now: number,
+): Record<string, SpottingContact> {
+  const visible = new Set(visibleTargetIds);
+  const next: Record<string, SpottingContact> = {};
+  const revealDelayMs = GAME_CONFIG.ai.spottingRevealDelayMs;
+  const persistenceMs = GAME_CONFIG.ai.spottingPersistenceMs;
+
+  for (const id of targetIds) {
+    const previous = current[id] ?? createSpottingContact();
+
+    if (visible.has(id)) {
+      const visibleSince = previous.visibleSince || now;
+      next[id] = {
+        spotted: previous.spotted || now - visibleSince >= revealDelayMs,
+        visibleSince,
+        lastVisibleAt: now,
+      };
+      continue;
+    }
+
+    next[id] = {
+      spotted: previous.spotted && now - previous.lastVisibleAt <= persistenceMs,
+      visibleSince: 0,
+      lastVisibleAt: previous.lastVisibleAt,
+    };
+  }
+
+  return next;
+}
+
 export const useGameStore = create<GameState>((set, get) => ({
   gameScreen: 'oob-editor',
   mapSize: 'medium',
@@ -470,6 +527,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   playerMagazineRounds: getInitialMagazineRounds('sherman'),
   playerNextFireTime: 0,
   cameraYawAbs: 0,
+  playerSideSpotting: {},
+  enemySideSpotting: { player: createSpottingContact() },
 
   // OOB Editor initial state
   oobPlayerTankType: 'sherman',
@@ -561,13 +620,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     const allyFireOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-at-will' as AllyFireOrder]));
     const allyEngagementPostures = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-from-position' as AllyEngagementPosture]));
 
-    set({
-      playerTank: player,
-      enemies,
-      allies,
-      allyBaseMoveOrders,
-      allyFireOrders,
-      allyEngagementPostures,
+      set({
+        playerTank: player,
+        enemies,
+        allies,
+        playerSideSpotting: buildSpottingMap(enemies),
+        enemySideSpotting: buildSpottingMap([player, ...allies]),
+        allyBaseMoveOrders,
+        allyFireOrders,
+        allyEngagementPostures,
       allyWaypoints: {},
       selectedAllyId: null,
       gameScreen: 'playing',
@@ -609,6 +670,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     const newTank = createTankData(tankType, true);
     set({
       playerTank: newTank,
+      enemySideSpotting: buildSpottingMap([newTank, ...get().allies]),
       gameScreen: 'playing',
       ammoType: 'AP',
       playerBurstRemaining: 0,
@@ -761,6 +823,35 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return { projectiles: newProjectiles };
     });
+  },
+
+  refreshSpotting: (observerSide, visibleTargetIds, now) => {
+    set((state) => {
+      if (observerSide === 'player') {
+        return {
+          playerSideSpotting: updateSpottingMap(
+            state.playerSideSpotting,
+            state.enemies.map((enemy) => enemy.id),
+            visibleTargetIds,
+            now,
+          ),
+        };
+      }
+
+      return {
+        enemySideSpotting: updateSpottingMap(
+          state.enemySideSpotting,
+          [state.playerTank, ...state.allies].map((tank) => tank.id),
+          visibleTargetIds,
+          now,
+        ),
+      };
+    });
+  },
+
+  isTankSpottedBySide: (tankId, observerSide) => {
+    const spottingMap = observerSide === 'player' ? get().playerSideSpotting : get().enemySideSpotting;
+    return !!spottingMap[tankId]?.spotted;
   },
 
   updateTrackRepairs: (dt) => {
@@ -1025,6 +1116,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     enemy.position = position;
     set((state) => ({
       enemies: [...state.enemies, enemy],
+      playerSideSpotting: {
+        ...state.playerSideSpotting,
+        [enemy.id]: createSpottingContact(),
+      },
     }));
   },
 
@@ -1033,6 +1128,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     ally.position = position;
     set((state) => ({
       allies: [...state.allies, ally],
+      enemySideSpotting: {
+        ...state.enemySideSpotting,
+        [ally.id]: createSpottingContact(),
+      },
     }));
   },
 

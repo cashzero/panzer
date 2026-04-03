@@ -23,7 +23,15 @@ export function EnemyAI() {
   const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
 
   useFrame((state, delta) => {
-    const { playerTank: player, enemies, allies, buildings, updateEnemy, fireProjectile } = useGameStore.getState();
+    const {
+      playerTank: player,
+      enemies,
+      allies,
+      buildings,
+      enemySideSpotting,
+      updateEnemy,
+      fireProjectile,
+    } = useGameStore.getState();
 
     const now = Date.now();
 
@@ -35,14 +43,13 @@ export function EnemyAI() {
       let target: typeof player | null = null;
       let dist = Infinity;
       for (const t of friendlyTargets) {
+        if (!enemySideSpotting[t.id]?.spotted) continue;
         const d = enemy.position.distanceTo(t.position);
         if (d < dist) {
           dist = d;
           target = t;
         }
       }
-
-      if (!target) return;
 
       // Check if alerted by a hit (overrides detection range)
       const alertActive = enemy.alertedBy && enemy.alertedAt &&
@@ -58,6 +65,8 @@ export function EnemyAI() {
           alerted = true;
         }
       }
+
+      if (!target) return;
 
       // Only engage if within detection range or alerted
       if (dist > GAME_CONFIG.ai.detectionDistance && !alerted) return;

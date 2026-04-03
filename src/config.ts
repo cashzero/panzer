@@ -58,6 +58,9 @@ export const GAME_CONFIG = {
   ai: {
     detectionDistance: 800,
     returnFireThreatDistance: 180,
+    spottingRange: 900,
+    spottingRevealDelayMs: 350,
+    spottingPersistenceMs: 1800,
     moveArrivalDistance: 5,
     alertDecayTime: 30000, // ms — alert from being hit decays after 30s
     turretSpeed: 0.05,
