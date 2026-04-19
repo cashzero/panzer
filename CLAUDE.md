@@ -4,80 +4,106 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Panzer Front is a **WW2 tank battle simulator** built with React 19, Three.js (via React Three Fiber), Zustand state management, and Vite. All visual design — UI, HUD, color palette, typography, effects — should follow a WW2 aesthetic (military olive drab, aged metal, period-appropriate instruments, wartime iconography).
+Panzer Front is a **WW2 tank battle simulator** built with React 19, Three.js (via React Three Fiber), Zustand, and Vite. All visual design — UI, HUD, color palette, typography, effects — should follow a WW2 aesthetic (military olive drab, aged metal, period-appropriate instruments, wartime iconography).
 
 ## Commands
 
 ```bash
-npm run dev        # Dev server at http://localhost:3000
-npm run build      # Production build to dist/
+npm run dev        # Dev server at http://localhost:3000 (host 0.0.0.0)
+npm run build      # Production build to dist/ (two entries: main + tank-editor)
 npm run preview    # Preview production build
 npm run lint       # TypeScript type-check only (tsc --noEmit)
 npm run clean      # Remove dist/
 ```
 
-No test framework is configured. No ESLint — only `tsc` for type checking.
+No test framework. No ESLint. `tsc --noEmit` is the only static check — always run `npm run lint` after code changes.
+
+The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.API_KEY` / `process.env.GEMINI_API_KEY`. `.env.example` documents the expected variables.
 
 ## Architecture
 
-**Entry flow**: `index.html` → `src/main.tsx` → `App.tsx` → `GameScene.tsx` + `UI.tsx`
+**Two Vite entry points**:
+- `index.html` → `src/main.tsx` → `App.tsx` (the game)
+- `tank-editor.html` → `src/tank-editor/main.tsx` → `TankEditorApp.tsx` (standalone tank model/spec editor)
 
-**State**: Single Zustand store in `store.ts` holds all game state — player tank, enemy tanks, projectiles, particles, messages. All mutation goes through store actions.
+**App screen routing**: `App.tsx` reads `gameScreen` from the store and renders one of:
+- `tank-select` — `screens/TankSelect.tsx` (rotating 3D preview, stats, armor tooltips, deploy)
+- `oob-editor` — `screens/OOBEditor.tsx` + `OOBMiniMap.tsx` + `OOBTankList.tsx` (order-of-battle: allies, enemies, map size, seed)
+- default — `GameScene.tsx` + `UI.tsx` (live battle)
 
-**Key modules**:
-- `GameScene.tsx` — R3F Canvas, scene setup, **PlayerController** (orchestrates per-frame tank update loop by calling extracted modules below).
-- `useInput.ts` — Custom hook for keyboard/mouse/wheel event handling, pointer lock management, and input state refs.
-- `firing.ts` — Fire cooldown check, muzzle position calculation, projectile spawning, dispersion application.
-- `turretAiming.ts` — Turret rotation and gun elevation computation from arrow keys or right-click camera alignment.
-- `aimPoint.ts` — Gun sight aim point world-space calculation with terrain raycast (used by both camera and HUD crosshair).
-- `CameraController.ts` — Third-person, gunner-view, and map-view camera placement logic.
-- `tankPhysics.ts` — Pure functions for terrain orientation, differential track movement, ballistic angle, gun sway (spring-damper), body rock, and engine RPM/gear simulation.
-- `store.ts` — Zustand store with tank data types, projectile firing, hit detection, armor penetration math, particle spawning, ally/enemy management.
-- `config.ts` — All numeric constants (physics, tank stats, weapon stats, camera, map). Change gameplay tuning here.
-- `Tank.tsx` — Procedural tank mesh geometry and animation.
-- `Terrain.tsx` — Procedural terrain using sine wave height formula (flattened center).
-- `ProjectileManager.tsx` — Per-frame projectile movement, collision against armor plates and trees, penetration with impact angle and ricochet.
-- `EnemyAI.tsx` — Enemy AI: approach player, aim turret with gravity compensation and dispersion drift, fire on cooldown with steady-aim zeroing.
-- `AllyAI.tsx` — Ally tank AI: similar to EnemyAI but targets enemies, uses tank-tank and tree collision resolution.
-- `Particles.tsx` — Effect system with 11 particle types (fire, penetrate, bounce, ground hits, explosions, dust, smoke), billboard sprites, additive blending.
-- `audio.ts` — Procedural Web Audio API synthesis for engine sound, multi-layer gunfire, and autocannon bursts.
-- `UI.tsx` — HUD overlay (health, track HP, ammo type, calibration distance, messages).
-- `armorModel.ts` — Per-tank armor plate definitions (OBB geometry, thickness, zones) and world-space transform helpers.
-- `combatPhysics.ts` — Impact analysis, ricochet checks, effective armor calculation, penetration checks, damage computation.
-- `projectilePhysics.ts` — Projectile motion stepping, terrain/tree collision detection, extracted from ProjectileManager.
-- `collision.ts` — Tank-tank (circle-circle XZ) and tank-tree collision resolution.
-- `roads.ts` — Road network definition (N-S and E-W crossroads) with height blending and speed bonus.
-- `trees.ts` — Tree placement (jittered grid), collision, health, and knockdown state.
-- `TreeRenderer.tsx` — 3D tree rendering with knockdown animation.
-- `MapMode.tsx` — Top-down tactical map view (M key) with pan/zoom camera controller.
-- `MapMarker.tsx` — Flat colored triangle markers for tanks on the map view.
-- `BurningWrecks.tsx` — Persistent burning smoke effect on destroyed tanks (time-limited).
-- `tanks/types.ts` — `TankDefinition` type with armor profiles, weapon stats, description, nationality, year.
-- `tanks/registry.ts` — Tank definition registry, exports `getTankDef()` and `getAllTankDefs()`.
-- `tanks/sherman.tsx`, `tanks/tiger.tsx`, `tanks/panzer3.tsx`, `tanks/panzer2.tsx` — Individual tank definitions with procedural geometry and armor plate configs.
-- `screens/TankSelect.tsx` — Tank selection screen with 3D rotating preview, stat bars, armor tooltips, and deploy button.
+**State**: A single Zustand store (`src/store.ts`, ~1300 LOC) owns all runtime game state — player tank, enemies, allies, projectiles, particles, trees, buildings, waypoints, messages, and screen routing. All mutation goes through store actions. Hit detection, armor penetration math, particle spawning, and destruction flow live here.
 
-**Tank definitions** (`tanks/`): Each tank type (Sherman, Tiger I, Panzer III, Panzer II) has its own file defining procedural geometry, armor plate layout, weapon stats, and metadata. Registered via `tanks/registry.ts`.
+**Per-frame game loop**: `GameScene.tsx` hosts the R3F `Canvas` and the `PlayerController`, which each frame orchestrates extracted pure-ish modules:
+- `useInput.ts` — keyboard, mouse, wheel, pointer-lock state
+- `turretAiming.ts` — turret rotation / gun elevation from arrow keys or camera-alignment right-click
+- `aimPoint.ts` — world-space aim point with terrain raycast (shared by camera + HUD crosshair)
+- `designatedAimTarget.ts` — resolves a right-click target across tanks, buildings, trees, terrain, plus a stable long-range fallback
+- `firing.ts` — cooldown, muzzle position, projectile spawn, dispersion
+- `CameraController.ts` — third-person / gunner / map camera placement
+- `tankPhysics.ts` — terrain orientation, differential tracks, ballistic angle, gun sway, body rock, engine RPM/gear
+- `terrainHeight.ts` — height sampling shared across physics/camera/aim
+- `audio.ts` — listener pose + player engine telemetry each frame
 
-**Armor & penetration**: Multi-plate OBB collision system. Each tank has ~20 armor plates with individual thickness. Impact angle, auto-ricochet (>70°), effective armor calculation, and post-pen damage scaling. Detailed in `openspec/product.md`.
+**Combat & physics modules**:
+- `ProjectileManager.tsx` + `projectilePhysics.ts` — projectile stepping, terrain/tree/building collisions
+- `armorModel.ts` — per-tank OBB armor plates, world transforms
+- `combatPhysics.ts` — impact analysis, ricochet (>70°), effective armor, post-pen damage
+- `penetrationModel.ts` — range-based penetration falloff (historical points or auto-curve)
+- `collision.ts` — tank-tank (XZ circle) and tank-tree resolution
+- `aiAccuracy.ts`, `spotting.ts` — AI gunnery accuracy and line-of-sight / detection
 
-**Aiming system** (detailed in `openspec/product.md`): Three distinct aim points — gunner sight (arrow keys), gun aim point (with ballistic elevation offset), and viewpoint (free-look mouse camera). Distance calibration via PageUp/PageDown affects ballistic drop compensation. Terrain raycast for accurate aim point positioning.
+**World**:
+- `Terrain.tsx` + `terrainHeight.ts` — procedural sine-wave terrain, flattened center
+- `roads.ts` — seeded road network (N-S / E-W crossroads), height blend, speed bonus
+- `trees.ts` + `TreeRenderer.tsx` — jittered grid placement, collision, HP, knockdown; instanced meshes
+- `buildings.ts` + `BuildingRenderer.tsx` — rural clusters at junctions/roadsides, wall/roof impacts, farmland plots that tint terrain and suppress nearby trees
 
-**Camera modes**: Third-person (default), gunner view (first-person zoomed, V key), map view (top-down tactical, M key).
+**AI**: `EnemyAI.tsx` and `AllyAI.tsx` each drive their tanks (approach/retreat, gravity-compensated aim, dispersion drift, steady-aim zero after stillness). Allies also accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`).
 
-**Physics**: Differential steering via independent track speeds, terrain height sampling, projectile gravity (9.81 m/s²), gun sway (4 vibration layers), body rock oscillation, engine RPM/gear simulation, track damage and immobilization.
+**Rendering & views**:
+- `Tank.tsx` / `TankModel.tsx` — legacy procedural tank geometry + animation
+- `Particles.tsx` — 11+ effect types (fire, penetrate, bounce, ground/HE hits, explosion, dust, smoke, tree hits, non-pen, ricochet), pooled `Points` + `InstancedMesh` (4 draw calls)
+- `MapMode.tsx` + `MapMarker.tsx` — top-down tactical view (M key) with pan/zoom
+- `BurningWrecks.tsx` — time-limited smoke on destroyed tanks
 
-**Path alias**: `@/*` maps to project root in both TypeScript and Vite.
+**Aiming system** (see `openspec/product.md` for canonical rules): three distinct aim points — gunner sight (arrow keys), gun aim point (with ballistic elevation offset), viewpoint (free-look mouse). Distance calibration via PageUp/PageDown drives drop compensation. The center of the gunner sight is the calibrated point of impact at the selected zero.
+
+**Camera modes**: third-person (default), gunner view (first-person zoomed, V or MMB), map view (M).
+
+**Path alias**: `@/*` maps to project root in both `tsconfig.json` and `vite.config.ts`.
+
+## Tanks
+
+Tank definitions are **folder-based JSON modules** under `src/tanks/<tankid>/`:
+
+- `tank.json` — `TankSpec`: metadata, mounts, mobility, traverse, weapons (AP + optional APC/HE + optional burst), armor plates (OBB hitboxes with thickness and parent)
+- `model.json` — `TankModelSpec`: parametric render tree (hull / tracksLeft / tracksRight / turret / gun) using `box`, `cylinder`, `extrude`, `repeat`, `mirror`, `group`, `helper` nodes with material roles
+- `index.ts` — imports both JSONs, builds a `ParametricTankRenderer`, exports `definition` and `tankModule`
+
+Registry at `src/tanks/core/registry.ts` **auto-discovers** `../*/index.ts` (folder-based, priority 20) and legacy `../*.tsx` files (priority 10) via `import.meta.glob`. No manual registration. Sort order comes from `tank.json` `catalog.sortOrder`.
+
+Currently registered: Sherman, Sherman A2 (76), Tiger I, Panzer III, Panzer IV, Panzer II, T-34.
+
+**When adding or editing a tank, follow `src/tanks/CLAUDE.md`** — it is the authoritative step-by-step with required schemas, coordinate conventions (+Z forward, +Y up, meters), armor coverage checklist, and helper/material role lists.
+
+The standalone tank editor (`src/tank-editor/`) reads/writes these JSON files via `fs.ts` and provides a live preview + validation (`validation.ts`).
+
+## Audio
+
+`src/audio.ts` is the single runtime audio entry point. Gameplay code emits events (`playShot`, `playImpact`, `playExplosion`) and telemetry (`setListenerPose`, `syncPlayerEngine`); it never builds sounds directly. The manager owns Web Audio unlock/lifecycle and swappable backends via `replaceBackend()`. See `audio-architecture.md` for the full event surface and integration points.
 
 ## OpenSpec Workflow
 
-OpenSpec is the canonical documentation system for this repository. Write and maintain product, roadmap, and implementation documentation in `openspec/`.
+OpenSpec under `openspec/` is the canonical product documentation:
 
-- `openspec/product.md` contains the gameplay and design specification.
-- `openspec/roadmap.md` contains active roadmap items and unfinished work.
-- `openspec/implemented.md` records shipped capabilities that already exist in the codebase.
-- `openspec/conventions.md` defines the OpenSpec document format and writing rules.
-- `openspec/README.md` is the index for the OpenSpec docs.
-- When an item is completed, move it from `openspec/roadmap.md` to `openspec/implemented.md`.
-- When intended behavior changes, update `openspec/product.md` as part of the same work.
+- `product.md` — gameplay and design specification (intended behavior)
+- `implemented.md` — shipped capabilities, grouped by system
+- `roadmap.md` — unfinished work (checkboxes, grouped by sprint/milestone)
+- `conventions.md` — document format and writing rules
+- `README.md` — index
+- `changes/` and `specs/` — OpenSpec change proposals and specs
 
+Rules:
+- When a roadmap item ships, move it from `roadmap.md` to `implemented.md`.
+- When intended behavior changes, update `product.md` in the same change.
+- Refactors without behavior change do not require OpenSpec edits unless terminology or architecture boundaries moved.
