@@ -85,20 +85,21 @@ function sampleSlope(
 ): number {
   const halfW = width * 0.5;
   const halfD = depth * 0.5;
-  const corners: [number, number][] = [
-    [-halfW, -halfD],
-    [halfW, -halfD],
-    [halfW, halfD],
-    [-halfW, halfD],
-  ];
   let minY = Infinity;
   let maxY = -Infinity;
 
-  for (const [lx, lz] of corners) {
-    const [wx, wz] = rotateLocalToWorld(lx, lz, rotation);
-    const y = sampleTerrainWithoutBuildings(x + wx, z + wz, roadNetwork, getRoadInfluence);
-    minY = Math.min(minY, y);
-    maxY = Math.max(maxY, y);
+  // A corner-only check can miss a ridge or hollow running through the middle
+  // of a footprint. Sample the complete pad so buildings need very little
+  // visible terraforming after placement.
+  for (let iz = 0; iz < 3; iz++) {
+    for (let ix = 0; ix < 3; ix++) {
+      const lx = THREE.MathUtils.lerp(-halfW, halfW, ix * 0.5);
+      const lz = THREE.MathUtils.lerp(-halfD, halfD, iz * 0.5);
+      const [wx, wz] = rotateLocalToWorld(lx, lz, rotation);
+      const y = sampleTerrainWithoutBuildings(x + wx, z + wz, roadNetwork, getRoadInfluence);
+      minY = Math.min(minY, y);
+      maxY = Math.max(maxY, y);
+    }
   }
 
   return maxY - minY;
@@ -140,7 +141,20 @@ function createBuildingFromShape(
   roadNetwork: RoadNetwork,
   shape: BuildingShape,
 ): BuildingInstance {
-  const y = sampleTerrainWithoutBuildings(x, z, roadNetwork, getRoadInfluence);
+  // Use the average footprint height for a balanced cut/fill platform instead
+  // of hanging the entire building off the height at a single center point.
+  const samples: number[] = [];
+  for (const [lx, lz] of [
+    [0, 0],
+    [-shape.width * 0.5, -shape.depth * 0.5],
+    [shape.width * 0.5, -shape.depth * 0.5],
+    [shape.width * 0.5, shape.depth * 0.5],
+    [-shape.width * 0.5, shape.depth * 0.5],
+  ] as [number, number][]) {
+    const [wx, wz] = rotateLocalToWorld(lx, lz, rotation);
+    samples.push(sampleTerrainWithoutBuildings(x + wx, z + wz, roadNetwork, getRoadInfluence));
+  }
+  const y = samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
   return {
     id,
     kind,
