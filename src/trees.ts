@@ -88,11 +88,15 @@ export function generateTrees(
 
     const y = sampleTerrainHeight(x, z, roadNetwork, getRoadInfluence);
 
+    // Broadleaf pockets break up the repeated Christmas-tree silhouette while
+    // preserving conifers as the dominant battlefield woodland species.
+    const broadleafBias = Math.sin(x * 0.014) * 0.08 + Math.cos(z * 0.012) * 0.07;
+
     trees.push({
       position: [x, y, z],
       rotation: rng() * Math.PI * 2,
       scale: 0.8 + rng() * 0.5,
-      type: 'conifer',
+      type: rng() < 0.32 + broadleafBias ? 'deciduous' : 'conifer',
       health: cfg.health,
       fallen: false,
       fallDirection: 0,
