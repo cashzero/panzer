@@ -20,12 +20,29 @@ function smoothstep(edge0: number, edge1: number, value: number): number {
 }
 
 export function getRawTerrainHeight(x: number, z: number): number {
-  const broadHills = terrainNoise(x * 0.0022, z * 0.0022) * 9.5;
-  const rollingGround = terrainNoise(x * 0.0065 + 37, z * 0.0065 - 19) * 3.2;
-  const shallowUndulation = terrainNoise(x * 0.017 - 11, z * 0.017 + 53) * 0.85;
+  // Warp a very low-frequency field to create broad, irregular terrain
+  // provinces rather than distributing the same roughness everywhere.
+  const warpX = terrainNoise(x * 0.00085 + 41, z * 0.00085 - 17) * 115;
+  const warpZ = terrainNoise(x * 0.00085 - 73, z * 0.00085 + 29) * 115;
+  const regionNoise = terrainNoise(
+    (x + warpX) * 0.00145 + 101,
+    (z + warpZ) * 0.00145 - 67,
+  );
+  const ruggedness = smoothstep(-0.12, 0.24, regionNoise);
+  const ruggedDetail = Math.pow(ruggedness, 1.25);
+
+  // Plains retain a slow regional rise and a trace of ground texture. Hills
+  // gain several octaves only where the regional mask calls for rough ground.
+  const regionalRise = terrainNoise(x * 0.00072 - 59, z * 0.00072 + 43) * 1.8;
+  const broadHills = terrainNoise((x + warpX * 0.3) * 0.0024, (z + warpZ * 0.3) * 0.0024) * 5.2 * ruggedness;
+  const rollingGround = terrainNoise(x * 0.0065 + 37, z * 0.0065 - 19) * 1.8 * ruggedDetail;
+  const shallowUndulation = terrainNoise(x * 0.017 - 11, z * 0.017 + 53) * (0.12 + ruggedDetail * 0.43);
   const erosionNoise = terrainNoise(x * 0.0041 + 83, z * 0.0041 + 71);
-  const softenedRidge = Math.sign(erosionNoise) * Math.pow(Math.abs(erosionNoise), 1.65) * 2.1;
-  const naturalHeight = broadHills + rollingGround + shallowUndulation + softenedRidge;
+  const softenedRidge = Math.sign(erosionNoise)
+    * Math.pow(Math.abs(erosionNoise), 1.65)
+    * 1.3
+    * ruggedDetail;
+  const naturalHeight = regionalRise + broadHills + rollingGround + shallowUndulation + softenedRidge;
 
   // Preserve a broad, gently blended deployment area around the world origin.
   const distFromCenter = Math.hypot(x, z);
@@ -74,12 +91,15 @@ export function sampleTerrainHeight(
     const s = Math.sin(-building.rotation);
     const localX = dx * c - dz * s;
     const localZ = dx * s + dz * c;
+    const hardMargin = GAME_CONFIG.buildings.foundationFlatMargin;
     const flattenMargin = Math.max(
       GAME_CONFIG.buildings.footprintFlattenMargin,
       Math.min(building.width, building.depth) * 0.45,
     );
-    const edgeX = Math.max(0, Math.abs(localX) - building.width * 0.5);
-    const edgeZ = Math.max(0, Math.abs(localZ) - building.depth * 0.5);
+    const padHalfWidth = building.width * 0.5 + hardMargin;
+    const padHalfDepth = building.depth * 0.5 + hardMargin;
+    const edgeX = Math.max(0, Math.abs(localX) - padHalfWidth);
+    const edgeZ = Math.max(0, Math.abs(localZ) - padHalfDepth);
     const distToFootprint = Math.hypot(edgeX, edgeZ);
     if (distToFootprint > flattenMargin) continue;
 
