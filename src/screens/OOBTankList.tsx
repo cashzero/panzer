@@ -1,5 +1,6 @@
 import { getAllTankDefs, getTankDef } from '../tanks/registry';
 import { useGameStore, isAxisNationality, type OOBUnit } from '../store';
+import { Plus, X } from 'lucide-react';
 
 const allTanks = getAllTankDefs();
 const axisTanks = allTanks.filter((t) => isAxisNationality(t.nationality));
@@ -36,31 +37,24 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
   const totalCount = units.length + (side === 'ally' ? 1 : 0);
 
   return (
-    <div className="flex flex-col h-full p-3 gap-2">
-      <div className="text-xs uppercase tracking-widest text-center mb-1" style={{ color: sideColor }}>
-        {label}
+    <div className="oob-roster-content">
+      <div className="oob-roster-heading" style={{ color: sideColor }}>
+        <span>{label}</span><span>{totalCount.toString().padStart(2, '0')}</span>
       </div>
 
       <button
         onClick={handleAdd}
-        className={`w-full px-3 py-1.5 border text-xs uppercase tracking-wider transition-all cursor-pointer ${
-          isPlacing
-            ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
-            : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
-        }`}
+        className={`oob-add-unit ${isPlacing ? 'is-active' : ''}`}
       >
-        {isPlacing ? 'Click Map...' : `+ Add ${side === 'enemy' ? 'Enemy' : 'Ally'}`}
+        <Plus size={14} aria-hidden="true" />
+        {isPlacing ? 'Place on map' : `Add ${side === 'enemy' ? 'enemy' : 'ally'}`}
       </button>
 
-      <div className="flex-1 overflow-y-auto flex flex-col gap-1">
+      <div className="oob-unit-list">
         {/* Player row (ally side only, always first) */}
         {side === 'ally' && (
           <div
-            className={`flex items-center gap-2 px-2 py-1.5 border cursor-pointer transition-all ${
-              isPlayerSelected
-                ? 'border-yellow-600 bg-yellow-900/20'
-                : 'border-gray-800 hover:border-gray-600'
-            }`}
+            className={`oob-unit-row ${isPlayerSelected ? 'is-selected' : ''}`}
             onClick={() => setOobSelectedUnit(isPlayerSelected ? null : 'player')}
             onMouseEnter={() => onHoverTank(oobPlayerTankType)}
             onMouseLeave={() => onHoverTank(null)}
@@ -88,11 +82,7 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
           return (
             <div
               key={unit.id}
-              className={`flex items-center gap-2 px-2 py-1.5 border cursor-pointer transition-all ${
-                isSelected
-                  ? 'border-yellow-600 bg-yellow-900/20'
-                  : 'border-gray-800 hover:border-gray-600'
-              }`}
+              className={`oob-unit-row ${isSelected ? 'is-selected' : ''}`}
               onClick={() => setOobSelectedUnit(isSelected ? null : unit.id)}
               onMouseEnter={() => onHoverTank(unit.tankType)}
               onMouseLeave={() => onHoverTank(null)}
@@ -112,19 +102,19 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
                 ))}
               </select>
               <button
-                className="text-gray-600 hover:text-red-400 text-xs px-1 transition-colors cursor-pointer"
+                className="oob-remove-unit"
                 onClick={(e) => { e.stopPropagation(); removeOobUnit(unit.id); }}
                 title="Remove"
               >
-                X
+                <X size={13} aria-hidden="true" />
               </button>
             </div>
           );
         })}
       </div>
 
-      <div className="text-[10px] text-gray-600 text-center">
-        {totalCount} unit{totalCount !== 1 ? 's' : ''}
+      <div className="oob-roster-footer">
+        {side === 'enemy' ? 'OPFOR' : 'FRIENDLY'} / {totalCount} UNIT{totalCount !== 1 ? 'S' : ''}
       </div>
     </div>
   );

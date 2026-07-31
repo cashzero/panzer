@@ -1,20 +1,35 @@
 import { GAME_CONFIG } from './config';
 import type { BuildingInstance } from './buildings';
 import type { RoadNetwork } from './roads';
+import { createNoise2D } from 'simplex-noise';
+
+function mulberry32(seed: number) {
+  return () => {
+    let value = seed += 0x6D2B79F5;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const terrainNoise = createNoise2D(mulberry32(GAME_CONFIG.world.seed ^ 0x5f3759df));
+
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
 
 export function getRawTerrainHeight(x: number, z: number): number {
-  const scale1 = 0.02;
-  const scale2 = 0.05;
-  const scale3 = 0.005;
+  const broadHills = terrainNoise(x * 0.0022, z * 0.0022) * 9.5;
+  const rollingGround = terrainNoise(x * 0.0065 + 37, z * 0.0065 - 19) * 3.2;
+  const shallowUndulation = terrainNoise(x * 0.017 - 11, z * 0.017 + 53) * 0.85;
+  const erosionNoise = terrainNoise(x * 0.0041 + 83, z * 0.0041 + 71);
+  const softenedRidge = Math.sign(erosionNoise) * Math.pow(Math.abs(erosionNoise), 1.65) * 2.1;
+  const naturalHeight = broadHills + rollingGround + shallowUndulation + softenedRidge;
 
-  let y = Math.sin(x * scale1) * Math.cos(z * scale1) * 2.0;
-  y += Math.sin(x * scale2 + 1.0) * Math.cos(z * scale2 + 2.0) * 0.5;
-  y += Math.sin(x * scale3) * Math.cos(z * scale3) * 10.0;
-
-  const distFromCenter = Math.sqrt(x * x + z * z);
-  const flattenFactor = Math.min(1, distFromCenter / 50);
-
-  return y * flattenFactor;
+  // Preserve a broad, gently blended deployment area around the world origin.
+  const distFromCenter = Math.hypot(x, z);
+  return naturalHeight * smoothstep(32, 105, distFromCenter);
 }
 
 export function getTerrainHeightAt(

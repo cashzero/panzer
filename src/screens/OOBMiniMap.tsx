@@ -234,7 +234,7 @@ export function OOBMiniMap() {
         <ambientLight intensity={0.5} />
         <directionalLight position={[100, 200, 50]} intensity={1.0} />
         <OOBMapCamera />
-        <Terrain />
+        <Terrain showGroundCover={false} />
         <Buildings clickThrough />
         <ClickPlane />
 
@@ -270,8 +270,15 @@ export function OOBMiniMap() {
         ))}
       </Canvas>
 
+      <div className="oob-map-grid" aria-hidden="true" />
+      <div className="oob-map-vignette" aria-hidden="true" />
+      <div className="oob-map-coordinate oob-map-coordinate--nw">NW 00</div>
+      <div className="oob-map-coordinate oob-map-coordinate--ne">NE 20</div>
+      <div className="oob-map-coordinate oob-map-coordinate--se">SE 40</div>
+      <div className="oob-map-north" aria-label="Map north"><span>N</span><i /></div>
+
       {/* Map legend */}
-      <div className="absolute bottom-2 left-2 flex gap-3 text-[10px] text-gray-500">
+      <div className="oob-map-legend">
         <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#00ff00' }} />Player</span>
         <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#3399ff' }} />Allies</span>
         <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#ff3333' }} />Enemies</span>

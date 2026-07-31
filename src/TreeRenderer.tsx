@@ -8,8 +8,10 @@ import type { TreeInstance } from './trees';
 const trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, 4, 6);
 trunkGeo.translate(0, 2, 0); // pivot at base
 
-const deciduousCanopyGeo = new THREE.IcosahedronGeometry(2.2, 1);
-deciduousCanopyGeo.translate(0, 5.5, 0);
+const deciduousCanopyGeo = new THREE.IcosahedronGeometry(2.15, 1);
+deciduousCanopyGeo.translate(-0.45, 5.25, 0);
+const deciduousCrownGeo = new THREE.IcosahedronGeometry(1.65, 1);
+deciduousCrownGeo.translate(0.85, 6.15, 0.25);
 
 const coniferCone1 = new THREE.ConeGeometry(2.0, 3.5, 6);
 coniferCone1.translate(0, 5.5, 0);
@@ -17,9 +19,9 @@ const coniferCone2 = new THREE.ConeGeometry(1.4, 2.5, 6);
 coniferCone2.translate(0, 7.5, 0);
 
 // Materials
-const trunkMat = new THREE.MeshStandardMaterial({ color: '#5c3a1e', roughness: 1, metalness: 0 });
-const deciduousLeafMat = new THREE.MeshStandardMaterial({ color: '#2d5a1e', roughness: 0.9, metalness: 0 });
-const coniferLeafMat = new THREE.MeshStandardMaterial({ color: '#1a4a1a', roughness: 0.9, metalness: 0 });
+const trunkMat = new THREE.MeshStandardMaterial({ color: '#765238', roughness: 1, metalness: 0 });
+const deciduousLeafMat = new THREE.MeshStandardMaterial({ color: '#587445', roughness: 0.94, metalness: 0 });
+const coniferLeafMat = new THREE.MeshStandardMaterial({ color: '#385943', roughness: 0.96, metalness: 0 });
 
 const _mat = new THREE.Matrix4();
 const _pos = new THREE.Vector3();
@@ -56,6 +58,7 @@ export function Trees() {
 
   const trunkRef = useRef<THREE.InstancedMesh>(null);
   const deciduousRef = useRef<THREE.InstancedMesh>(null);
+  const deciduousCrownRef = useRef<THREE.InstancedMesh>(null);
   const coniferCone1Ref = useRef<THREE.InstancedMesh>(null);
   const coniferCone2Ref = useRef<THREE.InstancedMesh>(null);
 
@@ -86,6 +89,7 @@ export function Trees() {
 
       if (tree.type === 'deciduous') {
         deciduousRef.current?.setMatrixAt(decIdx, _mat);
+        deciduousCrownRef.current?.setMatrixAt(decIdx, _mat);
         decIdx++;
       } else {
         coniferCone1Ref.current?.setMatrixAt(conIdx, _mat);
@@ -96,6 +100,7 @@ export function Trees() {
 
     trunkRef.current.instanceMatrix.needsUpdate = true;
     if (deciduousRef.current) deciduousRef.current.instanceMatrix.needsUpdate = true;
+    if (deciduousCrownRef.current) deciduousCrownRef.current.instanceMatrix.needsUpdate = true;
     if (coniferCone1Ref.current) coniferCone1Ref.current.instanceMatrix.needsUpdate = true;
     if (coniferCone2Ref.current) coniferCone2Ref.current.instanceMatrix.needsUpdate = true;
   });
@@ -127,12 +132,20 @@ export function Trees() {
       />
       {/* Deciduous canopies */}
       {decCount > 0 && (
-        <instancedMesh
-          ref={deciduousRef}
-          args={[deciduousCanopyGeo, deciduousLeafMat, decCount]}
-          castShadow
-          receiveShadow
-        />
+        <>
+          <instancedMesh
+            ref={deciduousRef}
+            args={[deciduousCanopyGeo, deciduousLeafMat, decCount]}
+            castShadow
+            receiveShadow
+          />
+          <instancedMesh
+            ref={deciduousCrownRef}
+            args={[deciduousCrownGeo, deciduousLeafMat, decCount]}
+            castShadow
+            receiveShadow
+          />
+        </>
       )}
       {/* Conifer canopies */}
       {conCount > 0 && (

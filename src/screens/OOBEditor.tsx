@@ -8,6 +8,7 @@ import { TankPreview, StatBar, maxHP, maxArmor, maxSpeed, maxPen, maxReload, min
 import { OOBTankList } from './OOBTankList';
 import { OOBMiniMap } from './OOBMiniMap';
 import type { ThreeEvent } from '@react-three/fiber';
+import { ArrowLeft, Dices, Play, RefreshCw } from 'lucide-react';
 
 interface PlateHoverInfo {
   name: string;
@@ -55,47 +56,44 @@ export function OOBEditor() {
   }, []);
 
   return (
-    <div className="absolute inset-0 bg-black flex flex-col font-mono text-white select-none">
+    <div className="oob-shell select-none">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 pt-4 pb-2 border-b border-gray-800">
-        <div>
-          <h1 className="text-2xl font-bold tracking-widest" style={{ color: '#8b9a5b' }}>
-            ORDER OF BATTLE
-          </h1>
-          <div className="text-[10px] text-gray-500 tracking-wide">PANZER FRONT</div>
+      <header className="oob-header">
+        <div className="oob-brand">
+          <div className="oob-kicker">FIELD COMMAND / DEPLOYMENT</div>
+          <h1>ORDER OF BATTLE</h1>
+          <div className="oob-brandline"><span>PANZER FRONT</span><span>WESTERN SECTOR</span></div>
         </div>
         {/* Map size selector */}
-        <div className="flex items-center gap-3">
-          <span className="text-xs text-gray-400 uppercase tracking-widest">Map</span>
-          <div className="flex gap-1">
+        <div className="oob-toolbar">
+          <div className="oob-control-group">
+          <span className="oob-control-label">Theatre</span>
+          <div className="oob-segmented">
             {(['small', 'medium', 'large'] as MapSize[]).map((size) => (
               <button
                 key={size}
                 onClick={() => setMapSize(size)}
-                className={`px-3 py-1 border text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  mapSize === size
-                    ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
-                    : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
-                }`}
+                className={mapSize === size ? 'is-active' : ''}
               >
                 {size}
-                <span className="text-[9px] ml-1 opacity-60">{MAP_SIZE_VALUES[size]}m</span>
+                <span>{MAP_SIZE_VALUES[size]}m</span>
               </button>
             ))}
           </div>
-          <div className="ml-4 flex items-center gap-2">
-            <span className="text-xs text-gray-400 uppercase tracking-widest">Seed</span>
+          </div>
+          <div className="oob-control-group oob-seed-control">
+            <label className="oob-control-label" htmlFor="world-seed">Map seed</label>
             <input
+              id="world-seed"
               value={seedInput}
               onChange={(e) => setSeedInput(e.target.value.replace(/[^0-9-]/g, ''))}
-              className="w-28 border border-gray-700 bg-black px-2 py-1 text-xs tracking-wider text-gray-200 outline-none focus:border-yellow-600"
             />
             <button
               onClick={() => {
                 const parsed = Number.parseInt(seedInput, 10);
                 if (Number.isFinite(parsed)) setWorldSeed(parsed);
               }}
-              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+              className="oob-tool-button oob-tool-button--text"
             >
               Apply
             </button>
@@ -104,42 +102,44 @@ export function OOBEditor() {
                 const nextSeed = Math.floor(Math.random() * 1_000_000_000);
                 setWorldSeed(nextSeed);
               }}
-              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+              className="oob-tool-button"
+              title="Generate a new map seed"
             >
-              New Seed
+              <Dices size={15} aria-hidden="true" /><span>New seed</span>
             </button>
             <button
               onClick={regenerateWorld}
-              className="px-3 py-1 border border-gray-700 text-xs uppercase tracking-wider text-gray-300 hover:border-yellow-600 hover:text-yellow-400"
+              className="oob-tool-button"
+              title="Regenerate terrain from this seed"
             >
-              Regenerate
+              <RefreshCw size={14} aria-hidden="true" /><span>Regenerate</span>
             </button>
           </div>
         </div>
-      </div>
+      </header>
 
       {/* Main body: three columns */}
-      <div className="flex-1 flex min-h-0">
+      <div className="oob-main">
         {/* Left: Allies */}
-        <div className="w-48 border-r border-gray-800 flex-shrink-0">
+        <aside className="oob-roster oob-roster--allies">
           <OOBTankList side="ally" onHoverTank={setHoveredListTank} />
-        </div>
+        </aside>
 
         {/* Center: Mini Map */}
-        <div className="flex-1 min-w-0">
+        <main className="oob-map-stage">
           <OOBMiniMap />
-        </div>
+        </main>
 
         {/* Right: Enemies */}
-        <div className="w-48 border-l border-gray-800 flex-shrink-0">
+        <aside className="oob-roster oob-roster--enemies">
           <OOBTankList side="enemy" onHoverTank={setHoveredListTank} />
-        </div>
+        </aside>
       </div>
 
       {/* Bottom: Preview + Stats + Deploy */}
-      <div className="border-t border-gray-800 flex" style={{ height: '200px' }}>
+      <footer className="oob-inspector">
         {/* 3D Preview */}
-        <div className="w-56 relative flex-shrink-0" ref={canvasContainerRef}>
+        <div className="oob-tank-preview" ref={canvasContainerRef}>
           <Canvas camera={{ position: [8, 5, 8], fov: 40 }} gl={{ antialias: true }}>
             <ambientLight intensity={0.4} />
             <directionalLight position={[10, 10, 5]} intensity={1.2} />
@@ -183,7 +183,7 @@ export function OOBEditor() {
         </div>
 
         {/* Stats */}
-        <div className="flex-1 p-3 flex flex-col gap-1.5 overflow-y-auto min-w-0">
+        <div className="oob-vehicle-data">
           <div>
             <h2 className="text-lg font-bold" style={{ color: '#c9b458' }}>{previewDef.displayName}</h2>
             <div className="text-[10px] text-gray-500">
@@ -206,21 +206,21 @@ export function OOBEditor() {
         </div>
 
         {/* Actions */}
-        <div className="w-48 border-l border-gray-800 p-3 flex flex-col justify-end gap-2 flex-shrink-0">
+        <div className="oob-actions">
           <button
             onClick={() => setGameScreen('tank-select')}
-            className="w-full px-4 py-2 border border-gray-600 text-gray-400 text-xs uppercase tracking-wider hover:border-yellow-600 hover:text-yellow-400 transition-all cursor-pointer"
+            className="oob-secondary-action"
           >
-            Tank Detail
+            <ArrowLeft size={15} aria-hidden="true" /> Tank detail
           </button>
           <button
             onClick={deployOob}
-            className="w-full px-8 py-2.5 bg-green-900/40 border border-green-700 text-green-400 text-sm uppercase tracking-wider hover:bg-green-800/50 transition-all cursor-pointer font-bold"
+            className="oob-deploy-action"
           >
-            Deploy
+            <Play size={16} fill="currentColor" aria-hidden="true" /> Deploy force
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

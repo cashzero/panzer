@@ -7,6 +7,7 @@ import { getAllTankDefs } from '../tanks/registry';
 import type { TankDefinition } from '../tanks/types';
 import type { ArmorPlate } from '../armorModel';
 import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
+import { Play } from 'lucide-react';
 
 const allTanks = getAllTankDefs();
 
@@ -147,8 +148,8 @@ export function TankPreview({
 
   const { HullComponent, TracksComponent, TurretComponent, GunComponent } = def;
   const geoProps = { color: def.color, destroyedColor: '#555', destroyed: false };
-  const gunProps = { destroyedColor: '#555', destroyed: false };
-  const trackMat = useRef(new THREE.MeshStandardMaterial({ color: '#222', roughness: 0.9, metalness: 0.1 })).current;
+  const gunProps = { color: def.color, destroyedColor: '#555', destroyed: false };
+  const trackMat = useRef(new THREE.MeshStandardMaterial({ color: '#4b4d46', roughness: 0.84, metalness: 0.42 })).current;
   const trackProps = { trackMat, destroyedColor: '#555', destroyed: false };
 
   const hullPlates = def.plates.filter((p) => p.parent === 'hull');
@@ -234,26 +235,34 @@ export function TankSelect() {
   const reloadScore = maxReload - def.reloadTime + minReload;
 
   return (
-    <div className="absolute inset-0 bg-black flex flex-col font-mono text-white select-none">
+    <div className="tank-select-shell select-none">
       {/* Header */}
-      <div className="text-center pt-6 pb-2">
-        <h1 className="text-3xl font-bold tracking-widest" style={{ color: '#8b9a5b' }}>
-          SELECT YOUR TANK
-        </h1>
-        <div className="text-sm text-gray-500 mt-1 tracking-wide">PANZER FRONT</div>
-      </div>
+      <header className="tank-select-header">
+        <div><span>ARMOURED REPLACEMENT DEPOT</span><h1>SELECT YOUR TANK</h1></div>
+        <strong>PANZER FRONT / VEHICLE CATALOGUE</strong>
+      </header>
 
       {/* Body: 3D preview left, info right */}
-      <div className="flex-1 flex min-h-0">
+      <div className="tank-select-main">
         {/* 3D Canvas */}
-        <div className="flex-1 relative" ref={canvasContainerRef}>
+        <div className="tank-select-stage" ref={canvasContainerRef}>
           <Canvas
             camera={{ position: [8, 5, 8], fov: 40 }}
-            gl={{ antialias: true }}
+            dpr={[1, 1.5]}
+            shadows
+            gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+            onCreated={({ gl }) => {
+              gl.outputColorSpace = THREE.SRGBColorSpace;
+              gl.toneMapping = THREE.ACESFilmicToneMapping;
+              gl.toneMappingExposure = 1.12;
+              gl.shadowMap.type = THREE.PCFSoftShadowMap;
+            }}
           >
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1.2} />
-            <directionalLight position={[-5, 3, -5]} intensity={0.3} />
+            <color attach="background" args={['#18201b']} />
+            <fog attach="fog" args={['#18201b', 18, 34]} />
+            <hemisphereLight args={['#d7ded5', '#24291e', 0.75]} />
+            <directionalLight castShadow position={[9, 12, 7]} color="#ffe0ac" intensity={2.4} shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
+            <directionalLight position={[-7, 4, -5]} color="#7890a0" intensity={0.55} />
             <Suspense fallback={null}>
               <TankPreview
                 key={def.id}
@@ -313,7 +322,7 @@ export function TankSelect() {
         </div>
 
         {/* Info Panel */}
-        <div className="w-96 p-6 flex flex-col gap-4 border-l border-gray-800 overflow-y-auto">
+        <aside className="tank-select-info">
           {/* Tank name + meta */}
           <div>
             <h2 className="text-2xl font-bold" style={{ color: '#c9b458' }}>{def.displayName}</h2>
@@ -360,11 +369,11 @@ export function TankSelect() {
               ))}
             </div>
           </div>
-        </div>
+        </aside>
       </div>
 
       {/* Bottom: Country tabs + Tank selector + confirm */}
-      <div className="border-t border-gray-800">
+      <footer className="tank-select-catalog">
         {/* Country tabs */}
         <div className="flex justify-center gap-1 pt-3 pb-1">
           {countries.map((c) => (
@@ -398,12 +407,12 @@ export function TankSelect() {
           ))}
           <button
             onClick={handleConfirm}
-            className="ml-8 px-8 py-2 bg-green-900/40 border border-green-700 text-green-400 text-sm uppercase tracking-wider hover:bg-green-800/50 transition-all cursor-pointer font-bold"
+            className="tank-select-confirm"
           >
-            Confirm
+            <Play size={15} fill="currentColor" aria-hidden="true" /> Continue
           </button>
         </div>
-      </div>
+      </footer>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Sky, Environment, OrbitControls, Html } from '@react-three/drei';
+import { Sky, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Tank } from './Tank';
 import { Terrain } from './Terrain';
@@ -73,8 +73,48 @@ function PlayerSky() {
   });
   return (
     <group ref={groupRef}>
-      <Sky sunPosition={[100, 20, 100]} distance={50000} />
+      <Sky
+        sunPosition={[-90, 42, -120]}
+        distance={50000}
+        turbidity={8.5}
+        rayleigh={2.1}
+        mieCoefficient={0.008}
+        mieDirectionalG={0.78}
+      />
     </group>
+  );
+}
+
+function BattlefieldEnvironment({ mapMode }: { mapMode: boolean }) {
+  return (
+    <>
+      <color attach="background" args={['#91a098']} />
+      <fog attach="fog" args={['#91a098', mapMode ? 1400 : 260, mapMode ? 3200 : 1450]} />
+      <PlayerSky />
+      <hemisphereLight args={['#d9e2dc', '#3b402c', 0.9]} />
+      <ambientLight intensity={0.22} />
+      <directionalLight
+        castShadow
+        color="#ffe4b8"
+        position={[-80, 110, -70]}
+        intensity={2.2}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
+        shadow-bias={-0.00012}
+        shadow-normalBias={0.035}
+        shadow-camera-near={1}
+        shadow-camera-far={520}
+        shadow-camera-left={-120}
+        shadow-camera-right={120}
+        shadow-camera-top={120}
+        shadow-camera-bottom={-120}
+      />
+      <directionalLight
+        color="#9fb3bc"
+        position={[0, 22, -28]}
+        intensity={0.48}
+      />
+    </>
   );
 }
 
@@ -405,23 +445,21 @@ export function GameScene() {
   const viewMode = useGameStore((state) => state.viewMode);
 
   return (
-    <div style={{ width: '100vw', height: '100vh' }}>
-      <Canvas shadows camera={{ position: [0, 5, -10], fov: 60 }}>
+    <div className="battlefield-canvas">
+      <Canvas
+        shadows
+        dpr={[1, 1.5]}
+        camera={{ position: [0, 5, -10], fov: 60, near: 0.08, far: 3600 }}
+        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+        onCreated={({ gl }) => {
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 0.98;
+          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+        }}
+      >
         <Suspense fallback={null}>
-          <PlayerSky />
-          <ambientLight intensity={0.3} />
-          <directionalLight
-            castShadow
-            position={[100, 100, 50]}
-            intensity={1.5}
-            shadow-mapSize-width={2048}
-            shadow-mapSize-height={2048}
-            shadow-camera-far={500}
-            shadow-camera-left={-100}
-            shadow-camera-right={100}
-            shadow-camera-top={100}
-            shadow-camera-bottom={-100}
-          />
+          <BattlefieldEnvironment mapMode={isMapMode} />
 
           <Terrain />
           <Buildings />
