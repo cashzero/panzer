@@ -1,4 +1,4 @@
-import { Box, Cylinder } from '@react-three/drei';
+import { Cylinder, RoundedBox, Sphere } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { getTankModelHelper, type ModelHelperRenderContext } from './helpers';
@@ -6,6 +6,7 @@ import type {
   ExtrudeNode,
   ExtrudeShapeDefinition,
   ModelNode,
+  PolyhedronNode,
   TankGeometryProps,
   TankGunProps,
   TankMaterialRole,
@@ -59,46 +60,81 @@ function ExtrudedNodeMesh({node, material}: {node: ExtrudeNode; material: React.
   );
 }
 
+function PolyhedronNodeMesh({node, material}: {node: PolyhedronNode; material: React.ReactNode}) {
+  const geometry = useMemo(() => {
+    const positions = node.faces.flatMap((face) => face.flatMap((vertexIndex) => node.vertices[vertexIndex]));
+    const bufferGeometry = new THREE.BufferGeometry();
+    bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    bufferGeometry.computeVertexNormals();
+    bufferGeometry.computeBoundingSphere();
+    return bufferGeometry;
+  }, [node.faces, node.vertices]);
+
+  return (
+    <mesh geometry={geometry} castShadow receiveShadow>
+      {material}
+    </mesh>
+  );
+}
+
+function getPlateEdgeRadius(size: Vec3) {
+  return Math.min(0.025, Math.min(...size) * 0.18);
+}
+
+function varyPaintColor(color: string, surfaceKey: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < surfaceKey.length; index += 1) {
+    hash ^= surfaceKey.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  const variation = ((hash >>> 0) / 0xffffffff - 0.5) * 0.055;
+  return `#${new THREE.Color(color).offsetHSL(0, 0, variation).getHexString()}`;
+}
+
 function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendererProps) {
   const destroyed = geoProps?.destroyed ?? trackProps?.destroyed ?? gunProps?.destroyed ?? false;
   const destroyedColor = geoProps?.destroyedColor ?? trackProps?.destroyedColor ?? gunProps?.destroyedColor ?? '#555';
-  const baseColor = geoProps?.color ?? '#444444';
+  const baseColor = geoProps?.color ?? gunProps?.color ?? '#444444';
 
-  const resolveMaterial = (requestedRole?: TankMaterialRole) => {
+  const resolveMaterial = (requestedRole?: TankMaterialRole, surfaceKey = requestedRole ?? slot) => {
     const role = requestedRole ?? (slot === 'tracks' ? 'track' : slot === 'gun' ? 'barrel' : 'hullPrimary');
+    const paintColor = destroyed ? destroyedColor : varyPaintColor(baseColor, surfaceKey);
 
     switch (role) {
       case 'track':
         return trackProps
           ? <primitive object={trackProps.trackMat} attach="material" />
-          : <meshStandardMaterial color={destroyed ? destroyedColor : '#aaaaaa'} roughness={0.9} />;
+          : <meshStandardMaterial color={destroyed ? destroyedColor : '#555850'} roughness={0.84} metalness={0.45} />;
       case 'trackRubber':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#111'} roughness={0.9} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#161612'} roughness={0.96} metalness={0.02} />;
       case 'steel':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#555'} roughness={0.5} metalness={0.8} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#4d4e48'} roughness={0.76} metalness={0.58} />;
       case 'darkMetal':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#222'} roughness={0.9} metalness={0.1} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#242621'} roughness={0.83} metalness={0.28} />;
       case 'grille':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#111'} roughness={0.9} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#131611'} roughness={0.97} metalness={0.12} />;
       case 'lamp':
         return (
           <meshStandardMaterial
-            color={destroyed ? destroyedColor : '#ffffcc'}
-            emissive={destroyed ? '#000000' : '#ffffaa'}
-            emissiveIntensity={destroyed ? 0 : 0.5}
+            color={destroyed ? destroyedColor : '#c9ba83'}
+            emissive={destroyed ? '#000000' : '#574719'}
+            emissiveIntensity={destroyed ? 0 : 0.12}
+            roughness={0.36}
+            metalness={0.04}
           />
         );
       case 'mantlet':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#3a3a3a'} roughness={0.9} />;
+        return <meshStandardMaterial color={paintColor} roughness={0.84} metalness={0.1} envMapIntensity={0.65} />;
       case 'barrel':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#444444'} roughness={0.7} metalness={0.4} />;
+        return <meshStandardMaterial color={paintColor} roughness={0.78} metalness={0.12} envMapIntensity={0.65} />;
       case 'wireframe':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#333'} wireframe={true} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#30322d'} roughness={0.82} metalness={0.28} wireframe={true} />;
       case 'accessory':
-        return <meshStandardMaterial color={destroyed ? destroyedColor : '#333333'} roughness={0.8} />;
+        return <meshStandardMaterial color={destroyed ? destroyedColor : '#363831'} roughness={0.86} metalness={0.24} />;
       case 'hullPrimary':
       default:
-        return <meshStandardMaterial color={destroyed ? destroyedColor : baseColor} roughness={0.7} metalness={0.3} />;
+        return <meshStandardMaterial color={paintColor} roughness={0.82} metalness={0.08} envMapIntensity={0.65} />;
     }
   };
 
@@ -123,20 +159,42 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
         return wrapNode(
           node,
           keyPrefix,
-          <Box args={node.size} castShadow receiveShadow>
-            {resolveMaterial(node.materialRole)}
-          </Box>,
+          <RoundedBox
+            args={node.size}
+            radius={getPlateEdgeRadius(node.size)}
+            smoothness={1}
+            bevelSegments={1}
+            creaseAngle={0.35}
+            castShadow
+            receiveShadow
+          >
+            {resolveMaterial(node.materialRole, node.id)}
+          </RoundedBox>,
         );
       case 'cylinder':
         return wrapNode(
           node,
           keyPrefix,
-          <Cylinder args={[node.radiusTop, node.radiusBottom, node.height, node.radialSegments ?? 12]} castShadow receiveShadow>
-            {resolveMaterial(node.materialRole)}
+          <Cylinder args={[node.radiusTop, node.radiusBottom, node.height, Math.max(16, node.radialSegments ?? 20)]} castShadow receiveShadow>
+            {resolveMaterial(node.materialRole, node.id)}
           </Cylinder>,
         );
+      case 'sphere':
+        return wrapNode(
+          node,
+          keyPrefix,
+          <Sphere args={[node.radius, node.widthSegments ?? 32, node.heightSegments ?? 16]} castShadow receiveShadow>
+            {resolveMaterial(node.materialRole, node.id)}
+          </Sphere>,
+        );
+      case 'polyhedron':
+        return wrapNode(
+          node,
+          keyPrefix,
+          <PolyhedronNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id)} />,
+        );
       case 'extrude':
-        return wrapNode(node, keyPrefix, <ExtrudedNodeMesh node={node} material={resolveMaterial(node.materialRole)} />);
+        return wrapNode(node, keyPrefix, <ExtrudedNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id)} />);
       case 'repeat': {
         const repeated = Array.from({length: node.count}, (_value, index) => {
           const position: Vec3 = [node.step[0] * index, node.step[1] * index, node.step[2] * index];
@@ -166,7 +224,7 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
         const context: ModelHelperRenderContext = {
           slot,
           renderNode,
-          resolveMaterial,
+          resolveMaterial: (role) => resolveMaterial(role, node.id),
         };
         return wrapNode(node, keyPrefix, helper.render(node.params, context));
       }

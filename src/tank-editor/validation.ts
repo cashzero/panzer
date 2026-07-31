@@ -40,6 +40,19 @@ function validateNode(node: ModelNode, path: JsonPath, issues: ValidationIssue[]
         pushIssue(issues, 'error', 'model', `Cylinder node '${node.id}' must have positive radii and height.`);
       }
       return;
+    case 'sphere':
+      if (!Number.isFinite(node.radius) || node.radius <= 0) {
+        pushIssue(issues, 'error', 'model', `Sphere node '${node.id}' must have a positive radius.`);
+      }
+      return;
+    case 'polyhedron':
+      if (node.vertices.length < 4 || node.faces.length < 4) {
+        pushIssue(issues, 'error', 'model', `Polyhedron node '${node.id}' needs at least four vertices and faces.`);
+      }
+      if (node.faces.some((face) => face.some((index) => !Number.isInteger(index) || index < 0 || index >= node.vertices.length))) {
+        pushIssue(issues, 'error', 'model', `Polyhedron node '${node.id}' has a face with an invalid vertex index.`);
+      }
+      return;
     case 'extrude':
       if (!Number.isFinite(node.depth) || node.depth <= 0) {
         pushIssue(issues, 'error', 'model', `Extrude node '${node.id}' must have positive depth.`);

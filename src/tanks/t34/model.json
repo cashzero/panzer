@@ -3,6 +3,20 @@
   "slots": {
     "hull": [
       {
+        "id": "fully-sloped-armored-hull-shell",
+        "type": "polyhedron",
+        "vertices": [
+          [-1.18, 0.32, -2.92], [1.18, 0.32, -2.92], [1.18, 0.32, 2.82], [-1.18, 0.32, 2.82],
+          [-0.96, 1.3, -2.32], [0.96, 1.3, -2.32], [0.94, 1.3, 1.55], [-0.94, 1.3, 1.55]
+        ],
+        "faces": [
+          [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+          [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+          [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4]
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
         "id": "lower-hull",
         "type": "box",
         "size": [1.8, 0.5, 4.6],
@@ -14,6 +28,7 @@
         "type": "box",
         "size": [2.2, 0.12, 3.8],
         "position": [0, 1.2, -0.28],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -21,6 +36,7 @@
         "type": "group",
         "position": [1.3, 0.88, -0.2],
         "rotation": [0, 0, 0.7],
+        "visible": false,
         "children": [
           {
             "id": "panel",
@@ -43,6 +59,7 @@
         "type": "group",
         "position": [-1.3, 0.88, -0.2],
         "rotation": [0, 0, -0.7],
+        "visible": false,
         "children": [
           {
             "id": "panel",
@@ -65,6 +82,7 @@
         "type": "box",
         "size": [2.8, 0.3, 4.4],
         "position": [0, 0.7, -0.2],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -77,6 +95,7 @@
         },
         "depth": 0.12,
         "bevelEnabled": false,
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -85,6 +104,7 @@
         "size": [1.8, 0.12, 0.45],
         "position": [0, 0.33, 2.75],
         "rotation": [1.8, 0, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -93,6 +113,7 @@
         "size": [2.4, 0.15, 2],
         "position": [0, 1.27, -1.8],
         "rotation": [-0.04, 0, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -101,6 +122,7 @@
         "size": [2.6, 0.7, 0.12],
         "position": [0, 0.88, -2.8],
         "rotation": [-0.1, 0, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -198,10 +220,10 @@
         "position": [-1.475, 0, 0],
         "rotation": [0, 1.5707963267948966, 0],
         "params": {
-          "centerY": 0.32,
-          "radius": 0.28,
+          "centerY": 0.42,
+          "radius": 0.41,
           "halfLength": 2.8,
-          "band": 0.04,
+          "band": 0.065,
           "depth": 0.55,
           "arcSegments": 16,
           "materialRole": "track"
@@ -210,14 +232,14 @@
       {
         "id": "left-drive-sprocket",
         "type": "group",
-        "position": [-1.2, 0.32, -2.8],
+        "position": [-1.2, 0.42, -2.72],
         "rotation": [0, 0, 1.5707963267948966],
         "children": [
           {
             "id": "wheel",
             "type": "cylinder",
-            "radiusTop": 0.25,
-            "radiusBottom": 0.25,
+            "radiusTop": 0.4,
+            "radiusBottom": 0.4,
             "height": 0.48,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -227,14 +249,14 @@
       {
         "id": "left-idler",
         "type": "group",
-        "position": [-1.2, 0.32, 2.8],
+        "position": [-1.2, 0.42, 2.72],
         "rotation": [0, 0, 1.5707963267948966],
         "children": [
           {
             "id": "wheel",
             "type": "cylinder",
-            "radiusTop": 0.25,
-            "radiusBottom": 0.25,
+            "radiusTop": 0.4,
+            "radiusBottom": 0.4,
             "height": 0.48,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -245,7 +267,7 @@
         "id": "road-wheel-row",
         "type": "repeat",
         "count": 5,
-        "position": [-1.2, 0.32, 2],
+        "position": [-1.2, 0.42, 2],
         "step": [0, 0, -1],
         "child": {
           "id": "road-wheel",
@@ -255,8 +277,8 @@
             {
               "id": "outer",
               "type": "cylinder",
-              "radiusTop": 0.3,
-              "radiusBottom": 0.3,
+              "radiusTop": 0.4,
+              "radiusBottom": 0.4,
               "height": 0.48,
               "radialSegments": 14,
               "materialRole": "trackRubber"
@@ -282,10 +304,10 @@
         "position": [0.925, 0, 0],
         "rotation": [0, 1.5707963267948966, 0],
         "params": {
-          "centerY": 0.32,
-          "radius": 0.28,
+          "centerY": 0.42,
+          "radius": 0.41,
           "halfLength": 2.8,
-          "band": 0.04,
+          "band": 0.065,
           "depth": 0.55,
           "arcSegments": 16,
           "materialRole": "track"
@@ -294,14 +316,14 @@
       {
         "id": "right-drive-sprocket",
         "type": "group",
-        "position": [1.2, 0.32, -2.8],
+        "position": [1.2, 0.42, -2.72],
         "rotation": [0, 0, 1.5707963267948966],
         "children": [
           {
             "id": "wheel",
             "type": "cylinder",
-            "radiusTop": 0.25,
-            "radiusBottom": 0.25,
+            "radiusTop": 0.4,
+            "radiusBottom": 0.4,
             "height": 0.48,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -311,14 +333,14 @@
       {
         "id": "right-idler",
         "type": "group",
-        "position": [1.2, 0.32, 2.8],
+        "position": [1.2, 0.42, 2.72],
         "rotation": [0, 0, 1.5707963267948966],
         "children": [
           {
             "id": "wheel",
             "type": "cylinder",
-            "radiusTop": 0.25,
-            "radiusBottom": 0.25,
+            "radiusTop": 0.4,
+            "radiusBottom": 0.4,
             "height": 0.48,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -329,7 +351,7 @@
         "id": "road-wheel-row",
         "type": "repeat",
         "count": 5,
-        "position": [1.2, 0.32, 2],
+        "position": [1.2, 0.42, 2],
         "step": [0, 0, -1],
         "child": {
           "id": "road-wheel",
@@ -339,8 +361,8 @@
             {
               "id": "outer",
               "type": "cylinder",
-              "radiusTop": 0.3,
-              "radiusBottom": 0.3,
+              "radiusTop": 0.4,
+              "radiusBottom": 0.4,
               "height": 0.48,
               "radialSegments": 14,
               "materialRole": "trackRubber"
@@ -360,10 +382,23 @@
     ],
     "turret": [
       {
+        "id": "model-1943-hexagonal-turret",
+        "type": "helper",
+        "helper": "turret.faceted_bustle",
+        "params": {
+          "plan": [[-0.63, 0.82], [0.63, 0.82], [0.85, 0.34], [0.75, -0.64], [0.36, -0.94], [-0.36, -0.94], [-0.75, -0.64], [-0.85, 0.34]],
+          "bottomY": 0,
+          "topY": 0.72,
+          "topScale": 0.79,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
         "id": "main-body",
         "type": "box",
         "size": [1.6, 0.65, 1.6],
         "position": [0, 0.33, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -371,6 +406,7 @@
         "type": "box",
         "size": [1.2, 0.65, 0.5],
         "position": [0, 0.33, 0.75],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -379,6 +415,7 @@
         "size": [0.5, 0.6, 0.5],
         "position": [-0.62, 0.33, 0.55],
         "rotation": [0, -0.5, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -387,6 +424,7 @@
         "size": [0.5, 0.6, 0.5],
         "position": [0.62, 0.33, 0.55],
         "rotation": [0, 0.5, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -456,13 +494,12 @@
     "gun": [
       {
         "id": "mantlet",
-        "type": "cylinder",
-        "radiusTop": 0.3,
-        "radiusBottom": 0.28,
-        "height": 0.4,
-        "radialSegments": 12,
-        "position": [0, 0, 0.1],
-        "rotation": [0, 0, 1.5707963267948966],
+        "type": "sphere",
+        "radius": 1,
+        "widthSegments": 24,
+        "heightSegments": 14,
+        "position": [0, 0, 0.08],
+        "scale": [0.38, 0.31, 0.22],
         "materialRole": "mantlet"
       },
       {

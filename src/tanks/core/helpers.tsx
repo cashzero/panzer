@@ -1,5 +1,5 @@
 import { Box } from '@react-three/drei';
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { ExtrudeShapeDefinition, ModelHelperId, ModelNode, TankMaterialRole, Vec3 } from './types';
 
@@ -60,6 +60,14 @@ function asShapeDefinition(value: unknown): ExtrudeShapeDefinition | null {
   };
 }
 
+function asPlanPoints(value: unknown): Array<[number, number]> | null {
+  if (!Array.isArray(value) || value.length < 3) return null;
+  if (!value.every((point) => Array.isArray(point) && point.length === 2 && point.every((entry) => typeof entry === 'number'))) {
+    return null;
+  }
+  return value as Array<[number, number]>;
+}
+
 function buildShape(definition: ExtrudeShapeDefinition): THREE.Shape {
   const shape = new THREE.Shape();
   const [firstPoint, ...rest] = definition.outline;
@@ -108,7 +116,7 @@ function StadiumTrackBeltHelper({
   band,
   depth,
   arcSegments,
-  material,
+  createMaterial,
 }: {
   centerY: number;
   radius: number;
@@ -116,7 +124,7 @@ function StadiumTrackBeltHelper({
   band: number;
   depth: number;
   arcSegments: number;
-  material: React.ReactNode;
+  createMaterial: () => React.ReactNode;
 }) {
   const geometry = useMemo(() => {
     function stadiumPoints(trackRadius: number): THREE.Vector2[] {
@@ -163,9 +171,87 @@ function StadiumTrackBeltHelper({
   }, [arcSegments, band, centerY, depth, halfLength, radius]);
 
   return (
-    <mesh geometry={geometry} castShadow receiveShadow>
+    <group>
+      <mesh geometry={geometry} castShadow receiveShadow>
+        {createMaterial()}
+      </mesh>
+      <StadiumTrackShoes
+        centerY={centerY}
+        radius={radius}
+        halfLength={halfLength}
+        band={band}
+        depth={depth}
+        material={createMaterial()}
+      />
+    </group>
+  );
+}
+
+function StadiumTrackShoes({
+  centerY,
+  radius,
+  halfLength,
+  band,
+  depth,
+  material,
+}: {
+  centerY: number;
+  radius: number;
+  halfLength: number;
+  band: number;
+  depth: number;
+  material: React.ReactNode;
+}) {
+  const meshRef = useRef<THREE.InstancedMesh>(null);
+  const shoePitch = Math.max(0.13, Math.min(0.2, radius * 0.58));
+  const shoeHeight = Math.max(0.028, band * 0.72);
+  const transforms = useMemo(() => {
+    const matrices: THREE.Matrix4[] = [];
+    const dummy = new THREE.Object3D();
+    const addShoe = (x: number, y: number, rotationZ: number) => {
+      dummy.position.set(x, y, depth / 2);
+      dummy.rotation.set(0, 0, rotationZ);
+      dummy.updateMatrix();
+      matrices.push(dummy.matrix.clone());
+    };
+
+    const straightCount = Math.max(2, Math.round((halfLength * 2) / shoePitch));
+    for (let index = 0; index < straightCount; index += 1) {
+      const x = -halfLength + ((index + 0.5) / straightCount) * halfLength * 2;
+      addShoe(x, centerY + radius, 0);
+      addShoe(-x, centerY - radius, 0);
+    }
+
+    const arcCount = Math.max(6, Math.round((Math.PI * radius) / shoePitch));
+    for (let index = 0; index < arcCount; index += 1) {
+      const theta = -Math.PI / 2 + ((index + 0.5) / arcCount) * Math.PI;
+      addShoe(
+        halfLength + Math.cos(theta) * radius,
+        centerY + Math.sin(theta) * radius,
+        theta + Math.PI / 2,
+      );
+      addShoe(
+        -halfLength - Math.cos(theta) * radius,
+        centerY + Math.sin(theta) * radius,
+        -theta - Math.PI / 2,
+      );
+    }
+
+    return matrices;
+  }, [centerY, depth, halfLength, radius, shoePitch]);
+
+  useLayoutEffect(() => {
+    const mesh = meshRef.current;
+    if (!mesh) return;
+    transforms.forEach((matrix, index) => mesh.setMatrixAt(index, matrix));
+    mesh.instanceMatrix.needsUpdate = true;
+  }, [transforms]);
+
+  return (
+    <instancedMesh ref={meshRef} args={[undefined, undefined, transforms.length]} castShadow receiveShadow>
+      <boxGeometry args={[shoePitch * 0.82, shoeHeight, depth + 0.04]} />
       {material}
-    </mesh>
+    </instancedMesh>
   );
 }
 
@@ -175,6 +261,46 @@ const defaultHelper: ModelHelperDefinition = {
 };
 
 const implementedHelpers = new Map<ModelHelperId, ModelHelperDefinition>([
+  [
+    'turret.faceted_bustle',
+    {
+      id: 'turret.faceted_bustle',
+      render: (params, context) => {
+        const rawPlan = asPlanPoints(params.plan);
+        if (!rawPlan) return null;
+        const signedArea = rawPlan.reduce((area, point, index) => {
+          const next = rawPlan[(index + 1) % rawPlan.length];
+          return area + point[0] * next[1] - next[0] * point[1];
+        }, 0);
+        const plan = signedArea > 0 ? [...rawPlan].reverse() : rawPlan;
+        const bottomY = asNumber(params.bottomY, 0);
+        const topY = asNumber(params.topY, 0.8);
+        const topScale = asNumber(params.topScale, 0.92);
+        const vertices: Vec3[] = [
+          ...plan.map(([x, z]) => [x, bottomY, z] as Vec3),
+          ...plan.map(([x, z]) => [x * topScale, topY, z * topScale] as Vec3),
+        ];
+        const count = plan.length;
+        const faces: Array<[number, number, number]> = [];
+        for (let index = 1; index < count - 1; index += 1) {
+          faces.push([0, index + 1, index]);
+          faces.push([count, count + index, count + index + 1]);
+        }
+        for (let index = 0; index < count; index += 1) {
+          const next = (index + 1) % count;
+          faces.push([index, next, count + next], [index, count + next, count + index]);
+        }
+
+        return context.renderNode({
+          id: 'faceted-turret-shell',
+          type: 'polyhedron',
+          vertices,
+          faces,
+          materialRole: (params.materialRole as TankMaterialRole | undefined) ?? 'hullPrimary',
+        });
+      },
+    },
+  ],
   [
     'hull.side_profile_extrude',
     {
@@ -207,7 +333,7 @@ const implementedHelpers = new Map<ModelHelperId, ModelHelperDefinition>([
           band={asNumber(params.band, 0.04)}
           depth={asNumber(params.depth, 0.72)}
           arcSegments={Math.max(6, Math.round(asNumber(params.arcSegments, 16)))}
-          material={context.resolveMaterial((params.materialRole as TankMaterialRole | undefined) ?? 'track')}
+          createMaterial={() => context.resolveMaterial((params.materialRole as TankMaterialRole | undefined) ?? 'track')}
         />
       ),
     },

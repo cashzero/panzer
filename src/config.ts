@@ -38,8 +38,8 @@ export const GAME_CONFIG = {
     maxRPM: 2800,
     colors: {
       destroyed: '#2c3e50',
-      trackDark: '#111',
-      trackLight: '#333',
+      trackDark: '#24251f',
+      trackLight: '#55564d',
     },
     trackDamage: {
       trackArmor: 20, // mm

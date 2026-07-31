@@ -186,6 +186,8 @@ Each slot contains model nodes. Supported node types are:
 - `group`
 - `box`
 - `cylinder`
+- `sphere` (supports ellipsoid shapes through `scale`; useful for cast turrets and housings)
+- `polyhedron` (triangle faces over explicit vertices; useful for welded/sloped armor hulls)
 - `extrude`
 - `repeat`
 - `mirror`

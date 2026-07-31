@@ -26,8 +26,8 @@
   },
   "mounts": {
     "turretOffset": [0, 1.65, 0.2],
-    "gunPivotOffset": [0, 0.45, 1.5],
-    "muzzleDistance": 4,
+    "gunPivotOffset": [0, 0.48, 1.24],
+    "muzzleDistance": 4.25,
     "broadPhaseRadius": 5.8
   },
   "mobility": {

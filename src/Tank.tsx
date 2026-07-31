@@ -66,14 +66,16 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
 
   const leftTrackMat = useMemo(() => new THREE.MeshStandardMaterial({
     map: leftTrackTexture,
-    color: destroyed ? destroyedColor : trackDestroyed.left ? '#5a1a1a' : '#aaaaaa',
-    roughness: 0.9
+    color: destroyed ? destroyedColor : trackDestroyed.left ? '#5a1a1a' : '#b7b4a9',
+    roughness: 0.84,
+    metalness: 0.42,
   }), [leftTrackTexture, destroyed, destroyedColor, trackDestroyed.left]);
 
   const rightTrackMat = useMemo(() => new THREE.MeshStandardMaterial({
     map: rightTrackTexture,
-    color: destroyed ? destroyedColor : trackDestroyed.right ? '#5a1a1a' : '#aaaaaa',
-    roughness: 0.9
+    color: destroyed ? destroyedColor : trackDestroyed.right ? '#5a1a1a' : '#b7b4a9',
+    roughness: 0.84,
+    metalness: 0.42,
   }), [rightTrackTexture, destroyed, destroyedColor, trackDestroyed.right]);
 
   const { HullComponent, TracksComponent, TurretComponent, GunComponent } = def;
@@ -211,7 +213,7 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
         {/* Gun Group */}
         <group ref={gunRef} position={def.gunPivotOffset}>
           <group ref={gunBarrelRef}>
-            <GunComponent destroyedColor={destroyedColor} destroyed={destroyed} />
+            <GunComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} />
           </group>
         </group>
       </group>

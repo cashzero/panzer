@@ -94,6 +94,10 @@ function cloneNodeWithFreshIds(node: ModelNode): ModelNode {
       return {...structuredClone(node), id: randomNodeId('extrude')};
     case 'cylinder':
       return {...structuredClone(node), id: randomNodeId('cylinder')};
+    case 'sphere':
+      return {...structuredClone(node), id: randomNodeId('sphere')};
+    case 'polyhedron':
+      return {...structuredClone(node), id: randomNodeId('polyhedron')};
     case 'box':
     default:
       return {...structuredClone(node), id: randomNodeId('box')};
@@ -112,6 +116,30 @@ export function createDefaultModelNode(type: ModelNode['type'] = 'box'): ModelNo
         radiusBottom: 0.2,
         height: 1,
         radialSegments: 12,
+        materialRole: 'hullPrimary',
+      };
+    case 'sphere':
+      return {
+        id: randomNodeId('sphere'),
+        type: 'sphere',
+        radius: 0.5,
+        widthSegments: 32,
+        heightSegments: 16,
+        materialRole: 'hullPrimary',
+      };
+    case 'polyhedron':
+      return {
+        id: randomNodeId('polyhedron'),
+        type: 'polyhedron',
+        vertices: [
+          [-0.5, 0, -0.5], [0.5, 0, -0.5], [0.5, 0, 0.5], [-0.5, 0, 0.5],
+          [-0.4, 0.8, -0.4], [0.4, 0.8, -0.4], [0.4, 0.8, 0.4], [-0.4, 0.8, 0.4],
+        ],
+        faces: [
+          [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+          [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+          [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4],
+        ],
         materialRole: 'hullPrimary',
       };
     case 'extrude':

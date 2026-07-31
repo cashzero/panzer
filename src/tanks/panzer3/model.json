@@ -3,10 +3,25 @@
   "slots": {
     "hull": [
       {
+        "id": "ausf-l-armored-hull-shell",
+        "type": "polyhedron",
+        "vertices": [
+          [-1.45, 0.38, -2.7], [1.45, 0.38, -2.7], [1.2, 0.38, 2.72], [-1.2, 0.38, 2.72],
+          [-1.34, 1.3, -2.42], [1.34, 1.3, -2.42], [1.25, 1.3, 1.58], [-1.25, 1.3, 1.58]
+        ],
+        "faces": [
+          [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+          [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+          [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4]
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
         "id": "superstructure-block",
         "type": "box",
         "size": [2.9, 1.1, 5],
         "position": [0, 0.75, -0.35],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -66,6 +81,7 @@
         "type": "box",
         "size": [0.12, 1, 5.4],
         "position": [-1.5, 0.8, -0.05],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -73,6 +89,7 @@
         "type": "box",
         "size": [0.12, 1, 5.4],
         "position": [1.5, 0.8, -0.05],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -80,6 +97,7 @@
         "type": "box",
         "size": [0.04, 0.7, 4.5],
         "position": [-1.55, 0.78, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -87,6 +105,7 @@
         "type": "box",
         "size": [0.04, 0.7, 4.5],
         "position": [1.55, 0.78, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -161,6 +180,14 @@
     ],
     "tracksLeft": [
       {
+        "id": "left-continuous-track-belt",
+        "type": "helper",
+        "helper": "tracks.stadium_belt",
+        "position": [-1.38, 0, 0],
+        "rotation": [0, 1.5707963267948966, 0],
+        "params": {"centerY": 0.34, "radius": 0.34, "halfLength": 2.42, "band": 0.06, "depth": 0.38, "arcSegments": 22, "materialRole": "track"}
+      },
+      {
         "id": "left-top-run",
         "type": "box",
         "size": [0.38, 0.04, 5.3],
@@ -199,8 +226,8 @@
           {
             "id": "left-drive-sprocket-wheel",
             "type": "cylinder",
-            "radiusTop": 0.26,
-            "radiusBottom": 0.26,
+            "radiusTop": 0.33,
+            "radiusBottom": 0.33,
             "height": 0.36,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -216,8 +243,8 @@
           {
             "id": "left-idler-wheel",
             "type": "cylinder",
-            "radiusTop": 0.24,
-            "radiusBottom": 0.24,
+            "radiusTop": 0.31,
+            "radiusBottom": 0.31,
             "height": 0.36,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -228,7 +255,7 @@
         "id": "left-road-wheel-row",
         "type": "repeat",
         "count": 6,
-        "position": [-1.19, 0.26, 2.2],
+        "position": [-1.19, 0.31, 2.2],
         "step": [0, 0, -0.84],
         "child": {
           "id": "left-road-wheel",
@@ -238,8 +265,8 @@
             {
               "id": "left-road-wheel-outer",
               "type": "cylinder",
-              "radiusTop": 0.24,
-              "radiusBottom": 0.24,
+              "radiusTop": 0.3,
+              "radiusBottom": 0.3,
               "height": 0.35,
               "radialSegments": 12,
               "materialRole": "trackRubber"
@@ -247,8 +274,8 @@
             {
               "id": "left-road-wheel-inner",
               "type": "cylinder",
-              "radiusTop": 0.15,
-              "radiusBottom": 0.15,
+              "radiusTop": 0.18,
+              "radiusBottom": 0.18,
               "height": 0.37,
               "radialSegments": 8,
               "materialRole": "steel"
@@ -281,6 +308,14 @@
       }
     ],
     "tracksRight": [
+      {
+        "id": "right-continuous-track-belt",
+        "type": "helper",
+        "helper": "tracks.stadium_belt",
+        "position": [1.0, 0, 0],
+        "rotation": [0, 1.5707963267948966, 0],
+        "params": {"centerY": 0.34, "radius": 0.34, "halfLength": 2.42, "band": 0.06, "depth": 0.38, "arcSegments": 22, "materialRole": "track"}
+      },
       {
         "id": "right-top-run",
         "type": "box",
@@ -320,8 +355,8 @@
           {
             "id": "right-drive-sprocket-wheel",
             "type": "cylinder",
-            "radiusTop": 0.26,
-            "radiusBottom": 0.26,
+            "radiusTop": 0.33,
+            "radiusBottom": 0.33,
             "height": 0.36,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -337,8 +372,8 @@
           {
             "id": "right-idler-wheel",
             "type": "cylinder",
-            "radiusTop": 0.24,
-            "radiusBottom": 0.24,
+            "radiusTop": 0.31,
+            "radiusBottom": 0.31,
             "height": 0.36,
             "radialSegments": 12,
             "materialRole": "steel"
@@ -349,7 +384,7 @@
         "id": "right-road-wheel-row",
         "type": "repeat",
         "count": 6,
-        "position": [1.19, 0.26, 2.2],
+        "position": [1.19, 0.31, 2.2],
         "step": [0, 0, -0.84],
         "child": {
           "id": "right-road-wheel",
@@ -359,8 +394,8 @@
             {
               "id": "right-road-wheel-outer",
               "type": "cylinder",
-              "radiusTop": 0.24,
-              "radiusBottom": 0.24,
+              "radiusTop": 0.3,
+              "radiusBottom": 0.3,
               "height": 0.35,
               "radialSegments": 12,
               "materialRole": "trackRubber"
@@ -368,8 +403,8 @@
             {
               "id": "right-road-wheel-inner",
               "type": "cylinder",
-              "radiusTop": 0.15,
-              "radiusBottom": 0.15,
+              "radiusTop": 0.18,
+              "radiusBottom": 0.18,
               "height": 0.37,
               "radialSegments": 8,
               "materialRole": "steel"
@@ -403,10 +438,23 @@
     ],
     "turret": [
       {
+        "id": "ausf-l-faceted-turret",
+        "type": "helper",
+        "helper": "turret.faceted_bustle",
+        "params": {
+          "plan": [[-0.64, 1.03], [0.64, 1.03], [0.86, 0.62], [0.86, -0.72], [0.64, -1.12], [-0.64, -1.12], [-0.86, -0.72], [-0.86, 0.62]],
+          "bottomY": 0,
+          "topY": 0.78,
+          "topScale": 0.91,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
         "id": "turret-base",
         "type": "box",
         "size": [1.7, 0.78, 2.2],
         "position": [0, 0.39, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -414,6 +462,7 @@
         "type": "box",
         "size": [1.3, 0.73, 0.9],
         "position": [0, 0.39, 0.9],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -422,6 +471,7 @@
         "size": [0.5, 0.68, 0.7],
         "position": [-0.7, 0.39, 0.6],
         "rotation": [0, -0.35, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -430,6 +480,7 @@
         "size": [0.5, 0.68, 0.7],
         "position": [0.7, 0.39, 0.6],
         "rotation": [0, 0.35, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -437,6 +488,7 @@
         "type": "box",
         "size": [1.7, 0.68, 0.7],
         "position": [0, 0.39, -1.5],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {

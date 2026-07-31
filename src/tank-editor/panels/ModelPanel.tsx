@@ -9,6 +9,8 @@ const NODE_TYPE_OPTIONS = [
   {value: 'group', label: 'Group'},
   {value: 'box', label: 'Box'},
   {value: 'cylinder', label: 'Cylinder'},
+  {value: 'sphere', label: 'Sphere'},
+  {value: 'polyhedron', label: 'Polyhedron'},
   {value: 'extrude', label: 'Extrude'},
   {value: 'repeat', label: 'Repeat'},
   {value: 'mirror', label: 'Mirror'},
@@ -175,6 +177,21 @@ export function ModelPanel({
                 <NumberField label="Height" step={0.01} value={selectedNode.height} onChange={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'cylinder'}>), height: value}))} />
                 <NumberField label="Radial Segments" value={selectedNode.radialSegments ?? 12} onChange={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'cylinder'}>), radialSegments: value}))} />
               </FieldGrid>
+            ) : null}
+
+            {selectedNode.type === 'sphere' ? (
+              <FieldGrid columns={3}>
+                <NumberField label="Radius" step={0.01} value={selectedNode.radius} onChange={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'sphere'}>), radius: value}))} />
+                <NumberField label="Width Segments" min={8} value={selectedNode.widthSegments ?? 32} onChange={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'sphere'}>), widthSegments: Math.max(8, Math.round(value))}))} />
+                <NumberField label="Height Segments" min={6} value={selectedNode.heightSegments ?? 16} onChange={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'sphere'}>), heightSegments: Math.max(6, Math.round(value))}))} />
+              </FieldGrid>
+            ) : null}
+
+            {selectedNode.type === 'polyhedron' ? (
+              <>
+                <JsonField label="Vertices" value={selectedNode.vertices} onCommit={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'polyhedron'}>), vertices: value as Extract<ModelNode, {type: 'polyhedron'}>['vertices']}))} rows={10} />
+                <JsonField label="Faces" value={selectedNode.faces} onCommit={(value) => updateSelectedNode((node) => ({...(node as Extract<ModelNode, {type: 'polyhedron'}>), faces: value as Extract<ModelNode, {type: 'polyhedron'}>['faces']}))} rows={10} />
+              </>
             ) : null}
 
             {selectedNode.type === 'extrude' ? (

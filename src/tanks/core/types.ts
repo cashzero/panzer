@@ -61,6 +61,7 @@ export interface TankTrackProps {
 }
 
 export interface TankGunProps {
+  color?: string;
   destroyedColor: string;
   destroyed: boolean;
 }
@@ -194,6 +195,19 @@ export interface CylinderNode extends ModelNodeBase {
   radialSegments?: number;
 }
 
+export interface SphereNode extends ModelNodeBase {
+  type: 'sphere';
+  radius: number;
+  widthSegments?: number;
+  heightSegments?: number;
+}
+
+export interface PolyhedronNode extends ModelNodeBase {
+  type: 'polyhedron';
+  vertices: Vec3[];
+  faces: Array<[number, number, number]>;
+}
+
 export interface ExtrudeNode extends ModelNodeBase {
   type: 'extrude';
   shape: ExtrudeShapeDefinition;
@@ -225,6 +239,8 @@ export type ModelNode =
   | GroupNode
   | BoxNode
   | CylinderNode
+  | SphereNode
+  | PolyhedronNode
   | ExtrudeNode
   | RepeatNode
   | MirrorNode

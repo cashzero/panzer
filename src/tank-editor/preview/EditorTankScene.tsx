@@ -1,4 +1,4 @@
-import { Box, Cylinder } from '@react-three/drei';
+import { Cylinder, RoundedBox, Sphere } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { getTankModelHelper, type ModelHelperRenderContext } from '../../tanks/core/helpers';
@@ -6,6 +6,7 @@ import type {
   ExtrudeNode,
   ExtrudeShapeDefinition,
   ModelNode,
+  PolyhedronNode,
   TankArmorPlateSpec,
   TankMaterialRole,
   TankModelSpec,
@@ -77,6 +78,27 @@ function ExtrudedNodeMesh({node, material}: {node: ExtrudeNode; material: React.
       {material}
     </mesh>
   );
+}
+
+function PolyhedronNodeMesh({node, material}: {node: PolyhedronNode; material: React.ReactNode}) {
+  const geometry = useMemo(() => {
+    const positions = node.faces.flatMap((face) => face.flatMap((vertexIndex) => node.vertices[vertexIndex]));
+    const bufferGeometry = new THREE.BufferGeometry();
+    bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    bufferGeometry.computeVertexNormals();
+    bufferGeometry.computeBoundingSphere();
+    return bufferGeometry;
+  }, [node.faces, node.vertices]);
+
+  return (
+    <mesh geometry={geometry} castShadow receiveShadow>
+      {material}
+    </mesh>
+  );
+}
+
+function getPlateEdgeRadius(size: Vec3) {
+  return Math.min(0.025, Math.min(...size) * 0.18);
 }
 
 function ArmorPlateMesh({
@@ -159,26 +181,26 @@ function resolveMaterial(
     case 'track':
       return <primitive object={trackMat} attach="material" />;
     case 'trackRubber':
-      return <meshStandardMaterial color="#111" roughness={0.9} />;
+      return <meshStandardMaterial color="#161612" roughness={0.96} metalness={0.02} />;
     case 'steel':
-      return <meshStandardMaterial color="#555" roughness={0.5} metalness={0.8} />;
+      return <meshStandardMaterial color="#4d4e48" roughness={0.76} metalness={0.58} />;
     case 'darkMetal':
-      return <meshStandardMaterial color="#222" roughness={0.9} metalness={0.1} />;
+      return <meshStandardMaterial color="#242621" roughness={0.83} metalness={0.28} />;
     case 'grille':
-      return <meshStandardMaterial color="#111" roughness={0.9} />;
+      return <meshStandardMaterial color="#131611" roughness={0.97} metalness={0.12} />;
     case 'lamp':
-      return <meshStandardMaterial color="#ffffcc" emissive="#ffffaa" emissiveIntensity={0.5} />;
+      return <meshStandardMaterial color="#c9ba83" emissive="#574719" emissiveIntensity={0.12} roughness={0.36} metalness={0.04} />;
     case 'mantlet':
-      return <meshStandardMaterial color="#3a3a3a" roughness={0.9} />;
+      return <meshStandardMaterial color={baseColor} roughness={0.84} metalness={0.1} envMapIntensity={0.65} />;
     case 'barrel':
-      return <meshStandardMaterial color="#444444" roughness={0.7} metalness={0.4} />;
+      return <meshStandardMaterial color={baseColor} roughness={0.78} metalness={0.12} envMapIntensity={0.65} />;
     case 'wireframe':
-      return <meshStandardMaterial color="#333" wireframe={true} />;
+      return <meshStandardMaterial color="#30322d" roughness={0.82} metalness={0.28} wireframe={true} />;
     case 'accessory':
-      return <meshStandardMaterial color="#333333" roughness={0.8} />;
+      return <meshStandardMaterial color="#363831" roughness={0.86} metalness={0.24} />;
     case 'hullPrimary':
     default:
-      return <meshStandardMaterial color={baseColor} roughness={0.7} metalness={0.3} />;
+      return <meshStandardMaterial color={baseColor} roughness={0.82} metalness={0.08} envMapIntensity={0.65} />;
   }
 }
 
@@ -200,7 +222,7 @@ export function EditorTankScene({
   registerPlateObject,
 }: EditorTankSceneProps) {
   const trackMaterial = useMemo(
-    () => new THREE.MeshStandardMaterial({color: '#383d3b', roughness: 0.92, metalness: 0.08}),
+    () => new THREE.MeshStandardMaterial({color: '#4b4d46', roughness: 0.84, metalness: 0.42}),
     [],
   );
 
@@ -233,15 +255,36 @@ export function EditorTankScene({
           return wrapNode(node.children.map((childNode, index) => renderNode(childNode, [...path, 'children', index], generated)));
         case 'box':
           return wrapNode(
-            <Box args={node.size} castShadow receiveShadow>
+            <RoundedBox
+              args={node.size}
+              radius={getPlateEdgeRadius(node.size)}
+              smoothness={1}
+              bevelSegments={1}
+              creaseAngle={0.35}
+              castShadow
+              receiveShadow
+            >
               {resolveMaterial(slotKind, spec.appearance.baseColor, trackMaterial, node.materialRole)}
-            </Box>,
+            </RoundedBox>,
           );
         case 'cylinder':
           return wrapNode(
-            <Cylinder args={[node.radiusTop, node.radiusBottom, node.height, node.radialSegments ?? 12]} castShadow receiveShadow>
+            <Cylinder args={[node.radiusTop, node.radiusBottom, node.height, Math.max(16, node.radialSegments ?? 20)]} castShadow receiveShadow>
               {resolveMaterial(slotKind, spec.appearance.baseColor, trackMaterial, node.materialRole)}
             </Cylinder>,
+          );
+        case 'sphere':
+          return wrapNode(
+            <Sphere args={[node.radius, node.widthSegments ?? 32, node.heightSegments ?? 16]} castShadow receiveShadow>
+              {resolveMaterial(slotKind, spec.appearance.baseColor, trackMaterial, node.materialRole)}
+            </Sphere>,
+          );
+        case 'polyhedron':
+          return wrapNode(
+            <PolyhedronNodeMesh
+              node={node}
+              material={resolveMaterial(slotKind, spec.appearance.baseColor, trackMaterial, node.materialRole)}
+            />,
           );
         case 'extrude':
           return wrapNode(

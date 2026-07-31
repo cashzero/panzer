@@ -3,10 +3,25 @@
   "slots": {
     "hull": [
       {
+        "id": "ausf-h-armored-hull-shell",
+        "type": "polyhedron",
+        "vertices": [
+          [-1.42, 0.42, -2.95], [1.42, 0.42, -2.95], [1.22, 0.42, 2.92], [-1.22, 0.42, 2.92],
+          [-1.33, 1.38, -2.66], [1.33, 1.38, -2.66], [1.28, 1.38, 1.72], [-1.28, 1.38, 1.72]
+        ],
+        "faces": [
+          [0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6],
+          [0, 5, 1], [0, 4, 5], [1, 6, 2], [1, 5, 6],
+          [2, 7, 3], [2, 6, 7], [3, 4, 0], [3, 7, 4]
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
         "id": "superstructure",
         "type": "box",
         "size": [2.84, 1.15, 5.6],
         "position": [0, 0.85, -0.2],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -60,6 +75,7 @@
         "type": "box",
         "size": [0.12, 1.05, 5.8],
         "position": [-1.46, 0.85, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -67,6 +83,7 @@
         "type": "box",
         "size": [0.12, 1.05, 5.8],
         "position": [1.46, 0.85, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -74,6 +91,7 @@
         "type": "box",
         "size": [0.04, 0.75, 4.8],
         "position": [-1.55, 0.8, -0.3],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -81,7 +99,36 @@
         "type": "box",
         "size": [0.04, 0.75, 4.8],
         "position": [1.55, 0.8, -0.3],
+        "visible": false,
         "materialRole": "hullPrimary"
+      },
+      {
+        "id": "segmented-schurzen-left",
+        "type": "repeat",
+        "count": 5,
+        "position": [-1.55, 0.98, -2.05],
+        "step": [0, 0, 0.96],
+        "child": {
+          "id": "plate",
+          "type": "box",
+          "size": [0.035, 0.54, 0.88],
+          "rotation": [0, 0.025, 0],
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
+        "id": "segmented-schurzen-right",
+        "type": "repeat",
+        "count": 5,
+        "position": [1.55, 0.98, -2.05],
+        "step": [0, 0, 0.96],
+        "child": {
+          "id": "plate",
+          "type": "box",
+          "size": [0.035, 0.54, 0.88],
+          "rotation": [0, -0.025, 0],
+          "materialRole": "hullPrimary"
+        }
       },
       {
         "id": "engine-grille-right",
@@ -394,10 +441,23 @@
     ],
     "turret": [
       {
+        "id": "ausf-h-faceted-turret",
+        "type": "helper",
+        "helper": "turret.faceted_bustle",
+        "params": {
+          "plan": [[-0.72, 1.12], [0.72, 1.12], [0.94, 0.66], [0.94, -0.82], [0.67, -1.26], [-0.67, -1.26], [-0.94, -0.82], [-0.94, 0.66]],
+          "bottomY": 0,
+          "topY": 0.82,
+          "topScale": 0.9,
+          "materialRole": "hullPrimary"
+        }
+      },
+      {
         "id": "main-body",
         "type": "box",
         "size": [1.85, 0.82, 2.4],
         "position": [0, 0.41, -0.1],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -405,6 +465,7 @@
         "type": "box",
         "size": [1.5, 0.78, 0.9],
         "position": [0, 0.41, 0.95],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -413,6 +474,7 @@
         "size": [0.5, 0.72, 0.7],
         "position": [-0.75, 0.41, 0.6],
         "rotation": [0, -0.3, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -421,6 +483,7 @@
         "size": [0.5, 0.72, 0.7],
         "position": [0.75, 0.41, 0.6],
         "rotation": [0, 0.3, 0],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
@@ -428,6 +491,7 @@
         "type": "box",
         "size": [1.85, 0.72, 0.7],
         "position": [0, 0.41, -1.6],
+        "visible": false,
         "materialRole": "hullPrimary"
       },
       {
