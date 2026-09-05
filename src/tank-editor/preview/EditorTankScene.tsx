@@ -82,13 +82,16 @@ function ExtrudedNodeMesh({node, material}: {node: ExtrudeNode; material: React.
 
 function PolyhedronNodeMesh({node, material}: {node: PolyhedronNode; material: React.ReactNode}) {
   const geometry = useMemo(() => {
-    const positions = node.faces.flatMap((face) => face.flatMap((vertexIndex) => node.vertices[vertexIndex]));
+    const positions = node.smoothShading
+      ? node.vertices.flat()
+      : node.faces.flatMap((face) => face.flatMap((vertexIndex) => node.vertices[vertexIndex]));
     const bufferGeometry = new THREE.BufferGeometry();
     bufferGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    if (node.smoothShading) bufferGeometry.setIndex(node.faces.flat());
     bufferGeometry.computeVertexNormals();
     bufferGeometry.computeBoundingSphere();
     return bufferGeometry;
-  }, [node.faces, node.vertices]);
+  }, [node.faces, node.vertices, node.smoothShading]);
 
   return (
     <mesh geometry={geometry} castShadow receiveShadow>

@@ -206,6 +206,8 @@ export interface PolyhedronNode extends ModelNodeBase {
   type: 'polyhedron';
   vertices: Vec3[];
   faces: Array<[number, number, number]>;
+  /** Share vertex normals for rounded cast surfaces; armor plates stay flat by default. */
+  smoothShading?: boolean;
 }
 
 export interface ExtrudeNode extends ModelNodeBase {
