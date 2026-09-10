@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { masonryWeathering } from './rendering/surfaceWeathering';
 import { useGameStore } from './store';
 import type { BuildingInstance } from './buildings';
 
@@ -18,6 +19,12 @@ const MATERIALS = {
   gravel: new THREE.MeshStandardMaterial({ color: '#706a5b', roughness: 1 }),
   chimneyCap: new THREE.MeshStandardMaterial({ color: '#37342f', roughness: 1 }),
 };
+
+for (const [role, material] of Object.entries(MATERIALS)) {
+  if (role === 'glass') continue;
+  material.onBeforeCompile = masonryWeathering;
+  material.customProgramCacheKey = () => 'masonry-weathering-v1';
+}
 
 interface DetailSegment {
   position: [number, number, number];

@@ -1,6 +1,7 @@
 import { Cylinder, RoundedBox, Sphere } from '@react-three/drei';
 import { useMemo } from 'react';
 import * as THREE from 'three';
+import { armorWeathering } from '../../rendering/surfaceWeathering';
 import { getTankModelHelper, type ModelHelperRenderContext } from './helpers';
 import type {
   ExtrudeNode,
@@ -128,16 +129,16 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
           />
         );
       case 'mantlet':
-        return <meshStandardMaterial color={paintColor} roughness={0.84} metalness={0.1} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.84} metalness={0.1} envMapIntensity={0.65} />;
       case 'barrel':
-        return <meshStandardMaterial color={paintColor} roughness={0.78} metalness={0.12} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.78} metalness={0.12} envMapIntensity={0.65} />;
       case 'wireframe':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#30322d'} roughness={0.82} metalness={0.28} wireframe={true} />;
       case 'accessory':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#363831'} roughness={0.86} metalness={0.24} />;
       case 'hullPrimary':
       default:
-        return <meshStandardMaterial color={paintColor} roughness={0.82} metalness={0.08} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.82} metalness={0.08} envMapIntensity={0.65} />;
     }
   };
 

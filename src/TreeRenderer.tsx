@@ -149,19 +149,17 @@ const trunkMat = new THREE.MeshStandardMaterial({
   emissiveIntensity: 0.28,
   roughness: 1,
   metalness: 0,
-  vertexColors: true,
 });
 const deciduousLeafMat = new THREE.MeshStandardMaterial({
   color: '#ffffff',
   map: deciduousFoliageTexture,
   emissive: '#53654a',
   emissiveMap: deciduousFoliageTexture,
-  emissiveIntensity: 0.42,
+  emissiveIntensity: 0.14,
   roughness: 1,
   metalness: 0,
-  vertexColors: true,
   alphaTest: 0.38,
-  alphaToCoverage: true,
+  alphaToCoverage: false,
   side: THREE.DoubleSide,
 });
 const coniferLeafMat = new THREE.MeshStandardMaterial({
@@ -169,12 +167,11 @@ const coniferLeafMat = new THREE.MeshStandardMaterial({
   map: coniferFoliageTexture,
   emissive: '#435648',
   emissiveMap: coniferFoliageTexture,
-  emissiveIntensity: 0.4,
+  emissiveIntensity: 0.14,
   roughness: 1,
   metalness: 0,
-  vertexColors: true,
   alphaTest: 0.36,
-  alphaToCoverage: true,
+  alphaToCoverage: false,
   side: THREE.DoubleSide,
 });
 

@@ -1,8 +1,10 @@
 import { useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Sky, Html } from '@react-three/drei';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Tank } from './Tank';
+import { BattlefieldLighting } from './rendering/BattlefieldLighting';
+import { BattlefieldPostProcessing } from './rendering/BattlefieldPostProcessing';
 import { Terrain } from './Terrain';
 import { ProjectileManager } from './ProjectileManager';
 import { Particles } from './Particles';
@@ -62,59 +64,6 @@ function GunAimPoint() {
         </div>
       </Html>
     </group>
-  );
-}
-
-function PlayerSky() {
-  const groupRef = useRef<THREE.Group>(null!);
-  const { camera } = useThree();
-  useFrame(() => {
-    groupRef.current.position.copy(camera.position);
-  });
-  return (
-    <group ref={groupRef}>
-      <Sky
-        sunPosition={[-90, 42, -120]}
-        distance={50000}
-        turbidity={8.5}
-        rayleigh={2.1}
-        mieCoefficient={0.008}
-        mieDirectionalG={0.78}
-      />
-    </group>
-  );
-}
-
-function BattlefieldEnvironment({ mapMode }: { mapMode: boolean }) {
-  return (
-    <>
-      <color attach="background" args={['#91a098']} />
-      <fog attach="fog" args={['#91a098', mapMode ? 1400 : 260, mapMode ? 3200 : 1450]} />
-      <PlayerSky />
-      <hemisphereLight args={['#d9e2dc', '#3b402c', 0.9]} />
-      <ambientLight intensity={0.22} />
-      <directionalLight
-        castShadow
-        color="#ffe4b8"
-        position={[-80, 110, -70]}
-        intensity={2.2}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-bias={-0.00012}
-        shadow-normalBias={0.035}
-        shadow-camera-near={1}
-        shadow-camera-far={520}
-        shadow-camera-left={-120}
-        shadow-camera-right={120}
-        shadow-camera-top={120}
-        shadow-camera-bottom={-120}
-      />
-      <directionalLight
-        color="#9fb3bc"
-        position={[0, 22, -28]}
-        intensity={0.48}
-      />
-    </>
   );
 }
 
@@ -447,21 +396,21 @@ export function GameScene() {
   return (
     <div className="battlefield-canvas">
       <Canvas
-        shadows
+        shadows="percentage"
         dpr={[1, 1.5]}
         camera={{ position: [0, 5, -10], fov: 60, near: 0.08, far: 3600 }}
         gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 0.98;
-          gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.toneMappingExposure = 1.05;
+          gl.shadowMap.type = THREE.PCFShadowMap;
         }}
       >
         <Suspense fallback={null}>
-          <BattlefieldEnvironment mapMode={isMapMode} />
+          <BattlefieldLighting mapMode={isMapMode} />
 
-          <Terrain />
+          <Terrain showGroundCover={!isMapMode} />
           <Buildings />
           <Trees />
           <TrackRepairManager />
@@ -499,6 +448,7 @@ export function GameScene() {
           <BurningWrecks />
           <EnemyAI />
           <AllyAI />
+          <BattlefieldPostProcessing mapMode={isMapMode} />
         </Suspense>
       </Canvas>
     </div>

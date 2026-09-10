@@ -61,5 +61,16 @@ Completed roadmap items are documented here.
 
 ## Performance And Rendering
 
+- The battlefield uses a shared analytic sky and sun direction, procedural clouds, baked sky reflections, and a camera-following 4096px directional shadow map stabilized in light space.
+- Half-resolution N8AO adds contact occlusion; restrained HDR bloom, ACES output and SMAA run before the HTML HUD. Tactical map mode bypasses these passes and ground cover.
+- Terrain uses locally vendored CC0 Poly Haven albedo, OpenGL normal and roughness maps, with biome tinting, two detail scales and anisotropic filtering.
+- Instanced ground cover uses tapered blades, root-to-tip colour, wind and distance fade; wind respects reduced-motion preferences.
+- Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry.
 - Particle rendering is pooled into shared `Points` and `InstancedMesh` batches, reducing draw calls from hundreds to 4.
+
+### Layered terrain surfaces
+- Grass, dry soil and gravel use local CC0 albedo/normal maps and MIT stochastic hex tiling.
+- Signed road distance masks provide smooth diagonal edges independently of terrain vertex spacing; rotated farmland and building yards blend exposed soil.
+- Ground and grass are matte, with macro vegetation variation, distance-faded normals and 12,321 nine-blade grass instances around the camera.
+- Focused terrain mask tests cover diagonal edges, crossings, degenerate roads, rotated farmland and regeneration.
