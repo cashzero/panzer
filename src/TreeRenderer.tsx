@@ -142,6 +142,8 @@ const coniferFoliageTexture = textureLoader.load('/assets/trees/conifer-foliage.
 coniferFoliageTexture.colorSpace = THREE.SRGBColorSpace;
 coniferFoliageTexture.anisotropy = 4;
 
+// These geometries have no vertex color attribute. Instance colors are applied
+// independently by Three.js; enabling vertexColors here would blacken the trees.
 const trunkMat = new THREE.MeshStandardMaterial({
   color: '#ffffff',
   map: barkTexture,

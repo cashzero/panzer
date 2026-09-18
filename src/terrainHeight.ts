@@ -73,6 +73,8 @@ export function sampleTerrainHeight(
   for (const [jx, jz] of roadNetwork.junctions) {
     const dx = x - jx;
     const dz = z - jz;
+    if (Math.abs(dx) > GAME_CONFIG.buildings.villageFlattenRadius
+      || Math.abs(dz) > GAME_CONFIG.buildings.villageFlattenRadius) continue;
     const dist = Math.hypot(dx, dz);
     if (dist > GAME_CONFIG.buildings.villageFlattenRadius) continue;
 
@@ -87,15 +89,19 @@ export function sampleTerrainHeight(
   for (const building of buildings) {
     const dx = x - building.position[0];
     const dz = z - building.position[2];
-    const c = Math.cos(-building.rotation);
-    const s = Math.sin(-building.rotation);
-    const localX = dx * c - dz * s;
-    const localZ = dx * s + dz * c;
     const hardMargin = GAME_CONFIG.buildings.foundationFlatMargin;
     const flattenMargin = Math.max(
       GAME_CONFIG.buildings.footprintFlattenMargin,
       Math.min(building.width, building.depth) * 0.45,
     );
+    // Conservative bounds enclose the rotated footprint plus its blend region.
+    // Most visibility-ray samples are far away: skip their trig and distance work.
+    const bounds = (building.width + building.depth) * 0.5 + hardMargin * 2 + flattenMargin;
+    if (Math.abs(dx) > bounds || Math.abs(dz) > bounds) continue;
+    const c = Math.cos(-building.rotation);
+    const s = Math.sin(-building.rotation);
+    const localX = dx * c - dz * s;
+    const localZ = dx * s + dz * c;
     const padHalfWidth = building.width * 0.5 + hardMargin;
     const padHalfDepth = building.depth * 0.5 + hardMargin;
     const edgeX = Math.max(0, Math.abs(localX) - padHalfWidth);
