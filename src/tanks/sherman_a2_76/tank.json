@@ -25,9 +25,17 @@
     }
   },
   "mounts": {
-    "turretOffset": [0, 1.7, 0.15],
-    "gunPivotOffset": [0, 0.58, 1.08],
-    "muzzleDistance": 3.42,
+    "turretOffset": [
+      0,
+      2,
+      0.08
+    ],
+    "gunPivotOffset": [
+      0,
+      0.3872,
+      1.02
+    ],
+    "muzzleDistance": 2.985,
     "broadPhaseRadius": 5.2
   },
   "mobility": {
@@ -35,7 +43,7 @@
     "weight": 33,
     "maxSpeed": 12,
     "maxReverseSpeed": 2,
-    "acceleration": 3.9037878787878785,
+    "acceleration": 3.9037878787878784,
     "deceleration": 9,
     "trackWidth": 2.62,
     "turnRateLimit": 0.52,
@@ -60,10 +68,22 @@
         "historicalPenetration": {
           "standard": "RHA_30deg",
           "points": [
-            { "distance": 100, "penetration": 109 },
-            { "distance": 500, "penetration": 100 },
-            { "distance": 1000, "penetration": 88 },
-            { "distance": 1500, "penetration": 77 }
+            {
+              "distance": 100,
+              "penetration": 109
+            },
+            {
+              "distance": 500,
+              "penetration": 100
+            },
+            {
+              "distance": 1000,
+              "penetration": 88
+            },
+            {
+              "distance": 1500,
+              "penetration": 77
+            }
           ]
         }
       },
@@ -89,9 +109,21 @@
         "id": "hull-upper-glacis-top",
         "name": "Hull Upper Glacis Top",
         "zone": "hull",
-        "halfExtents": [1.31, 0.1, 0.6],
-        "position": [0, 1.296, 2.564],
-        "rotation": [0.82, 0, 0],
+        "halfExtents": [
+          1.26,
+          0.035,
+          0.3225
+        ],
+        "position": [
+          0,
+          1.76,
+          1.93275
+        ],
+        "rotation": [
+          0.7507,
+          0,
+          0
+        ],
         "armorThickness": 120,
         "parent": "hull"
       },
@@ -99,9 +131,21 @@
         "id": "hull-upper-glacis-bottom",
         "name": "Hull Upper Glacis Bottom",
         "zone": "hull",
-        "halfExtents": [0.89, 0.1, 0.2],
-        "position": [0, 0.711, 3.109],
-        "rotation": [0.82, 0, 0],
+        "halfExtents": [
+          1.26,
+          0.035,
+          0.3225
+        ],
+        "position": [
+          0,
+          1.32,
+          2.40425
+        ],
+        "rotation": [
+          0.7507,
+          0,
+          0
+        ],
         "armorThickness": 120,
         "parent": "hull"
       },
@@ -109,9 +153,21 @@
         "id": "hull-lower-glacis",
         "name": "Hull Lower Glacis",
         "zone": "hull",
-        "halfExtents": [0.89, 0.1, 0.24],
-        "position": [0, 0.383, 3.092],
-        "rotation": [2.27, 0, 0],
+        "halfExtents": [
+          0.91,
+          0.3,
+          0.13
+        ],
+        "position": [
+          0,
+          0.77,
+          2.79
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 80,
         "parent": "hull"
       },
@@ -119,9 +175,21 @@
         "id": "hull-side-left",
         "name": "Hull Side Left",
         "zone": "hull",
-        "halfExtents": [0.1, 0.6, 2.25],
-        "position": [-1.31, 1, -0.5],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.035,
+          0.43,
+          2.145
+        ],
+        "position": [
+          -1.26,
+          1.53,
+          -0.635
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 38,
         "parent": "hull"
       },
@@ -129,9 +197,21 @@
         "id": "hull-side-right",
         "name": "Hull Side Right",
         "zone": "hull",
-        "halfExtents": [0.1, 0.6, 2.25],
-        "position": [1.31, 1, -0.5],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.035,
+          0.43,
+          2.145
+        ],
+        "position": [
+          1.26,
+          1.53,
+          -0.635
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 38,
         "parent": "hull"
       },
@@ -139,9 +219,21 @@
         "id": "hull-side-front-left",
         "name": "Hull Side Front Left",
         "zone": "hull",
-        "halfExtents": [0.1, 0.1, 0.8],
-        "position": [-1.31, 1.15, 2.55],
-        "rotation": [0.82, 0, 0],
+        "halfExtents": [
+          0.035,
+          0.15,
+          0.57
+        ],
+        "position": [
+          -1.26,
+          1.36,
+          2.222
+        ],
+        "rotation": [
+          0.7507,
+          0,
+          0
+        ],
         "armorThickness": 38,
         "parent": "hull"
       },
@@ -149,9 +241,21 @@
         "id": "hull-side-front-right",
         "name": "Hull Side Front Right",
         "zone": "hull",
-        "halfExtents": [0.1, 0.1, 0.8],
-        "position": [1.31, 1.15, 2.55],
-        "rotation": [0.82, 0, 0],
+        "halfExtents": [
+          0.035,
+          0.15,
+          0.57
+        ],
+        "position": [
+          1.26,
+          1.36,
+          2.222
+        ],
+        "rotation": [
+          0.7507,
+          0,
+          0
+        ],
         "armorThickness": 38,
         "parent": "hull"
       },
@@ -159,9 +263,21 @@
         "id": "hull-rear",
         "name": "Hull Rear",
         "zone": "hull",
-        "halfExtents": [1.31, 0.6, 0.2],
-        "position": [0, 0.85, -2.95],
-        "rotation": [-0.15, 0, 0],
+        "halfExtents": [
+          1.26,
+          0.56,
+          0.04
+        ],
+        "position": [
+          0,
+          1.01,
+          -2.84
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 38,
         "parent": "hull"
       },
@@ -169,9 +285,21 @@
         "id": "hull-roof",
         "name": "Hull Roof",
         "zone": "hull",
-        "halfExtents": [1.31, 0.1, 1.25],
-        "position": [0, 1.7, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          1.26,
+          0.025,
+          1.2285
+        ],
+        "position": [
+          0,
+          1.98,
+          0.4685
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 19,
         "parent": "hull"
       },
@@ -179,9 +307,21 @@
         "id": "hull-engine-deck",
         "name": "Hull Engine Deck",
         "zone": "hull",
-        "halfExtents": [1.31, 0.1, 1.25],
-        "position": [0, 1.65, -2],
-        "rotation": [-0.05, 0, 0],
+        "halfExtents": [
+          1.26,
+          0.025,
+          1.033
+        ],
+        "position": [
+          0,
+          1.77,
+          -1.78
+        ],
+        "rotation": [
+          -0.203,
+          0,
+          0
+        ],
         "armorThickness": 19,
         "parent": "hull"
       },
@@ -189,9 +329,21 @@
         "id": "turret-front",
         "name": "Turret Front",
         "zone": "turret",
-        "halfExtents": [0.75, 0.4, 0.1],
-        "position": [0, 0.4, 1.2],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.65,
+          0.308,
+          0.09
+        ],
+        "position": [
+          0,
+          0.396,
+          1.01
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 89,
         "parent": "turret"
       },
@@ -199,9 +351,21 @@
         "id": "turret-cheek-left",
         "name": "Turret Cheek Left",
         "zone": "turret",
-        "halfExtents": [0.3, 0.375, 0.325],
-        "position": [-0.68, 0.4, 0.68],
-        "rotation": [0, -0.4, 0],
+        "halfExtents": [
+          0.1,
+          0.2992,
+          0.37
+        ],
+        "position": [
+          -0.78,
+          0.396,
+          0.67
+        ],
+        "rotation": [
+          0,
+          -0.6,
+          0
+        ],
         "armorThickness": 89,
         "parent": "turret"
       },
@@ -209,9 +373,21 @@
         "id": "turret-cheek-right",
         "name": "Turret Cheek Right",
         "zone": "turret",
-        "halfExtents": [0.3, 0.375, 0.325],
-        "position": [0.68, 0.4, 0.68],
-        "rotation": [0, 0.4, 0],
+        "halfExtents": [
+          0.1,
+          0.2992,
+          0.37
+        ],
+        "position": [
+          0.78,
+          0.396,
+          0.67
+        ],
+        "rotation": [
+          0,
+          0.6,
+          0
+        ],
         "armorThickness": 89,
         "parent": "turret"
       },
@@ -219,9 +395,21 @@
         "id": "turret-side-left",
         "name": "Turret Side Left",
         "zone": "turret",
-        "halfExtents": [0.1, 0.4, 0.8],
-        "position": [-0.925, 0.4, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.075,
+          0.2992,
+          0.64
+        ],
+        "position": [
+          -1.01,
+          0.396,
+          -0.12
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 63,
         "parent": "turret"
       },
@@ -229,9 +417,21 @@
         "id": "turret-side-right",
         "name": "Turret Side Right",
         "zone": "turret",
-        "halfExtents": [0.1, 0.4, 0.8],
-        "position": [0.925, 0.4, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.075,
+          0.2992,
+          0.64
+        ],
+        "position": [
+          1.01,
+          0.396,
+          -0.12
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 63,
         "parent": "turret"
       },
@@ -239,9 +439,21 @@
         "id": "turret-bustle",
         "name": "Turret Bustle",
         "zone": "turret",
-        "halfExtents": [0.925, 0.35, 0.325],
-        "position": [0, 0.4, -1.05],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.58,
+          0.22,
+          0.09
+        ],
+        "position": [
+          0,
+          0.528,
+          -1.43
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 63,
         "parent": "turret"
       },
@@ -249,9 +461,21 @@
         "id": "turret-roof",
         "name": "Turret Roof",
         "zone": "turret",
-        "halfExtents": [0.925, 0.1, 0.8],
-        "position": [0, 0.8, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.86,
+          0.022000000000000002,
+          0.97
+        ],
+        "position": [
+          0,
+          0.748,
+          -0.24
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 25,
         "parent": "turret"
       },
@@ -259,9 +483,21 @@
         "id": "mantlet",
         "name": "Mantlet",
         "zone": "gun",
-        "halfExtents": [0.3, 0.225, 0.25],
-        "position": [0, 0, 0.15],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.66,
+          0.27,
+          0.08
+        ],
+        "position": [
+          0,
+          0.02,
+          0.175
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 89,
         "parent": "gunGroup"
       },
@@ -269,9 +505,21 @@
         "id": "track-left",
         "name": "Track Left",
         "zone": "track",
-        "halfExtents": [0.25, 0.35, 3],
-        "position": [-1.1, 0.3, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.2105,
+          0.62,
+          2.85
+        ],
+        "position": [
+          -1.1,
+          0.615,
+          0.01
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 20,
         "isTrack": "left",
         "parent": "hull"
@@ -280,9 +528,21 @@
         "id": "track-right",
         "name": "Track Right",
         "zone": "track",
-        "halfExtents": [0.25, 0.35, 3],
-        "position": [1.1, 0.3, 0],
-        "rotation": [0, 0, 0],
+        "halfExtents": [
+          0.2105,
+          0.62,
+          2.85
+        ],
+        "position": [
+          1.1,
+          0.615,
+          0.01
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
         "armorThickness": 20,
         "isTrack": "right",
         "parent": "hull"
