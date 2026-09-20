@@ -6,7 +6,7 @@ The September 2026 revision follows the silhouette and layout of the
 It remains a game-scale approximation rather than a dimensionally certified replica.
 
 Recognizable features include eight paired road wheels on four bogies per side,
-four return rollers, raised end wheels, five suspended hull Schurzen panels per
+four return rollers, raised end wheels, six suspended hull Schurzen panels per
 side, an open-front turret surround, a rear-center commander cupola, a horizontal
 rear muffler, and a long gun with an open two-chamber muzzle brake.
 
@@ -21,3 +21,7 @@ The seven added turret skirt collision panels use the same 5 mm thickness as the
 existing side skirts. Existing armor thickness, health, weapons, mobility and
 traverse values are preserved; moving armor surfaces necessarily changes the
 geometric hit coverage.
+
+The subsequent three-pass proportion calibration is documented in
+[the calibration record](../../../docs/references/panzer4/README.md).
+For the reusable method, see [the workflow](../../../docs/tank-proportion-calibration.md).

@@ -1,5 +1,7 @@
 # M4 Sherman 75 mm: orthographic calibration
 
+> Images, PDFs, screenshots and `*-bounds.json` are local calibration artifacts excluded from Git. A fresh clone must download or regenerate them before opening images or running bounds-based verification. See the [shared workflow](../../tank-proportion-calibration.md).
+
 This is the welded, small-hatch M4 with VVSS and a low-bustle 75 mm turret.
 The separate `sherman_a2_76` model is outside this change.
 

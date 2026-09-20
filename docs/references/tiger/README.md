@@ -1,5 +1,7 @@
 # Tiger I / H1 proportion calibration
 
+> Images, PDFs, screenshots and `*-bounds.json` are local calibration artifacts excluded from Git. A fresh clone must download or regenerate them before opening images or running bounds-based verification. See the [shared workflow](../../tank-proportion-calibration.md).
+
 Downloaded 2026-09-20:
 
 - [Drawing Database: Tiger I](https://drawingdatabase.com/tiger-i/),

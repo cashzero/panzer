@@ -6,3 +6,12 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Local tank calibration inputs and generated visual QA artifacts.
+# Keep source scripts, README files and measurement summaries in Git.
+/docs/references/*/*.png
+/docs/references/*/*.jpg
+/docs/references/*/*.jpeg
+/docs/references/*/*.gif
+/docs/references/*/*.pdf
+/docs/references/*/*-bounds.json

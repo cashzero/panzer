@@ -57,3 +57,6 @@ performance guarantee is made. Dense battles still have the existing per-part
 vehicle draw calls and AI costs. Production builds retain a large-chunk warning.
 The remaining asset-quality work is authored high-detail vehicles/buildings,
 denser world dressing, mesh LOD and distant shadows.
+## 模型比例校正
+
+戰車三視圖下載、正交疊圖、逐輪修模與碰撞面驗證，見 [戰車三視圖比例校正流程](tank-proportion-calibration.md)。

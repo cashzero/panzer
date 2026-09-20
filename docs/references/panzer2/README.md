@@ -1,5 +1,7 @@
 # Panzer II Ausf. F proportion calibration
 
+> Images, PDFs, screenshots and `*-bounds.json` are local calibration artifacts excluded from Git. A fresh clone must download or regenerate them before opening images or running bounds-based verification. See the [shared workflow](../../tank-proportion-calibration.md).
+
 Calibrated the existing F interpretation, not a conversion to Ausf. C. Baseline commit: `baf3f68e2853e2addab1e4c53e16577e743dbcc3`.
 
 ## References and limits
