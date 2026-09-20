@@ -19,3 +19,7 @@ Tread ribs follow the same closed profile as the continuous belt.
 `tank.json` mount offsets, muzzle distance, and armor plate transforms follow
 the revised geometry. Weapon, mobility, health and armor thickness values are
 unchanged. Armor boxes remain simplified approximations of the visible surfaces.
+
+## 2026-09 proportion calibration
+
+The Ausf. F model has been calibrated against matching F side/front/rear illustrations and shared C plan geometry. See [reference scope, overlays and measurements](../../../docs/references/panzer2/README.md). Two geometry iterations corrected handedness, turret/cupola proportions, wheel pitch, F idler size, driver-plate position and clearance. Armor geometry and muzzle spawn follow the updated mesh; gameplay values are unchanged.
