@@ -18,10 +18,10 @@
     "health": 250,
     "trackHealth": 150,
     "armorSummary": {
-      "front": 100,
-      "side": 50,
-      "rear": 30,
-      "turret": 120
+      "front": 51,
+      "side": 38,
+      "rear": 38,
+      "turret": 76
     }
   },
   "mounts": {
@@ -124,7 +124,7 @@
           0,
           0
         ],
-        "armorThickness": 120,
+        "armorThickness": 51,
         "parent": "hull"
       },
       {
@@ -146,7 +146,7 @@
           0,
           0
         ],
-        "armorThickness": 120,
+        "armorThickness": 51,
         "parent": "hull"
       },
       {
@@ -168,7 +168,7 @@
           0,
           0
         ],
-        "armorThickness": 80,
+        "armorThickness": 51,
         "parent": "hull"
       },
       {
@@ -190,7 +190,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -212,7 +212,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -234,7 +234,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -256,7 +256,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -278,7 +278,7 @@
           0,
           0
         ],
-        "armorThickness": 30,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -300,7 +300,7 @@
           0,
           0
         ],
-        "armorThickness": 15,
+        "armorThickness": 19,
         "parent": "hull"
       },
       {
@@ -322,7 +322,7 @@
           0,
           0
         ],
-        "armorThickness": 15,
+        "armorThickness": 19,
         "parent": "hull"
       },
       {
@@ -344,7 +344,7 @@
           0,
           0
         ],
-        "armorThickness": 120,
+        "armorThickness": 76,
         "parent": "turret"
       },
       {
@@ -366,7 +366,7 @@
           -0.7,
           0
         ],
-        "armorThickness": 140,
+        "armorThickness": 76,
         "parent": "turret"
       },
       {
@@ -388,7 +388,7 @@
           0.7,
           0
         ],
-        "armorThickness": 140,
+        "armorThickness": 76,
         "parent": "turret"
       },
       {
@@ -410,7 +410,7 @@
           0,
           0
         ],
-        "armorThickness": 60,
+        "armorThickness": 51,
         "parent": "turret"
       },
       {
@@ -432,7 +432,7 @@
           0,
           0
         ],
-        "armorThickness": 60,
+        "armorThickness": 51,
         "parent": "turret"
       },
       {
@@ -454,7 +454,7 @@
           0,
           0
         ],
-        "armorThickness": 40,
+        "armorThickness": 51,
         "parent": "turret"
       },
       {
@@ -476,29 +476,139 @@
           0,
           0
         ],
-        "armorThickness": 20,
+        "armorThickness": 25,
         "parent": "turret"
       },
       {
-        "id": "mantlet",
-        "name": "Mantlet",
+        "id": "mantlet-arc-0",
+        "name": "Mantlet Arc 1",
         "zone": "gun",
         "halfExtents": [
           0.545,
-          0.3,
-          0.185
+          0.08,
+          0.0475
         ],
         "position": [
           0,
-          0.01,
-          0.115
+          -0.221825,
+          0.128853
         ],
         "rotation": [
-          0,
+          1,
           0,
           0
         ],
-        "armorThickness": 220,
+        "armorThickness": 89,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-1",
+        "name": "Mantlet Arc 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.545,
+          0.08,
+          0.0475
+        ],
+        "position": [
+          0,
+          -0.145559,
+          0.20738
+        ],
+        "rotation": [
+          0.6,
+          0,
+          0
+        ],
+        "armorThickness": 89,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet",
+        "name": "Mantlet Arc 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.545,
+          0.08,
+          0.0475
+        ],
+        "position": [
+          0,
+          -0.044733,
+          0.250008
+        ],
+        "rotation": [
+          0.2,
+          0,
+          0
+        ],
+        "armorThickness": 89,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-3",
+        "name": "Mantlet Arc 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.545,
+          0.08,
+          0.0475
+        ],
+        "position": [
+          0,
+          0.064733,
+          0.250008
+        ],
+        "rotation": [
+          -0.2,
+          0,
+          0
+        ],
+        "armorThickness": 89,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-4",
+        "name": "Mantlet Arc 5",
+        "zone": "gun",
+        "halfExtents": [
+          0.545,
+          0.08,
+          0.0475
+        ],
+        "position": [
+          0,
+          0.165559,
+          0.20738
+        ],
+        "rotation": [
+          -0.6,
+          0,
+          0
+        ],
+        "armorThickness": 89,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-5",
+        "name": "Mantlet Arc 6",
+        "zone": "gun",
+        "halfExtents": [
+          0.545,
+          0.08,
+          0.0475
+        ],
+        "position": [
+          0,
+          0.241825,
+          0.128853
+        ],
+        "rotation": [
+          -1,
+          0,
+          0
+        ],
+        "armorThickness": 89,
         "parent": "gunGroup"
       },
       {
@@ -566,7 +676,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -588,7 +698,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -610,7 +720,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -632,7 +742,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -654,7 +764,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -676,7 +786,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -698,7 +808,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -720,7 +830,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -742,7 +852,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -764,7 +874,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -786,7 +896,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       },
       {
@@ -808,7 +918,7 @@
           0,
           0
         ],
-        "armorThickness": 50,
+        "armorThickness": 38,
         "parent": "hull"
       }
     ]
