@@ -51,6 +51,8 @@ export interface TankGeometryProps {
   color: string;
   destroyedColor: string;
   destroyed: boolean;
+  /** Draw as merged per-material batches with LOD (battlefield). Loses the named part tree. */
+  merged?: boolean;
 }
 
 export interface TankTrackProps {
@@ -58,12 +60,16 @@ export interface TankTrackProps {
   trackMat: THREE.Material;
   destroyedColor: string;
   destroyed: boolean;
+  /** Draw as merged per-material batches with LOD (battlefield). Loses the named part tree. */
+  merged?: boolean;
 }
 
 export interface TankGunProps {
   color?: string;
   destroyedColor: string;
   destroyed: boolean;
+  /** Draw as merged per-material batches with LOD (battlefield). Loses the named part tree. */
+  merged?: boolean;
 }
 
 export interface TankAmmoSpec {

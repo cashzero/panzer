@@ -15,3 +15,8 @@ coverage/
 /docs/references/*/*.gif
 /docs/references/*/*.pdf
 /docs/references/*/*-bounds.json
+
+# Generated benchmark output.
+/docs/perf/*.png
+/docs/perf/*.json
+/docs/perf/*.cpuprofile

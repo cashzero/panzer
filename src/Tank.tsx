@@ -245,18 +245,18 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
 
   return (
     <group ref={groupRef} name={`tank-${id}`} visible={visible}>
-      <HullComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} />
-      <TracksComponent isLeft={true} trackMat={leftTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.left} />
-      <TracksComponent isLeft={false} trackMat={rightTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.right} />
+      <HullComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
+      <TracksComponent isLeft={true} trackMat={leftTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.left} merged />
+      <TracksComponent isLeft={false} trackMat={rightTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.right} merged />
 
       {/* Turret Group */}
       <group ref={turretRef} position={def.turretOffset}>
-        <TurretComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} />
+        <TurretComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
 
         {/* Gun Group */}
         <group ref={gunRef} position={def.gunPivotOffset}>
           <group ref={gunBarrelRef}>
-            <GunComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} />
+            <GunComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
           </group>
         </group>
       </group>

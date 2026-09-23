@@ -107,7 +107,12 @@ function AudioSync() {
 }
 
 function SpottingSystem() {
-  useFrame(() => {
+  const elapsedMs = useRef(Infinity);
+
+  useFrame((_, delta) => {
+    elapsedMs.current += delta * 1000;
+    if (elapsedMs.current < GAME_CONFIG.ai.spottingIntervalMs) return;
+    elapsedMs.current = 0;
     const state = useGameStore.getState();
     const now = Date.now();
     const playerSideVisible = collectVisibleTargetIds(

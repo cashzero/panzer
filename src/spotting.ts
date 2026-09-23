@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { raycastTerrain } from './Terrain';
+import { getTerrainMeshHeight, raycastTerrain } from './Terrain';
 import { checkBuildingCollision, checkTreeRayCollision } from './projectilePhysics';
 import type { BuildingInstance } from './buildings';
 import type { TreeInstance } from './trees';
@@ -49,7 +49,8 @@ function getTargetSamplePoints(tank: TankData): THREE.Vector3[] {
 
 function isBlocked(ray: THREE.Ray, distance: number, trees: TreeInstance[], buildings: BuildingInstance[]): LosBlocker {
   const margin = 0.25;
-  const terrainHit = raycastTerrain(ray.origin, ray.direction, distance);
+  // Test against the rendered surface: what a crew can actually see over.
+  const terrainHit = raycastTerrain(ray.origin, ray.direction, distance, getTerrainMeshHeight);
   if (terrainHit && ray.origin.distanceTo(terrainHit) < distance - margin) {
     return 'terrain';
   }

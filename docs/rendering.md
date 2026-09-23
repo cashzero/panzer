@@ -53,10 +53,34 @@ In development only, the battlefield canvas exposes `data-render-fps` and
 sample from this browser and scene, not a GPU benchmark or a guaranteed frame rate.
 
 The pipeline is capped at the existing 1.5 device pixel ratio. No cross-device
-performance guarantee is made. Dense battles still have the existing per-part
-vehicle draw calls and AI costs. Production builds retain a large-chunk warning.
+performance guarantee is made. Production builds retain a large-chunk warning.
 The remaining asset-quality work is authored high-detail vehicles/buildings,
-denser world dressing, mesh LOD and distant shadows.
+denser world dressing and distant shadows.
+
+## Draw-call budget
+
+- `src/tanks/core/MergedSlot.tsx`: in the battlefield (`merged` prop from
+  `Tank.tsx`), each tank slot renders its authored part tree into a detached
+  group, then draws one mesh per material class. Paint variation moves into
+  vertex colours; classes share one material across all tanks. Textured track
+  materials stay per tank so their scroll animation keeps working. Rebuilds
+  happen only when colour, destroyed or track-damage state changes.
+- Far LOD: parts with a bounding radius under 0.12 m are dropped beyond 160 m
+  (140 m to return), measured after normalising by the camera FOV so a zoomed
+  gunner sight keeps full detail. The far LOD casts no shadow.
+- Object-space armour weathering now samples slot space, so the mottling
+  pattern differs from the unmerged editor preview while keeping the same scale.
+- `BuildingRenderer.tsx` bakes every building part into world space, one batch
+  per material. `src/rendering/staticMerge.ts` holds the shared merge helper,
+  including winding correction for mirrored parts.
+- Line of sight and ground cover read `getTerrainMeshHeight`: the cached vertex
+  grid of the rendered terrain interpolated with PlaneGeometry's triangle split.
+  Physics, projectiles and aiming keep the exact procedural height.
+
+Measure with `docs/perf/bench.mjs` (see `docs/perf/README.md`). On a GTX 1050 Ti
+at 1600x900 the battlefield went from about 3,200 to about 250 draw calls per
+frame and from 14-31 to 60 FPS (vsync). At 1920x1080 the remaining cost is GPU
+post-processing: 51-59 FPS with occasional 33 ms frames.
 ## 模型比例校正
 
 戰車三視圖下載、正交疊圖、逐輪修模與碰撞面驗證，見 [戰車三視圖比例校正流程](tank-proportion-calibration.md)。

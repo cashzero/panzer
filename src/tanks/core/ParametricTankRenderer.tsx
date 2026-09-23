@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import * as THREE from 'three';
 import { armorWeathering } from '../../rendering/surfaceWeathering';
 import { getTankModelHelper, type ModelHelperRenderContext } from './helpers';
+import { MergedSlot } from './MergedSlot';
 import type {
   ExtrudeNode,
   ExtrudeShapeDefinition,
@@ -241,21 +242,33 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
 }
 
 export function createParametricRenderer(model: TankModelSpec): TankRenderer {
-  const HullComponent: TankRenderer['HullComponent'] = (props) => (
-    <SlotRenderer slot="hull" nodes={model.slots.hull} geoProps={props} />
-  );
+  const HullComponent: TankRenderer['HullComponent'] = (props) => {
+    const slot = <SlotRenderer slot="hull" nodes={model.slots.hull} geoProps={props} />;
+    return props.merged
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      : slot;
+  };
 
-  const TracksComponent: TankRenderer['TracksComponent'] = (props) => (
-    <SlotRenderer slot="tracks" nodes={props.isLeft ? model.slots.tracksLeft : model.slots.tracksRight} trackProps={props} />
-  );
+  const TracksComponent: TankRenderer['TracksComponent'] = (props) => {
+    const slot = <SlotRenderer slot="tracks" nodes={props.isLeft ? model.slots.tracksLeft : model.slots.tracksRight} trackProps={props} />;
+    return props.merged
+      ? <MergedSlot rebuildKey={[props.isLeft, props.trackMat, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      : slot;
+  };
 
-  const TurretComponent: TankRenderer['TurretComponent'] = (props) => (
-    <SlotRenderer slot="turret" nodes={model.slots.turret} geoProps={props} />
-  );
+  const TurretComponent: TankRenderer['TurretComponent'] = (props) => {
+    const slot = <SlotRenderer slot="turret" nodes={model.slots.turret} geoProps={props} />;
+    return props.merged
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      : slot;
+  };
 
-  const GunComponent: TankRenderer['GunComponent'] = (props) => (
-    <SlotRenderer slot="gun" nodes={model.slots.gun} gunProps={props} />
-  );
+  const GunComponent: TankRenderer['GunComponent'] = (props) => {
+    const slot = <SlotRenderer slot="gun" nodes={model.slots.gun} gunProps={props} />;
+    return props.merged
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      : slot;
+  };
 
   return {
     HullComponent,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { masonryWeathering } from './rendering/surfaceWeathering';
+import { mergeStaticEntries, type MergeEntry } from './rendering/staticMerge';
 import { useGameStore } from './store';
 import type { BuildingInstance } from './buildings';
 
@@ -224,55 +225,73 @@ function createRenderPlan(building: BuildingInstance): BuildingRenderPlan {
   };
 }
 
+interface MaterialBatch {
+  material: THREE.Material;
+  geometry: THREE.BufferGeometry;
+}
+
+/** Buildings never move: bake every part into world space, one batch per material. */
+function createBatches(plans: BuildingRenderPlan[]): MaterialBatch[] {
+  const entries = new Map<THREE.Material, MergeEntry[]>();
+  const temporary: THREE.BufferGeometry[] = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const add = (material: THREE.Material, geometry: THREE.BufferGeometry, matrix: THREE.Matrix4) => {
+    const list = entries.get(material) ?? [];
+    list.push({ geometry, matrix });
+    entries.set(material, list);
+  };
+  for (const { building, bodyMaterial, roofMaterial, roofGeometry, details } of plans) {
+    const root = new THREE.Matrix4().compose(
+      new THREE.Vector3(...building.position),
+      new THREE.Quaternion().setFromAxisAngle(up, building.rotation),
+      new THREE.Vector3(1, 1, 1),
+    );
+    const body = new THREE.BoxGeometry(building.width, building.height, building.depth);
+    temporary.push(body);
+    add(bodyMaterial, body, root.clone().multiply(new THREE.Matrix4().makeTranslation(0, building.height * 0.5, 0)));
+    add(roofMaterial, roofGeometry, root.clone().multiply(new THREE.Matrix4().makeTranslation(0, building.height, 0)));
+    for (const detail of details) {
+      const box = new THREE.BoxGeometry(...detail.size);
+      temporary.push(box);
+      const local = new THREE.Matrix4().compose(
+        new THREE.Vector3(...detail.position),
+        new THREE.Quaternion().setFromEuler(new THREE.Euler(...(detail.rotation ?? [0, 0, 0]))),
+        new THREE.Vector3(1, 1, 1),
+      );
+      add(detail.material, box, root.clone().multiply(local));
+    }
+  }
+  const batches: MaterialBatch[] = [];
+  for (const [material, list] of entries) {
+    const geometry = mergeStaticEntries(list, false);
+    if (geometry) batches.push({ material, geometry });
+  }
+  temporary.forEach((geometry) => geometry.dispose());
+  for (const plan of plans) plan.roofGeometry.dispose();
+  return batches;
+}
+
 export function Buildings({ clickThrough = false }: { clickThrough?: boolean }) {
   const buildings = useGameStore((state) => state.buildings);
-  const rendered = useMemo(() => buildings.map(createRenderPlan), [buildings]);
+  const batches = useMemo(() => createBatches(buildings.map(createRenderPlan)), [buildings]);
 
   useEffect(() => () => {
-    for (const entry of rendered) entry.roofGeometry.dispose();
-  }, [rendered]);
+    for (const batch of batches) batch.geometry.dispose();
+  }, [batches]);
 
-  if (rendered.length === 0) return null;
+  if (batches.length === 0) return null;
 
   return (
     <group>
-      {rendered.map(({ building, bodyMaterial, roofMaterial, roofGeometry, details }) => (
-        <group
-          key={building.id}
-          position={[building.position[0], building.position[1], building.position[2]]}
-          rotation={[0, building.rotation, 0]}
-        >
-          <mesh
-            castShadow
-            receiveShadow
-            position={[0, building.height * 0.5, 0]}
-            material={bodyMaterial}
-            raycast={clickThrough ? () => null : undefined}
-          >
-            <boxGeometry args={[building.width, building.height, building.depth]} />
-          </mesh>
-          <mesh
-            castShadow
-            receiveShadow
-            geometry={roofGeometry}
-            position={[0, building.height, 0]}
-            material={roofMaterial}
-            raycast={clickThrough ? () => null : undefined}
-          />
-          {details.map((detail, index) => (
-            <mesh
-              key={`${building.id}-detail-${index}`}
-              castShadow
-              receiveShadow
-              position={detail.position}
-              rotation={detail.rotation}
-              material={detail.material}
-              raycast={clickThrough ? () => null : undefined}
-            >
-              <boxGeometry args={detail.size} />
-            </mesh>
-          ))}
-        </group>
+      {batches.map(({ material, geometry }) => (
+        <mesh
+          key={material.uuid}
+          castShadow
+          receiveShadow
+          geometry={geometry}
+          material={material}
+          raycast={clickThrough ? () => null : undefined}
+        />
       ))}
     </group>
   );

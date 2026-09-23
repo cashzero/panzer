@@ -61,6 +61,8 @@ export const GAME_CONFIG = {
     spottingRange: 900,
     spottingRevealDelayMs: 350,
     spottingPersistenceMs: 1800,
+    // Line-of-sight sweeps run at this cadence rather than every rendered frame.
+    spottingIntervalMs: 100,
     moveArrivalDistance: 5,
     obstacleAvoidance: {
       lookAheadDistance: 22,

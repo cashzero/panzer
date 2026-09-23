@@ -218,6 +218,7 @@ Important conventions:
 - Keep turret and gun geometry centered on their own local origins; placement comes from `mounts` in `tank.json`.
 - The renderer automatically applies `castShadow` and `receiveShadow`.
 - Destroyed-state coloring is handled by `ParametricTankRenderer`; use material roles instead of hardcoded mesh materials.
+- The battlefield merges each slot into one mesh per material class and drops parts under 0.12 m radius at long range. Node names and per-part meshes exist only in the tank select screen, editor and calibration pages; do not rely on them for gameplay. Check a new or edited tank in `docs/perf/merge-qa.html?tank=<tankid>`.
 
 ### 6. Prefer helpers when they match the shape
 

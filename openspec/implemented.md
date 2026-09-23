@@ -73,6 +73,10 @@ Completed roadmap items are documented here.
 - Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry.
 - Particle rendering is pooled into a fixed set of shared `Points` and `InstancedMesh` batches instead of one draw call per effect. Tracers and crater decals each render as a single instanced draw.
+- Battlefield tanks draw each slot (hull, both tracks, turret, gun) as one merged mesh per material class, with paint variation baked into vertex colours and materials shared across every tank. Parts under 0.12 m drop out beyond an FOV-normalised 160 m, so zoomed sights keep full detail. The tank select screen, editor and calibration pages still render the named part tree.
+- Buildings are baked into one world-space batch per material.
+- Line-of-sight spotting runs every `GAME_CONFIG.ai.spottingIntervalMs` (100 ms) against a cached copy of the rendered terrain mesh, which the terrain mesh and ground cover also read.
+- `docs/perf/bench.mjs` measures battlefield FPS, p95 frame time, draw calls and triangles across fixed scenarios; `docs/perf/merge-qa.html` diffs merged against authored tanks.
 
 ### Layered terrain surfaces
 - Grass, dry soil and gravel use local CC0 albedo/normal maps and MIT stochastic hex tiling.
