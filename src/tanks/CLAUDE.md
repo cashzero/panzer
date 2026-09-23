@@ -165,6 +165,11 @@ Recommended minimum coverage:
 
 Keep hitboxes close to the rendered geometry. These plates drive penetration, ricochet, and selection-screen armor inspection.
 
+Collision details that affect plate layout:
+- The smallest half-extent is the thickness axis, and only hits on that pair of faces count. Face detection tests local X, then Y, then Z within 10 mm, so hits within 10 mm of the edges of any axis tested before the thickness axis are rejected. Putting the thickness on X (`[thickness/2, width/2, height/2]`) avoids that dead band; segmented plates still need a small overlap at seams.
+- Plate `name` values must be unique: the tank select screen uses them as React keys for its armor inspection meshes.
+- `src/tanks/m10/armor.test.ts` shows how to compare armor hit distances with surfaces rebuilt from `model.json`, which catches boxes floating outside the model or leaving gaps.
+
 ### 5. Build `model.json`
 
 `model.json` must match `TankModelSpec`:

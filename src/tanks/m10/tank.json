@@ -1,0 +1,2150 @@
+{
+  "schemaVersion": 1,
+  "id": "m10",
+  "renderMode": "parametric",
+  "catalog": {
+    "sortOrder": 7
+  },
+  "meta": {
+    "displayName": "M10 GMC",
+    "description": "Open-topped 3-inch gun motor carriage on the diesel M4A2 chassis. Its long M7 gun hits as hard as the 76 mm Sherman, but thin sloped armour and an open turret with slow hand traverse leave the crew exposed. Late production with the duckbill counterweight.",
+    "nationality": "USA",
+    "year": 1943
+  },
+  "appearance": {
+    "baseColor": "#4a5d23"
+  },
+  "durability": {
+    "health": 240,
+    "trackHealth": 150,
+    "armorSummary": {
+      "front": 38,
+      "side": 19,
+      "rear": 19,
+      "turret": 57
+    }
+  },
+  "mounts": {
+    "turretOffset": [
+      0,
+      1.8,
+      0.196
+    ],
+    "gunPivotOffset": [
+      0,
+      0.392,
+      1.184
+    ],
+    "muzzleDistance": 2.51,
+    "broadPhaseRadius": 5
+  },
+  "mobility": {
+    "horsepower": 375,
+    "weight": 29.6,
+    "maxSpeed": 11,
+    "maxReverseSpeed": 2,
+    "acceleration": 4.45,
+    "deceleration": 9,
+    "trackWidth": 2.529,
+    "turnRateLimit": 0.54,
+    "rotationalInertia": 2.7
+  },
+  "traverse": {
+    "turretSpeed": 0.078,
+    "gunSpeed": 0.1,
+    "maxElevationDeg": 30,
+    "maxDepressionDeg": 10
+  },
+  "weapons": {
+    "caliber": 76,
+    "reloadTime": 5000,
+    "ammo": {
+      "AP": {
+        "penetration": 109,
+        "velocity": 792,
+        "damage": 380,
+        "drop": 0.08,
+        "dispersion": 0.0015,
+        "historicalPenetration": {
+          "standard": "RHA_30deg",
+          "points": [
+            {
+              "distance": 100,
+              "penetration": 109
+            },
+            {
+              "distance": 500,
+              "penetration": 100
+            },
+            {
+              "distance": 1000,
+              "penetration": 88
+            },
+            {
+              "distance": 1500,
+              "penetration": 77
+            }
+          ]
+        }
+      },
+      "APC": {
+        "penetration": 109,
+        "velocity": 792,
+        "damage": 480,
+        "drop": 0.08,
+        "dispersion": 0.0015
+      },
+      "HE": {
+        "penetration": 25,
+        "velocity": 853,
+        "damage": 480,
+        "drop": 0.22,
+        "dispersion": 0.002
+      }
+    }
+  },
+  "armorModel": {
+    "plates": [
+      {
+        "id": "hull-glacis-upper",
+        "name": "Glacis (upper)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.187938,
+          0.145143
+        ],
+        "position": [
+          0,
+          1.697091,
+          1.770761
+        ],
+        "rotation": [
+          -2.564866,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-glacis-middle",
+        "name": "Glacis (middle)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.313813,
+          0.145143
+        ],
+        "position": [
+          0,
+          1.538802,
+          2.014094
+        ],
+        "rotation": [
+          -2.564866,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-glacis-lower",
+        "name": "Glacis (lower)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.439689,
+          0.145143
+        ],
+        "position": [
+          0,
+          1.380514,
+          2.257428
+        ],
+        "rotation": [
+          -2.564866,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-front-vertical",
+        "name": "Hull Front Plate",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.83,
+          0.059067
+        ],
+        "position": [
+          0,
+          1.259068,
+          2.37
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-sponson-front-left",
+        "name": "Sponson Front left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.3475,
+          0.106567
+        ],
+        "position": [
+          -1.1775,
+          1.211568,
+          2.37
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-sponson-front-right",
+        "name": "Sponson Front right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.3475,
+          0.106567
+        ],
+        "position": [
+          1.1775,
+          1.211568,
+          2.37
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 38,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-differential-lower",
+        "name": "Differential Housing (lower)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.785,
+          0.16225
+        ],
+        "position": [
+          0,
+          0.636094,
+          2.793359
+        ],
+        "rotation": [
+          -0.982794,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 51,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-differential-nose-lower",
+        "name": "Differential Housing (nose-lower)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.785,
+          0.140801
+        ],
+        "position": [
+          0,
+          0.902131,
+          2.895114
+        ],
+        "rotation": [
+          -1.464061,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 51,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-differential-nose-upper",
+        "name": "Differential Housing (nose-upper)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.785,
+          0.091924
+        ],
+        "position": [
+          0,
+          1.117385,
+          2.876506
+        ],
+        "rotation": [
+          -1.961403,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 51,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-differential-upper",
+        "name": "Differential Housing (upper)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.785,
+          0.09434
+        ],
+        "position": [
+          0,
+          1.24304,
+          2.7694
+        ],
+        "rotation": [
+          -2.582993,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 51,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-differential-top",
+        "name": "Differential Housing (top)",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.785,
+          0.16
+        ],
+        "position": [
+          0,
+          1.29,
+          2.54
+        ],
+        "rotation": [
+          -3.141593,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 51,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-0",
+        "name": "Upper Side left 0",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.055373
+        ],
+        "position": [
+          -1.474881,
+          1.320892,
+          2.3
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-1",
+        "name": "Upper Side left 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.130173
+        ],
+        "position": [
+          -1.428324,
+          1.379437,
+          2.12
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-2",
+        "name": "Upper Side left 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.204973
+        ],
+        "position": [
+          -1.381768,
+          1.437982,
+          1.94
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-3",
+        "name": "Upper Side left 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.095,
+          0.281851
+        ],
+        "position": [
+          -1.333918,
+          1.498153,
+          1.755
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-4",
+        "name": "Upper Side left 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.73,
+          0.321329
+        ],
+        "position": [
+          -1.309346,
+          1.529052,
+          0.93
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-5",
+        "name": "Upper Side left 5",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.725,
+          0.321329
+        ],
+        "position": [
+          -1.309346,
+          1.529052,
+          -0.525
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-6",
+        "name": "Upper Side left 6",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.7,
+          0.321329
+        ],
+        "position": [
+          -1.309346,
+          1.529052,
+          -1.95
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-7",
+        "name": "Upper Side left 7",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.075,
+          0.237939
+        ],
+        "position": [
+          -1.361249,
+          1.463784,
+          -2.725
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-left-8",
+        "name": "Upper Side left 8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.0695,
+          0.077275
+        ],
+        "position": [
+          -1.461249,
+          1.338034,
+          -2.8695
+        ],
+        "rotation": [
+          1.570796,
+          -0.671825,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-strip-left",
+        "name": "Sponson Strip left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.653014,
+          0.05
+        ],
+        "position": [
+          -1.505,
+          1.24,
+          -0.263014
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-sponson-lip-left",
+        "name": "Sponson Lip left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.631764,
+          0.075581
+        ],
+        "position": [
+          -1.451254,
+          1.164039,
+          -0.241764
+        ],
+        "rotation": [
+          1.570796,
+          0.97362,
+          -3.141593
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-0",
+        "name": "Upper Side right 0",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.055373
+        ],
+        "position": [
+          1.474881,
+          1.320892,
+          2.3
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-1",
+        "name": "Upper Side right 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.130173
+        ],
+        "position": [
+          1.428324,
+          1.379437,
+          2.12
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-2",
+        "name": "Upper Side right 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.09,
+          0.204973
+        ],
+        "position": [
+          1.381768,
+          1.437982,
+          1.94
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-3",
+        "name": "Upper Side right 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.095,
+          0.281851
+        ],
+        "position": [
+          1.333918,
+          1.498153,
+          1.755
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-4",
+        "name": "Upper Side right 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.73,
+          0.321329
+        ],
+        "position": [
+          1.309346,
+          1.529052,
+          0.93
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-5",
+        "name": "Upper Side right 5",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.725,
+          0.321329
+        ],
+        "position": [
+          1.309346,
+          1.529052,
+          -0.525
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-6",
+        "name": "Upper Side right 6",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.7,
+          0.321329
+        ],
+        "position": [
+          1.309346,
+          1.529052,
+          -1.95
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-7",
+        "name": "Upper Side right 7",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.075,
+          0.237939
+        ],
+        "position": [
+          1.361249,
+          1.463784,
+          -2.725
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-right-8",
+        "name": "Upper Side right 8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.0695,
+          0.077275
+        ],
+        "position": [
+          1.461249,
+          1.338034,
+          -2.8695
+        ],
+        "rotation": [
+          -1.570796,
+          -0.671825,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-side-strip-right",
+        "name": "Sponson Strip right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.653014,
+          0.05
+        ],
+        "position": [
+          1.505,
+          1.24,
+          -0.263014
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-sponson-lip-right",
+        "name": "Sponson Lip right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.631764,
+          0.075581
+        ],
+        "position": [
+          1.451254,
+          1.164039,
+          -0.241764
+        ],
+        "rotation": [
+          -1.570796,
+          0.97362,
+          0
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-roof",
+        "name": "Hull Roof",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.125,
+          2.155
+        ],
+        "position": [
+          0,
+          1.773,
+          -0.495
+        ],
+        "rotation": [
+          -3.141593,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 13,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-upper",
+        "name": "Upper Rear Plate",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.125,
+          0.290056
+        ],
+        "position": [
+          0,
+          1.531536,
+          -2.777159
+        ],
+        "rotation": [
+          2.092294,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-corner-left",
+        "name": "Rear Corner left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.165905,
+          0.098896
+        ],
+        "position": [
+          -1.290905,
+          1.365786,
+          -2.872391
+        ],
+        "rotation": [
+          -1.049298,
+          0,
+          1.570796
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-corner-right",
+        "name": "Rear Corner right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.165905,
+          0.098896
+        ],
+        "position": [
+          1.290905,
+          1.365786,
+          -2.872391
+        ],
+        "rotation": [
+          2.092294,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-sponson-lower",
+        "name": "Rear Sponson Lower",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.525,
+          0.101796
+        ],
+        "position": [
+          0,
+          1.20585,
+          -2.878326
+        ],
+        "rotation": [
+          1.140104,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 19,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-lower",
+        "name": "Lower Hull Rear",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.83,
+          0.386167
+        ],
+        "position": [
+          0,
+          0.816554,
+          -2.71006
+        ],
+        "rotation": [
+          1.493031,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-0",
+        "name": "Left Track 1",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.289115,
+          0.134749
+        ],
+        "position": [
+          -1.2445,
+          0.750233,
+          -2.63224
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-1",
+        "name": "Left Track 2",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.410631,
+          0.134749
+        ],
+        "position": [
+          -1.2445,
+          0.717772,
+          -2.362743
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-2",
+        "name": "Left Track 3",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.484267,
+          0.134749
+        ],
+        "position": [
+          -1.2445,
+          0.647781,
+          -2.093246
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-3",
+        "name": "Left Track 4",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.555455,
+          0.134749
+        ],
+        "position": [
+          -1.2445,
+          0.580238,
+          -1.823749
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-4",
+        "name": "Left Track 5",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.569096,
+          1.885
+        ],
+        "position": [
+          -1.2445,
+          0.569096,
+          0.196
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-5",
+        "name": "Left Track 6",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.580975,
+          0.143465
+        ],
+        "position": [
+          -1.2445,
+          0.609468,
+          2.224465
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-6",
+        "name": "Left Track 7",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.469335,
+          0.143465
+        ],
+        "position": [
+          -1.2445,
+          0.724988,
+          2.511395
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-7",
+        "name": "Left Track 8",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.297174,
+          0.143465
+        ],
+        "position": [
+          -1.2445,
+          0.816165,
+          2.798324
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-0",
+        "name": "Right Track 1",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.289115,
+          0.134749
+        ],
+        "position": [
+          1.2445,
+          0.750233,
+          -2.63224
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-1",
+        "name": "Right Track 2",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.410631,
+          0.134749
+        ],
+        "position": [
+          1.2445,
+          0.717772,
+          -2.362743
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-2",
+        "name": "Right Track 3",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.484267,
+          0.134749
+        ],
+        "position": [
+          1.2445,
+          0.647781,
+          -2.093246
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-3",
+        "name": "Right Track 4",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.555455,
+          0.134749
+        ],
+        "position": [
+          1.2445,
+          0.580238,
+          -1.823749
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-4",
+        "name": "Right Track 5",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.569096,
+          1.885
+        ],
+        "position": [
+          1.2445,
+          0.569096,
+          0.196
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-5",
+        "name": "Right Track 6",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.580975,
+          0.143465
+        ],
+        "position": [
+          1.2445,
+          0.609468,
+          2.224465
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-6",
+        "name": "Right Track 7",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.469335,
+          0.143465
+        ],
+        "position": [
+          1.2445,
+          0.724988,
+          2.511395
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-7",
+        "name": "Right Track 8",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.297174,
+          0.143465
+        ],
+        "position": [
+          1.2445,
+          0.816165,
+          2.798324
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "turret-front-cheek-right-lower",
+        "name": "Turret front cheek right (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.224016,
+          0.176096
+        ],
+        "position": [
+          0.621602,
+          0.239691,
+          0.941804
+        ],
+        "rotation": [
+          -1.558347,
+          0.03225,
+          -0.368491
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-cheek-right-upper",
+        "name": "Turret front cheek right (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.244675,
+          0.169486
+        ],
+        "position": [
+          0.542542,
+          0.524952,
+          0.957291
+        ],
+        "rotation": [
+          -1.43084,
+          -0.564134,
+          -0.151282
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-lower-0",
+        "name": "Turret front side right (lower 1/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176017
+        ],
+        "position": [
+          0.768024,
+          0.238711,
+          0.56343
+        ],
+        "rotation": [
+          -1.576035,
+          -0.013494,
+          -0.370312
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-lower-1",
+        "name": "Turret front side right (lower 2/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176297
+        ],
+        "position": [
+          0.91039,
+          0.237786,
+          0.196776
+        ],
+        "rotation": [
+          -1.592794,
+          -0.056603,
+          -0.3709
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-lower-2",
+        "name": "Turret front side right (lower 3/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176921
+        ],
+        "position": [
+          1.052795,
+          0.23687,
+          -0.169863
+        ],
+        "rotation": [
+          -1.609541,
+          -0.099455,
+          -0.372205
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-upper-0",
+        "name": "Turret front side right (upper 1/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.241634
+        ],
+        "position": [
+          0.644293,
+          0.573447,
+          0.524662
+        ],
+        "rotation": [
+          -1.794741,
+          -0.578653,
+          -0.394622
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-upper-1",
+        "name": "Turret front side right (upper 2/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.247049
+        ],
+        "position": [
+          0.787154,
+          0.572927,
+          0.105618
+        ],
+        "rotation": [
+          -1.809848,
+          -0.608372,
+          -0.403072
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-right-upper-2",
+        "name": "Turret front side right (upper 3/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.252695
+        ],
+        "position": [
+          0.930012,
+          0.572442,
+          -0.313427
+        ],
+        "rotation": [
+          -1.824845,
+          -0.636604,
+          -0.411817
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-rear-side-right-lower",
+        "name": "Turret rear side right (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.295,
+          0.177565
+        ],
+        "position": [
+          1.122692,
+          0.236232,
+          -0.626
+        ],
+        "rotation": [
+          -1.570796,
+          -0.138852,
+          0
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-rear-side-right-upper",
+        "name": "Turret rear side right (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.18259,
+          0.22896
+        ],
+        "position": [
+          0.993216,
+          0.574952,
+          -0.684932
+        ],
+        "rotation": [
+          -1.551731,
+          -0.526032,
+          0.037958
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-right-lower-0",
+        "name": "Turret counterweight right (lower 1/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.331297,
+          0.176
+        ],
+        "position": [
+          0.848283,
+          0.239039,
+          -1.023814
+        ],
+        "rotation": [
+          -1.572556,
+          0.000837,
+          1.126769
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-right-lower-1",
+        "name": "Turret counterweight right (lower 2/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.331297,
+          0.177271
+        ],
+        "position": [
+          0.277101,
+          0.241499,
+          -1.295706
+        ],
+        "rotation": [
+          -1.684014,
+          0.053692,
+          1.129811
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-right-upper-0",
+        "name": "Turret counterweight right (upper 1/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.292846,
+          0.229178
+        ],
+        "position": [
+          0.746374,
+          0.574922,
+          -0.956003
+        ],
+        "rotation": [
+          -1.085372,
+          -0.216829,
+          1.183568
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-right-upper-1",
+        "name": "Turret counterweight right (upper 2/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.292846,
+          0.240946
+        ],
+        "position": [
+          0.244259,
+          0.573518,
+          -1.194067
+        ],
+        "rotation": [
+          -1.00571,
+          -0.247636,
+          1.201914
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-left-lower-0",
+        "name": "Turret counterweight left (lower 1/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.331297,
+          0.177271
+        ],
+        "position": [
+          -0.277101,
+          0.241499,
+          -1.295706
+        ],
+        "rotation": [
+          -1.684014,
+          -0.053692,
+          2.011781
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-left-lower-1",
+        "name": "Turret counterweight left (lower 2/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.331297,
+          0.176
+        ],
+        "position": [
+          -0.848283,
+          0.239039,
+          -1.023814
+        ],
+        "rotation": [
+          -1.572556,
+          -0.000837,
+          2.014824
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-left-upper-0",
+        "name": "Turret counterweight left (upper 1/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.292846,
+          0.240946
+        ],
+        "position": [
+          -0.244259,
+          0.573518,
+          -1.194067
+        ],
+        "rotation": [
+          -1.00571,
+          0.247636,
+          1.939679
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-left-upper-1",
+        "name": "Turret counterweight left (upper 2/2)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.292846,
+          0.229178
+        ],
+        "position": [
+          -0.746374,
+          0.574922,
+          -0.956003
+        ],
+        "rotation": [
+          -1.085372,
+          0.216829,
+          1.958024
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-rear-side-left-lower",
+        "name": "Turret rear side left (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.295,
+          0.177565
+        ],
+        "position": [
+          -1.122692,
+          0.236232,
+          -0.626
+        ],
+        "rotation": [
+          -1.570796,
+          0.138852,
+          -3.141593
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-rear-side-left-upper",
+        "name": "Turret rear side left (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.18259,
+          0.22896
+        ],
+        "position": [
+          -0.993216,
+          0.574952,
+          -0.684932
+        ],
+        "rotation": [
+          -1.551731,
+          0.526032,
+          3.103635
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-lower-0",
+        "name": "Turret front side left (lower 1/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176921
+        ],
+        "position": [
+          -1.052795,
+          0.23687,
+          -0.169863
+        ],
+        "rotation": [
+          -1.609541,
+          0.099455,
+          -2.769387
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-lower-1",
+        "name": "Turret front side left (lower 2/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176297
+        ],
+        "position": [
+          -0.91039,
+          0.237786,
+          0.196776
+        ],
+        "rotation": [
+          -1.592794,
+          0.056603,
+          -2.770693
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-lower-2",
+        "name": "Turret front side left (lower 3/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.211662,
+          0.176017
+        ],
+        "position": [
+          -0.768024,
+          0.238711,
+          0.56343
+        ],
+        "rotation": [
+          -1.576035,
+          0.013494,
+          -2.77128
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-upper-0",
+        "name": "Turret front side left (upper 1/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.252695
+        ],
+        "position": [
+          -0.930012,
+          0.572442,
+          -0.313427
+        ],
+        "rotation": [
+          -1.824845,
+          0.636604,
+          -2.729776
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-upper-1",
+        "name": "Turret front side left (upper 2/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.247049
+        ],
+        "position": [
+          -0.787154,
+          0.572927,
+          0.105618
+        ],
+        "rotation": [
+          -1.809848,
+          0.608372,
+          -2.738521
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-side-left-upper-2",
+        "name": "Turret front side left (upper 3/3)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.236363,
+          0.241634
+        ],
+        "position": [
+          -0.644293,
+          0.573447,
+          0.524662
+        ],
+        "rotation": [
+          -1.794741,
+          0.578653,
+          -2.746971
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-cheek-left-lower",
+        "name": "Turret front cheek left (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.224016,
+          0.176096
+        ],
+        "position": [
+          -0.621602,
+          0.239691,
+          0.941804
+        ],
+        "rotation": [
+          -1.558347,
+          -0.03225,
+          -2.773102
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-cheek-left-upper",
+        "name": "Turret front cheek left (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.244675,
+          0.169486
+        ],
+        "position": [
+          -0.542542,
+          0.524952,
+          0.957291
+        ],
+        "rotation": [
+          -1.43084,
+          0.564134,
+          -2.990311
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-plate-lower",
+        "name": "Turret front plate (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.58,
+          0.180895
+        ],
+        "position": [
+          0,
+          0.243822,
+          1.12459
+        ],
+        "rotation": [
+          -1.32728,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-front-plate-upper",
+        "name": "Turret front plate (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.545,
+          0.1
+        ],
+        "position": [
+          0,
+          0.485,
+          1.164
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-ridge-lower",
+        "name": "Turret counterweight ridge (lower)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.085,
+          0.179448
+        ],
+        "position": [
+          0,
+          0.243074,
+          -1.429919
+        ],
+        "rotation": [
+          1.365649,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "turret-counterweight-ridge-upper",
+        "name": "Turret counterweight ridge (upper)",
+        "zone": "turret",
+        "halfExtents": [
+          0.02,
+          0.085,
+          0.256672
+        ],
+        "position": [
+          0,
+          0.572131,
+          -1.31219
+        ],
+        "rotation": [
+          2.269773,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "turret"
+      },
+      {
+        "id": "gun-shield-front",
+        "name": "Gun Shield Face",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.33,
+          0.167
+        ],
+        "position": [
+          0,
+          -0.019,
+          0.24
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 57,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "gun-shield-top",
+        "name": "Gun Shield Top",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.4575,
+          0.1772
+        ],
+        "position": [
+          0,
+          0.178813,
+          0.084357
+        ],
+        "rotation": [
+          -2.855541,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 57,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "gun-shield-bottom",
+        "name": "Gun Shield Bottom",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.4575,
+          0.193776
+        ],
+        "position": [
+          0,
+          -0.261454,
+          0.080401
+        ],
+        "rotation": [
+          -0.500582,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 57,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "gun-shield-pos-x",
+        "name": "Gun Shield Side (+X)",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.2385,
+          0.2125
+        ],
+        "position": [
+          0.4415,
+          -0.0405,
+          0.078
+        ],
+        "rotation": [
+          0,
+          -0.643501,
+          0
+        ],
+        "armorThickness": 57,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "gun-shield-neg-x",
+        "name": "Gun Shield Side (-X)",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.2385,
+          0.2125
+        ],
+        "position": [
+          -0.4415,
+          -0.0405,
+          0.078
+        ],
+        "rotation": [
+          -3.141593,
+          -0.643501,
+          -3.141593
+        ],
+        "armorThickness": 57,
+        "parent": "gunGroup"
+      }
+    ]
+  }
+}

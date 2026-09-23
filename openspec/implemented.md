@@ -16,7 +16,7 @@ Completed roadmap items are documented here.
 
 ## Vehicles, Weapons, And Combat
 
-- Seven selectable tank types are currently registered with per-tank armor and weapon data: Sherman, Sherman A2 (76), Tiger I, Panzer III, Panzer IV, Panzer II, and T-34.
+- Eight selectable tank types are currently registered with per-tank armor and weapon data: Sherman, Sherman A2 (76), Tiger I, Panzer III, Panzer IV, Panzer II, T-34, and the M10 GMC tank destroyer, whose open-topped turret has no roof plate, so plunging hits reach its walls or hull roof.
 - Tank hulls are scaled to more realistic proportions relative to their turrets.
 - Ammo cycling with `R` supports AP by default plus APC and-or HE when the selected tank carries them.
 - Automatic weapons support magazine-based rapid fire for autocannon-equipped vehicles.

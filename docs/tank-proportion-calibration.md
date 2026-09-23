@@ -1,6 +1,6 @@
 # 戰車三視圖比例校正流程
 
-這份文件記錄 Tiger I、Sherman、Panzer II 與 Panzer IV 使用的流程：下載對應型號的參考圖，以正式遊戲 renderer 產生正交視圖，在固定相機與比例尺下反覆疊圖、修改模型，最後核對碰撞面與遊戲數值。
+這份文件記錄 Tiger I、Sherman、Panzer II、Panzer IV 與 M10 GMC 使用的流程：下載對應型號的參考圖，以正式遊戲 renderer 產生正交視圖，在固定相機與比例尺下反覆疊圖、修改模型，最後核對碰撞面與遊戲數值。
 
 成果是符合參考資料精度的遊戲模型。掃描圖、模型塗裝圖與簡化幾何都有誤差，不能把疊圖吻合視為製造尺寸認證。
 
@@ -19,6 +19,8 @@
 預設保留武器、機動、血量、砲塔轉速、俯仰限制與原有裝甲厚度。若新增幾何碰撞面，依對應部位沿用厚度，並記錄新增項目。移動碰撞面本身會改變命中範圍，即使厚度不變。
 
 開始前執行 `git status --short`，保留其他工作。另存原始兩份 JSON，記錄 baseline commit；如果目標車型已有未提交修改，原始快照應包含這些修改，不能直接把 HEAD 當作實際起點。
+
+新增車型沒有既有模型可比較：可把量測值寫成可重現的生成器（例如 `docs/references/m10/generate.mjs`），以 pass 0 初稿當 `before`，後續每輪修正以新的 pass 累加，讓每張歷史截圖都能由對應 pass 重建。
 
 ## 2. 下載並檢視參考資料
 
@@ -129,6 +131,8 @@ muzzleWorldZ = turretOffset.z + gunPivotOffset.z + muzzleDistance
 
 寬度不同的上車體與下車體應使用不同側面。裙板按實際分片配置，斜車首與引擎側面可用短段近似，避免一個大盒子在模型外形成大片不可見裝甲。OBB 對裁角、弧面仍有近似誤差，應在紀錄中說明。
 
+`armorModel.ts` 以最小的 half-extent 當厚度軸，並依 local X → Y → Z 的順序、10 mm 容差判定受擊面：排在厚度軸之前的軸，其板邊 10 mm 內的命中會被當成側面而拒絕。把厚度放在 X 可避免這條死區；分段板在接縫處則需少量重疊。選車畫面以板的 `name` 當 React key，名稱必須唯一。M10 的 `armor.test.ts` 另外把命中距離與由 `model.json` 重建的渲染表面比對，可用來找出浮在模型外或留有空隙的 OBB。
+
 ## 7. 驗證與停止條件
 
 自動量測使用正式場景的 `THREE.Box3().setFromObject()`，先呼叫 `scene.updateMatrixWorld(true)`。遞迴為節點設定穩定名稱，輸出 `*-bounds.json`。AABB 適合量測外緣、中心與寬度，不能直接代表斜面頂點或斜板厚度。
@@ -193,5 +197,6 @@ Git 只保存流程文件、來源連結、量測摘要與可重用腳本。下�
 | [Sherman](references/sherman/README.md) | VVSS bogie／輪距、車體寬度、指揮艙蓋與砲管伸出量 |
 | [Panzer II](references/panzer2/README.md) | F 型與 C 型資料的適用邊界、指揮塔及斜面 OBB |
 | [Panzer IV](references/panzer4/README.md) | 砲塔後移、六片裙板、輪徑與間距、裙板斜切及支架 |
+| [M10 GMC](references/m10/README.md) | 新增車型：以生成器建模、pass 0 初稿當 baseline；俯視獨立比例、開頂砲塔與配重、跨視圖矛盾的取捨、裝甲對渲染表面的射線驗證 |
 
 這些比對頁與腳本是開發用 fixture，不應額外加入正式 Vite build entry。
