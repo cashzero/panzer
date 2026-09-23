@@ -286,10 +286,13 @@ export function Trees() {
     );
   }, [treeLayoutKey]);
 
+  // Trees only move when one is knocked over, which replaces the store array.
+  const uploadedTrees = useRef<TreeInstance[] | null>(null);
   useFrame(() => {
     if (!trunkRef.current) return;
     const currentTrees = useGameStore.getState().trees;
-    if (currentTrees.length === 0) return;
+    if (currentTrees.length === 0 || currentTrees === uploadedTrees.current) return;
+    uploadedTrees.current = currentTrees;
 
     let deciduousIndex = 0;
     let coniferIndex = 0;
@@ -308,10 +311,12 @@ export function Trees() {
       }
     }
 
-    trunkRef.current.instanceMatrix.needsUpdate = true;
-    if (deciduousBranchRef.current) deciduousBranchRef.current.instanceMatrix.needsUpdate = true;
-    if (deciduousRef.current) deciduousRef.current.instanceMatrix.needsUpdate = true;
-    if (coniferRef.current) coniferRef.current.instanceMatrix.needsUpdate = true;
+    for (const mesh of [trunkRef.current, deciduousBranchRef.current, deciduousRef.current, coniferRef.current]) {
+      if (!mesh) continue;
+      mesh.instanceMatrix.needsUpdate = true;
+      // Frustum culling uses the instance bounds; refresh them with the matrices.
+      mesh.computeBoundingSphere();
+    }
   });
 
   useFrame((_, delta) => {

@@ -3,6 +3,8 @@ import { getTerrainHeight } from './Terrain';
 import type { TreeInstance } from './trees';
 import type { BuildingInstance } from './buildings';
 import { intersectBuildingRay } from './buildings';
+import { GAME_CONFIG } from './config';
+import { forEachTreeAlongRay } from './treeIndex';
 
 // --- Projectile Motion ---
 
@@ -119,9 +121,9 @@ export function checkTreeRayCollision(
 ): TreeRayHitResult | null {
   let closest: TreeRayHitResult | null = null;
 
-  for (let ti = 0; ti < trees.length; ti++) {
+  const testTree = (ti: number) => {
     const tree = trees[ti];
-    if (tree.fallen) continue;
+    if (tree.fallen) return;
 
     const tx = tree.position[0];
     const ty = tree.position[1];
@@ -168,6 +170,14 @@ export function checkTreeRayCollision(
         closest = considerTreeRayHit(closest, ray, maxDistance, ti, t, point, normal);
       }
     }
+  };
+
+  // The grid files trees by the standard collision radius; wider queries scan all.
+  if (treeRadius <= GAME_CONFIG.trees.collisionRadius) {
+    forEachTreeAlongRay(trees, GAME_CONFIG.trees.collisionRadius, ray.origin.x, ray.origin.z,
+      ray.direction.x, ray.direction.z, maxDistance, testTree);
+  } else {
+    for (let ti = 0; ti < trees.length; ti++) testTree(ti);
   }
 
   return closest;

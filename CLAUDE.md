@@ -55,7 +55,8 @@ The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.
 **World**:
 - `Terrain.tsx` + `terrainHeight.ts` — procedural sine-wave terrain, flattened center
 - `roads.ts` — seeded road network (N-S / E-W crossroads), height blend, speed bonus
-- `trees.ts` + `TreeRenderer.tsx` — jittered grid placement, collision, HP, knockdown; instanced meshes
+- `trees.ts` + `TreeRenderer.tsx` — seeded woods, field-edge treelines, roadside avenues and lone trees; collision, HP, knockdown; instanced meshes. `treeIndex.ts` grids tree queries; `fieldBoundaries.ts` decides which field edges get trees, hedges or nothing
+- `rendering/WorldDressing.tsx` (hedges, telegraph lines) and `rendering/HorizonSkirt.tsx` (countryside beyond the map edge) — visual only, no collision or line-of-sight effect
 - `buildings.ts` + `BuildingRenderer.tsx` — rural clusters at junctions/roadsides, wall/roof impacts, farmland plots that tint terrain and suppress nearby trees
 
 **AI**: `EnemyAI.tsx` and `AllyAI.tsx` each drive their tanks (approach/retreat, gravity-compensated aim, dispersion drift, steady-aim zero after stillness). Allies also accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`).

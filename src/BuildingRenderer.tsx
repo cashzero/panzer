@@ -8,14 +8,16 @@ import type { BuildingInstance } from './buildings';
 const MATERIALS = {
   farmhouseWall: new THREE.MeshStandardMaterial({ color: '#a69a80', roughness: 0.96 }),
   barnWall: new THREE.MeshStandardMaterial({ color: '#76513a', roughness: 1 }),
-  warehouseWall: new THREE.MeshStandardMaterial({ color: '#7c7a70', roughness: 0.94 }),
+  warehouseWall: new THREE.MeshStandardMaterial({ color: '#857d6c', roughness: 0.96 }), // rubble limestone
   tileRoof: new THREE.MeshStandardMaterial({ color: '#6f4031', roughness: 0.92 }),
   slateRoof: new THREE.MeshStandardMaterial({ color: '#41484a', roughness: 0.9 }),
   timber: new THREE.MeshStandardMaterial({ color: '#3f2c21', roughness: 1 }),
   trim: new THREE.MeshStandardMaterial({ color: '#d1c4a5', roughness: 0.95 }),
   glass: new THREE.MeshStandardMaterial({ color: '#26383d', roughness: 0.42, metalness: 0.05 }),
   door: new THREE.MeshStandardMaterial({ color: '#4b3225', roughness: 0.96 }),
-  warehouseDoor: new THREE.MeshStandardMaterial({ color: '#505654', roughness: 0.82, metalness: 0.12 }),
+  warehouseDoor: new THREE.MeshStandardMaterial({ color: '#4f3b2a', roughness: 0.98 }), // weathered planking
+  plankSeam: new THREE.MeshStandardMaterial({ color: '#2e2219', roughness: 1 }),
+  shutter: new THREE.MeshStandardMaterial({ color: '#4d5645', roughness: 0.96 }), // faded green paint
   stone: new THREE.MeshStandardMaterial({ color: '#66645b', roughness: 1 }),
   gravel: new THREE.MeshStandardMaterial({ color: '#706a5b', roughness: 1 }),
   chimneyCap: new THREE.MeshStandardMaterial({ color: '#37342f', roughness: 1 }),
@@ -93,7 +95,13 @@ function addFrontPanel(
   details.push({ position: [x, y, z], size: [width, height, 0.12], material });
 }
 
-function addWindow(details: DetailSegment[], x: number, y: number, z: number, scale = 1) {
+function addWindow(details: DetailSegment[], x: number, y: number, z: number, scale = 1, shutters = false) {
+  if (shutters) {
+    for (const side of [-1, 1]) {
+      addFrontPanel(details, x + side * 1.2 * scale, y, z + 0.02, 0.78 * scale, 1.62 * scale, MATERIALS.shutter);
+      addFrontPanel(details, x + side * 1.2 * scale, y, z + 0.1, 0.08 * scale, 1.5 * scale, MATERIALS.plankSeam);
+    }
+  }
   addFrontPanel(details, x, y, z, 1.55 * scale, 1.7 * scale, MATERIALS.trim);
   addFrontPanel(details, x, y, z + 0.07, 1.27 * scale, 1.42 * scale, MATERIALS.glass);
   addFrontPanel(details, x, y, z + 0.145, 0.09 * scale, 1.42 * scale, MATERIALS.trim);
@@ -111,12 +119,29 @@ function addFarmhouseDetails(building: BuildingInstance, details: DetailSegment[
 
   addFrontPanel(details, 0, doorHeight * 0.5 + 0.18, frontZ, doorWidth + 0.28, doorHeight + 0.25, MATERIALS.trim);
   addFrontPanel(details, 0, doorHeight * 0.5 + 0.18, frontZ + 0.08, doorWidth, doorHeight, MATERIALS.door);
-  addWindow(details, -windowOffset, windowY, frontZ);
-  addWindow(details, windowOffset, windowY, frontZ);
+  addWindow(details, -windowOffset, windowY, frontZ, 1, true);
+  addWindow(details, windowOffset, windowY, frontZ, 1, true);
 
   if (twoStorey) {
-    addWindow(details, -windowOffset, building.height - 0.95, frontZ, 0.72);
-    addWindow(details, windowOffset, building.height - 0.95, frontZ, 0.72);
+    addWindow(details, -windowOffset, building.height - 0.95, frontZ, 0.72, true);
+    addWindow(details, windowOffset, building.height - 0.95, frontZ, 0.72, true);
+  }
+
+  // Back wall: a pair of small windows so the house is not blank from behind.
+  for (const x of [-windowOffset * 0.8, windowOffset * 0.8]) {
+    addWindow(details, x, windowY, -frontZ - 0.15, 0.8, true);
+  }
+
+  // Dressed stone quoins at the front corners, alternating long and short.
+  for (let y = 0.55, course = 0; y < building.height - 0.2; y += 0.42, course++) {
+    const long = course % 2 === 0;
+    for (const side of [-1, 1]) {
+      details.push({
+        position: [side * (building.width * 0.5 - (long ? 0.34 : 0.22)), y, frontZ - 0.02],
+        size: [long ? 0.72 : 0.48, 0.34, 0.1],
+        material: MATERIALS.trim,
+      });
+    }
   }
 
   const chimneyX = (rng() > 0.5 ? 1 : -1) * building.width * 0.23;
@@ -171,17 +196,33 @@ function addWarehouseDetails(building: BuildingInstance, details: DetailSegment[
   const doorOffset = building.width * 0.24;
 
   for (const x of [-doorOffset, doorOffset]) {
-    addFrontPanel(details, x, doorHeight * 0.5 + 0.18, frontZ, doorWidth + 0.34, doorHeight + 0.3, MATERIALS.stone);
+    // Dressed stone surround with a heavy timber lintel.
+    addFrontPanel(details, x, doorHeight * 0.5 + 0.18, frontZ, doorWidth + 0.6, doorHeight + 0.45, MATERIALS.trim);
+    addFrontPanel(details, x, doorHeight + 0.42, frontZ + 0.05, doorWidth + 0.9, 0.34, MATERIALS.timber);
+    // Two leaves of vertical planks with ledges and a brace.
     addFrontPanel(details, x, doorHeight * 0.5 + 0.18, frontZ + 0.08, doorWidth, doorHeight, MATERIALS.warehouseDoor);
-    for (let y = 0.8; y < doorHeight; y += 0.75) {
-      addFrontPanel(details, x, y + 0.18, frontZ + 0.16, doorWidth, 0.09, MATERIALS.stone);
+    for (let px = -doorWidth / 2 + 0.3; px < doorWidth / 2; px += 0.3) {
+      addFrontPanel(details, x + px, doorHeight * 0.5 + 0.18, frontZ + 0.15, 0.035, doorHeight, MATERIALS.plankSeam);
+    }
+    addFrontPanel(details, x, doorHeight * 0.5 + 0.18, frontZ + 0.17, 0.12, doorHeight, MATERIALS.plankSeam);
+    for (const y of [0.55, doorHeight * 0.5, doorHeight - 0.3]) {
+      addFrontPanel(details, x, y + 0.18, frontZ + 0.18, doorWidth * 0.94, 0.16, MATERIALS.timber);
     }
   }
 
+  // Stone pilasters break the long wall into bays.
+  const bays = Math.max(3, Math.round(building.width / 6));
+  for (let i = 0; i <= bays; i++) {
+    const x = THREE.MathUtils.lerp(-building.width * 0.5 + 0.3, building.width * 0.5 - 0.3, i / bays);
+    if (Math.abs(Math.abs(x) - doorOffset) < doorWidth * 0.6) continue;
+    addFrontPanel(details, x, building.height * 0.5, frontZ + 0.02, 0.6, building.height, MATERIALS.stone);
+  }
+
+  // Small shuttered loft openings under the eaves.
   const windowCount = Math.max(3, Math.floor(building.width / 7));
   for (let i = 0; i < windowCount; i++) {
     const x = THREE.MathUtils.lerp(-building.width * 0.36, building.width * 0.36, windowCount === 1 ? 0.5 : i / (windowCount - 1));
-    addWindow(details, x, building.height - 1.05, frontZ, 0.72);
+    addWindow(details, x, building.height - 1.05, frontZ, 0.55, true);
   }
 }
 

@@ -117,6 +117,9 @@ Tracks:
 - Roads should function as navigational landmarks and movement aids.
 - Trees and buildings should shape lines of movement, cover, and projectile interruption.
 - Environmental generation should preserve battlefield clarity; clutter should support tactics, not obscure them.
+- Woodland follows the land rather than an even scatter: copses and conifer plantations, treelines on field edges, avenues along some roads and a few lone trees. Trees derive from the world seed, so the map seed changes them too.
+- Low field hedges, telegraph lines and the countryside beyond the map edge are scenery only: they neither collide nor block sight, so they add depth without changing combat. The map edge never ends in a visible cut-off.
+- Farm buildings read as period rural architecture (stone granges with planked doors, shuttered farmhouses); nothing on the field looks modern industrial.
 
 ## Vehicles And Factions
 

@@ -9,7 +9,7 @@ import { getTankDef, getAllTankDefs } from './tanks/registry';
 import { getCamouflageScheme } from './tanks/core/camouflage';
 import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
-import { generateTrees } from './trees';
+import { generateTrees, TREE_SEED_OFFSET } from './trees';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
@@ -302,7 +302,7 @@ function generateWorld(mapSize: MapSize, seed: number) {
   const buildings = projectBuildingsToTerrain(generateBuildings(mapSize, roadNetwork, seed + 17), roadNetwork);
   const farmlands = generateFarmlands(buildings, roadNetwork, mapSize, seed + 29);
   const mapScale = MAP_SIZE_VALUES[mapSize] / 1000;
-  const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands);
+  const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands, seed + TREE_SEED_OFFSET);
   return { roadNetwork, buildings, farmlands, trees };
 }
 

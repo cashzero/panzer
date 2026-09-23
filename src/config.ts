@@ -128,7 +128,13 @@ export const GAME_CONFIG = {
     villageTreeSuppressionChance: 0.55,
   },
   trees: {
-    count: 300,
+    // Densities are per square kilometre of map.
+    maxCountPerKm2: 420,
+    woodsPerKm2: 4,
+    woodRadius: [35, 110] as [number, number],
+    woodSpacing: 7.5,     // m between trees inside woods
+    lonePerKm2: 14,
+    roadsideRowChance: 0.35,
     minSpacing: 8,
     trunkRadius: 0.3,
     collisionRadius: 1.0,

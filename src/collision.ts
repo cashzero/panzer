@@ -2,6 +2,14 @@ import * as THREE from 'three';
 import { TankData } from './store';
 import { GAME_CONFIG } from './config';
 import type { TreeInstance } from './trees';
+import { forEachTreeNear } from './treeIndex';
+
+/** Indices of trees whose grid cells overlap a box, in array order. */
+function treesNear(trees: TreeInstance[], x: number, z: number, reach: number): number[] {
+  const found: number[] = [];
+  forEachTreeNear(trees, GAME_CONFIG.trees.collisionRadius, x, z, reach, (index) => found.push(index));
+  return found.sort((a, b) => a - b);
+}
 import { getBuildingClearanceRadius, type BuildingInstance } from './buildings';
 
 const _tempVec = new THREE.Vector3();
@@ -64,7 +72,9 @@ export function isPathClear(
     }
   }
 
-  for (const tree of trees) {
+  const treeReach = lookAhead / 2 + tankRadius + GAME_CONFIG.trees.collisionRadius;
+  for (const index of treesNear(trees, (startX + endX) / 2, (startZ + endZ) / 2, treeReach)) {
+    const tree = trees[index];
     if (tree.fallen) continue;
     const blockRadius = tankRadius + GAME_CONFIG.trees.collisionRadius;
     if (distancePointToSegmentXZ(tree.position[0], tree.position[2], startX, startZ, endX, endZ) < blockRadius) {
@@ -170,7 +180,7 @@ export function resolveTreeCollision(
   const minDist = tankRadius + treeRadius;
   const knockdownSpeed = GAME_CONFIG.trees.knockdownSpeed;
 
-  for (let i = 0; i < trees.length; i++) {
+  for (const i of treesNear(trees, newPos.x, newPos.z, minDist)) {
     const tree = trees[i];
     if (tree.fallen) continue;
 

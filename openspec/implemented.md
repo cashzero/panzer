@@ -37,7 +37,11 @@ Completed roadmap items are documented here.
 
 - Terrain is procedurally generated with a sine-wave height formula and a flattened center area.
 - Road layout is generated from a seed per map size, with terrain blending and road-driven world coloring.
-- Tree placement uses a jittered grid with collision, health, and knockdown state.
+- Trees are placed from the world seed as woods (copses and plantations), field-edge treelines, roadside avenues and lone trees, with collision, health, and knockdown state. Tree ray and proximity queries go through a uniform grid (`treeIndex.ts`).
+- Field boundaries are planned once per world (`fieldBoundaries.ts`): each edge gets a treeline, a hedge or stays open. Hedges are continuous lofted meshes, visual only, like the telegraph poles and wires along the longest roads (`rendering/WorldDressing.tsx`).
+- Beyond the map edge, a vertex-coloured skirt meets the terrain edge and rolls into low hills with distant woods (`rendering/HorizonSkirt.tsx`), all visual only.
+- Farm buildings use period details: the former warehouse is a limestone grange with planked double doors, pilasters and shuttered loft openings; farmhouses gain shutters, corner quoins and back windows.
+- Ground-cover tufts fade out at randomised distances (24-42 m), so the cover thins gradually instead of ending in a ring.
 - Tank-tree collisions support slow pushing and high-speed knockdown.
 - Projectiles damage trees for 50 HP per hit.
 - Rural building clusters spawn along road junctions and roadsides as indestructible battlefield obstacles.

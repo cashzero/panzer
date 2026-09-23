@@ -84,6 +84,17 @@ denser world dressing and distant shadows.
   sits on the paint. A `camoSeed` vertex attribute offsets it per vehicle without
   splitting materials. Only merged rendering draws camouflage; the select screen and
   order-of-battle previews use the merged path for that reason.
+- World dressing: hedges are lofted arches along planned field edges, built as one
+  vertex-coloured mesh with world-space leaf mottling (`foliageWeathering`); poles
+  are instanced and all wires are one `LineSegments`. The horizon skirt is four
+  strips whose inner row samples `getTerrainMeshHeight` at the map edge, so it
+  meets the rendered terrain without a seam; north and south strips cover the
+  corners and share seam vertices with the east and west strips. `Color.setHSL`
+  works in the linear working space by default: pass `SRGBColorSpace` when the
+  values are meant as sRGB albedo, or dark greens come out pale.
+- `TreeRenderer` uploads instance matrices only when the store's tree array
+  changes (a knockdown), then refreshes the instance bounding spheres used for
+  frustum culling.
 - Effects (`Particles.tsx`): smoke, dirt and wreck plumes share one alpha-blended
   pool sorted back to front each frame; the fire pool draws after it
   (`renderOrder` 6) so flames stay visible inside their own smoke. Sprites read the

@@ -120,3 +120,21 @@ export function createCamouflageWeathering(pattern: CamouflageShaderPattern, col
       }`);
   };
 }
+
+/** Leafy mottling for instanced hedges: dark hollows and lighter sunlit clumps in world space. */
+export const foliageWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader) => {
+  shader.vertexShader = 'varying vec3 vSurfacePosition;\n' + shader.vertexShader;
+  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
+    #ifdef USE_INSTANCING
+      vSurfacePosition = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
+    #else
+      vSurfacePosition = (modelMatrix * vec4(position, 1.0)).xyz;
+    #endif`);
+  shader.fragmentShader = noise + shader.fragmentShader;
+  shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+    #include <color_fragment>
+    float clumps = surfaceNoise(vSurfacePosition * 2.3);
+    float leaves = surfaceNoise(vSurfacePosition * 11.0);
+    diffuseColor.rgb *= 0.62 + clumps * 0.45 + leaves * 0.22;
+  `);
+};

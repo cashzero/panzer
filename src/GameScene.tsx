@@ -28,6 +28,8 @@ import { computeTurretAiming } from './turretAiming';
 import { computeAimGunPivotWorld, computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees } from './TreeRenderer';
+import { WorldDressing } from './rendering/WorldDressing';
+import { HorizonSkirt } from './rendering/HorizonSkirt';
 import { Buildings } from './BuildingRenderer';
 import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
@@ -421,6 +423,8 @@ export function GameScene() {
           <Terrain showGroundCover={!isMapMode} />
           <Buildings />
           <Trees />
+          <WorldDressing />
+          <HorizonSkirt />
           <TrackRepairManager />
           <PlayerController />
           <SpottingSystem />
