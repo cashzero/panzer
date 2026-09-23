@@ -313,7 +313,8 @@ function grassMaterial(layer: GrassLayer, spacing: number, heightInfo: { texture
         // Sunlight scattering through blades seen against the sun (Quick_Grass).
         vec3 sunView = normalize((viewMatrix * vec4(grassSunDirection, 0.0)).xyz);
         float backLight = clamp((dot(geometryViewDir, -sunView) + 0.5) / 1.5, 0.0, 1.0);
-        reflectedLight.indirectDiffuse += vec3(1.0, 0.9, 0.75) * backLight * backLight * 0.9
+        // Restrained, so a field seen against the sun glows at its tips instead of turning white.
+        reflectedLight.indirectDiffuse += vec3(1.0, 0.9, 0.75) * backLight * backLight * backLight * 0.4
           * BRDF_Lambert(diffuseColor.rgb) * vGrassParams.x * (1.0 - vGrassParams.z);
       `);
   };

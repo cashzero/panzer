@@ -20,6 +20,13 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
   120 to 1400 m and exposure 1.15. The ground shader desaturates grass toward straw
   and olive and takes the red out of gravel roads. `cloudCoverage` above about 0.55
   turns the whole sky into one flat cloud deck.
+  The sky shader is patched: the sun disc is 1500 instead of 19000 (about 60
+  rather than 760 in HDR), and sky luminance away from the disc is compressed
+  above 6 so it stays under the bloom threshold of 12. Uncompressed, the Mie glow
+  bloomed into a white veil over everything seen toward the sun, and at gunner
+  zoom it covered the whole view. `mieDirectionalG` is 0.74. Grass back-scatter
+  is cubed and scaled to 0.4, so a field against the sun glows at its tips
+  instead of turning white.
   Map mode uses direct rendering and releases the post-processing resources.
 - `GroundMaterial.tsx`: separate grass, dry soil and gravel albedo/normal layers,
   world-space stochastic hex tiling and aerial vegetation macro modulation.

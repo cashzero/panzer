@@ -19,12 +19,30 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
   const sky = useMemo(() => {
     const mesh = new SkyMesh();
     mesh.scale.setScalar(50000);
+    // The analytic sun disc is about 760 in HDR. Through the bloom pass that
+    // spread into a white veil over everything seen toward the sun, and at
+    // gunner zoom it swallowed the whole view. A disc of about 60 still reads
+    // as the sun and still blooms, without washing out the scene around it.
+    mesh.material.fragmentShader = mesh.material.fragmentShader
+      .replace('vSunE * 19000.0 * Fex', 'vSunE * 1500.0 * Fex')
+      // The Mie glow around the sun also runs well above the bloom threshold
+      // over a wide patch of sky, which bloomed into a veil over everything
+      // seen toward the sun. Compress the sky (not the disc) to stay under it.
+      .replace('gl_FragColor = vec4( texColor, 1.0 );', `
+        float skyLuma = dot( texColor, vec3( 0.2126, 0.7152, 0.0722 ) );
+        float skyKnee = 6.0;
+        if ( sundisk < 0.5 && skyLuma > skyKnee ) {
+          float over = skyLuma - skyKnee;
+          texColor *= ( skyKnee + over / ( 1.0 + over / 4.0 ) ) / skyLuma;
+        }
+        gl_FragColor = vec4( texColor, 1.0 );`);
     const uniforms = mesh.material.uniforms;
     uniforms.sunPosition.value.copy(SUN);
     uniforms.turbidity.value = 10;
     uniforms.rayleigh.value = 2.2;
     uniforms.mieCoefficient.value = 0.01;
-    uniforms.mieDirectionalG.value = 0.8;
+    // A little less forward scatter: the glow around the sun stays a halo, not half the sky.
+    uniforms.mieDirectionalG.value = 0.74;
     uniforms.cloudCoverage.value = 0.48;
     uniforms.cloudDensity.value = 0.7;
     uniforms.cloudScale.value = 0.00065;
