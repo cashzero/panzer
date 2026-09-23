@@ -31,6 +31,8 @@ export const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1);
 export const UNIT_CYLINDER = new THREE.CylinderGeometry(0.5, 0.5, 1, 14);
 export const UNIT_CONE = new THREE.ConeGeometry(0.5, 1, 14);
 export const UNIT_MOUND = new THREE.IcosahedronGeometry(0.5, 1);
+/** Low-poly lump for the many small plants in a kitchen garden. */
+export const UNIT_PLANT = new THREE.IcosahedronGeometry(0.5, 0);
 
 /** Unit triangular prism: triangle (-0.5,0) (0.5,0) (0,1) in XY, extruded -0.5..0.5 along Z. */
 export const UNIT_GABLE = (() => {

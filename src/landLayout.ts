@@ -293,7 +293,8 @@ export function generateBuildings(mapSize: MapSize, roadNetwork: RoadNetwork, se
                   x: at.x + nx * gardenReach, z: at.z + nz * gardenReach, ux: at.dx * side, uz: at.dz * side,
                   halfWidth: shape.width / 2 + 1 + rng() * 2, halfDepth: gardenDepth / 2, gate: -1,
                 };
-                if (insideMap(garden, half) && clearOfRoads(garden, roadNetwork, 1) && !blocked(garden, 0.4)) yards.push(garden);
+                // Keep a verge between the garden wall and any road behind it.
+                if (insideMap(garden, half) && clearOfRoads(garden, roadNetwork, 5) && !blocked(garden, 0.4)) yards.push(garden);
               }
             }
             s += direction * (shape.width + cfg.streetGap[0] + rng() * (cfg.streetGap[1] - cfg.streetGap[0]));

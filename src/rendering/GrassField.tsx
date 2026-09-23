@@ -162,7 +162,8 @@ const vertexBlade = /* glsl */ `
   float verge = smoothstep(0.3, 1.2, roadDistance) * (1.0 - smoothstep(2.2, 3.8, roadDistance + edgeNoise * 1.5));
   vec2 onMap = step(abs(grassRoot), vec2(groundSize * 0.5));
   float density = smoothstep(0.2, 1.4, roadDistance + edgeNoise * 1.8) * onMap.x * onMap.y;
-  density *= (1.0 - crop.r * 0.94) * (1.0 - wood * 0.8) * (1.0 - yard * 0.85) * (1.0 - bare * 0.7);
+  // Farm courts, gardens and building pads are beaten earth, dug beds and paths.
+  density *= (1.0 - crop.r * 0.94) * (1.0 - wood * 0.8) * (1.0 - smoothstep(0.35, 0.6, yard)) * (1.0 - bare * 0.7);
 
   // Level of detail: near blades leave and far blades arrive over a random band.
   float cameraDistance = distance(cameraPosition.xz, grassRoot);

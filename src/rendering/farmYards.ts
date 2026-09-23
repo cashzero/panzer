@@ -3,7 +3,7 @@ import type { BuildingInstance } from '../buildings';
 import { isPointInsideBuildingFootprint } from '../buildings';
 import { yardEdges, type FarmYard } from '../landLayout';
 import {
-  UNIT_BOX, UNIT_CONE, UNIT_CYLINDER, UNIT_MOUND,
+  UNIT_BOX, UNIT_CONE, UNIT_CYLINDER, UNIT_MOUND, UNIT_PLANT,
   type ArchitectureMaterial, type ArchitecturePart,
 } from './ruralArchitecture';
 
@@ -191,20 +191,44 @@ export function buildYardParts(
       for (let row = 0; row < 3; row++) put('log', UNIT_BOX, f.x, f.y + 0.2 + row * 0.35, f.z, 0.9, 0.34, 3.2, frameYaw + Math.PI / 2);
     }
   } else {
-    // Kitchen garden: dug beds with rows of vegetables across the plot.
-    const rows = Math.max(2, Math.floor(yard.halfDepth * 2 / 2.2));
+    // Kitchen garden: a gravel path down the middle, raised beds either side
+    // planted in rows, a bean row on canes and currant bushes by the wall.
+    // Plants stand 0.4-0.6 m, above the grass that grows between the beds.
+    put('gravel', UNIT_BOX, at(0, 0).x, at(0, 0).y + 0.03, at(0, 0).z, 1.0, 0.06, yard.halfDepth * 1.9, frameYaw);
+    const rows = Math.max(2, Math.floor(yard.halfDepth * 2 / 2.1));
     for (let r = 0; r < rows; r++) {
-      const b = -0.8 + (1.6 * (r + 0.5)) / rows;
-      if (!clear(0, b, 0.6)) continue;
-      const bed = at(0, b);
-      put('earth', UNIT_BOX, bed.x, bed.y + 0.05, bed.z, yard.halfWidth * 1.6, 0.12, 1.3, frameYaw);
-      if (hash(seed, r, 5) < 0.8) put('veg', UNIT_BOX, bed.x, bed.y + 0.2, bed.z, yard.halfWidth * 1.5, 0.28, 0.5, frameYaw);
+      const b = -0.82 + (1.64 * (r + 0.5)) / rows;
+      for (const sideA of [-1, 1]) {
+        const centreA = sideA * (0.5 + (1 - 0.5 / yard.halfWidth) * 0.5) * 0.9;
+        if (!clear(centreA, b, 0.6)) continue;
+        const bed = at(centreA, b);
+        const bedLength = (yard.halfWidth - 1.1) * 0.95;
+        put('earth', UNIT_BOX, bed.x, bed.y + 0.1, bed.z, bedLength, 0.22, 1.4, frameYaw);
+        const crop = hash(seed, r * 2 + sideA, 5);
+        if (crop < 0.15) continue; // freshly dug
+        const beans = crop > 0.88;
+        const count = Math.max(3, Math.floor(bedLength / (beans ? 0.9 : 0.62)));
+        for (let k = 0; k < count; k++) {
+          const t = -0.5 + (k + 0.5) / count;
+          for (const rowOffset of beans ? [0] : [-0.32, 0.32]) {
+            const [px, pz] = toWorld((centreA * yard.halfWidth) + t * bedLength, b * yard.halfDepth + rowOffset);
+            const size = 0.5 + hash(px, pz, 7) * 0.25;
+            if (beans) {
+              // Runner beans on a cane.
+              put('oak', UNIT_BOX, px, bed.y + 1.1, pz, 0.04, 1.8, 0.04, frameYaw);
+              put('veg', UNIT_PLANT, px, bed.y + 1.0, pz, 0.5, 1.5, 0.5, frameYaw + k);
+            } else {
+              put('veg', UNIT_PLANT, px, bed.y + 0.32, pz, size, size * 0.75, size, frameYaw + k * 1.7);
+            }
+          }
+        }
+      }
     }
-    // A currant bush or two by the wall.
-    for (const a of [-0.85, 0.85]) {
-      if (hash(seed, a, 6) < 0.5 || !clear(a, 0.8, 0.8)) continue;
-      const bush = at(a, 0.8);
-      put('veg', UNIT_MOUND, bush.x, bush.y + 0.45, bush.z, 1.3, 1.0, 1.3);
+    // Currant and gooseberry bushes along the back wall.
+    for (const a of [-0.8, -0.3, 0.3, 0.8]) {
+      if (hash(seed, a, 6) < 0.35 || !clear(a, 0.86, 0.8)) continue;
+      const bush = at(a, 0.86);
+      put('veg', UNIT_MOUND, bush.x, bush.y + 0.5, bush.z, 1.3, 1.1, 1.1);
     }
   }
   return parts;
