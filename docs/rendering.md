@@ -152,6 +152,12 @@ denser world dressing and distant shadows.
   because translucent chips over the sky read as glass.
 - Object-space armour weathering now samples slot space, so the mottling
   pattern differs from the unmerged editor preview while keeping the same scale.
+- `masonryPatterns.ts` adds coursing to the masonry weathering for brick, ashlar,
+  rubble, tile, slate and thatch. Building parts have no UVs, so u is the
+  horizontal tangent of the world normal and v the up-slope bitangent. Patterns
+  write base tone before the weathering block, and `patternDetail` blends to each
+  pattern's mean colour once a course falls below a few pixels; brick carries
+  wall-scale firing patches so it still reads as brick beyond that range.
 - Buildings and yards are built from shared unit primitives (box, gable prism,
   cylinder, cone, mound) scaled by their matrices, then merged per material:
   about 30 materials, so the whole settlement layer is about 30 draw calls. At 4K

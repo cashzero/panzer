@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { masonryWeathering } from './rendering/surfaceWeathering';
+import { createMasonryPattern, type MasonryPattern } from './rendering/masonryPatterns';
 import { mergeStaticEntries, type MergeEntry } from './rendering/staticMerge';
 import { buildBuildingParts, type ArchitectureMaterial } from './rendering/ruralArchitecture';
 import { buildYardParts } from './rendering/farmYards';
@@ -43,10 +44,17 @@ const MATERIALS: Record<ArchitectureMaterial, THREE.MeshStandardMaterial> = {
   log: material('#6a4f35', 1),
 };
 
-for (const [role, value] of Object.entries(MATERIALS)) {
+// Coursed materials get their pattern; the rest only the weathering.
+const PATTERNS: Partial<Record<ArchitectureMaterial, MasonryPattern>> = {
+  brick: 'brick', limestone: 'ashlar', rubble: 'rubble', plinth: 'rubble',
+  tile: 'tile', slate: 'slate', thatch: 'thatch',
+};
+
+for (const [role, value] of Object.entries(MATERIALS) as Array<[ArchitectureMaterial, THREE.MeshStandardMaterial]>) {
   if (role === 'glass' || role === 'water') continue;
-  value.onBeforeCompile = masonryWeathering;
-  value.customProgramCacheKey = () => 'masonry-weathering-v1';
+  const pattern = PATTERNS[role];
+  value.onBeforeCompile = pattern ? createMasonryPattern(pattern) : masonryWeathering;
+  value.customProgramCacheKey = () => pattern ? `masonry-pattern-v1-${pattern}` : 'masonry-weathering-v1';
 }
 
 interface MaterialBatch {
