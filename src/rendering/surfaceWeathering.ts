@@ -29,7 +29,10 @@ export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader)
     float grit = surfaceNoise(vSurfacePosition * 155.0);
     float wear = smoothstep(0.69, 0.88, surfaceNoise(vSurfacePosition * 42.0));
     diffuseColor.rgb *= 0.82 + mottling * 0.32;
-    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.105, 0.084, 0.055), wear * 0.5);
+    // Chips show dark primer. Kept darker than the paint they break through:
+    // a fixed brown came out lighter than Dunkelgrau and read as pale dirt.
+    vec3 chip = min(vec3(0.105, 0.084, 0.055), diffuseColor.rgb * vec3(0.55, 0.5, 0.45));
+    diffuseColor.rgb = mix(diffuseColor.rgb, chip, wear * 0.5);
     diffuseColor.rgb += (grit - 0.5) * 0.018;
   `);
   shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `

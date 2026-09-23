@@ -13,7 +13,8 @@
   },
   "appearance": {
     "baseColor": "#857853",
-    "camouflage": ["dunkelgelb", "dreifarben", "hinterhalt", "dunkelgrau", "wintertarnung"]
+    "camouflage": ["dunkelgelb", "dreifarben", "hinterhalt", "dunkelgrau", "wintertarnung"],
+    "zimmerit": "ribbed"
   },
   "durability": {
     "health": 250,

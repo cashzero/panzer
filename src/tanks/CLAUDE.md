@@ -126,6 +126,7 @@ Notes:
 - `renderMode` should be `"parametric"` for the new structure.
 - `catalog.sortOrder` controls selection-screen ordering.
 - `appearance.camouflage` (optional) lists scheme ids from `src/tanks/core/camouflage.ts`; the first is the default and should match `baseColor`. Offer only schemes the vehicle wore in service. Without it the tank wears `baseColor` alone.
+- `appearance.zimmerit` (optional, `ribbed` or `waffle`) gives the tank Zimmerit paste under its 1943-45 schemes (those marked `zimmeritEra`). Only large painted parts of hull and turret are coated; parts whose id names a fitting (skirts, tools, hinges, lamps, exhausts and so on, see `ZIMMERIT_BARE_PART` in `MergedSlot.tsx`) and the gun stay bare.
 - `mobility.acceleration` is stored directly now; it is not derived automatically in the JSON pipeline.
 - `traverse.maxElevationDeg` and `traverse.maxDepressionDeg` define the historical gun arc in degrees.
 - `weapons.ammo.AP` is required. `APC` and `HE` are optional.

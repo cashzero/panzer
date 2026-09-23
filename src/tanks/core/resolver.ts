@@ -33,7 +33,7 @@ export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
     trackHealth: spec.durability.trackHealth,
     armor: {...spec.durability.armorSummary},
     color: spec.appearance.baseColor,
-    camouflage: resolveCamouflageSchemes(spec.appearance.camouflage, spec.appearance.baseColor),
+    camouflage: resolveCamouflageSchemes(spec.appearance.camouflage, spec.appearance.baseColor, spec.appearance.zimmerit),
     turretOffset: [...spec.mounts.turretOffset],
     gunPivotOffset: [...spec.mounts.gunPivotOffset],
     muzzleDistance: spec.mounts.muzzleDistance,

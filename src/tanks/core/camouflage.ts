@@ -3,6 +3,8 @@
  * `tank.json` `appearance.camouflage`; the first entry is its default.
  * Colours are sRGB approximations of the RAL references, as they read weathered.
  */
+import type { ZimmeritPattern } from '../../rendering/zimmerit';
+
 export type CamouflagePattern = 'solid' | 'blotches' | 'bands' | 'ambush' | 'whitewash';
 
 export interface CamouflageScheme {
@@ -15,6 +17,10 @@ export interface CamouflageScheme {
   base: string;
   pattern: CamouflagePattern;
   colors: string[];
+  /** Worn while factories applied Zimmerit paste (Sept 1943 - Sept 1944). */
+  zimmeritEra?: boolean;
+  /** Resolved per tank: the paste pattern under this scheme, if the tank got one. */
+  zimmerit?: ZimmeritPattern;
 }
 
 const DUNKELGRAU = '#3b3e3f'; // RAL 7021
@@ -28,14 +34,15 @@ export const CAMOUFLAGE_SCHEMES: Record<string, CamouflageScheme> = {
   dunkelgrau: { id: 'dunkelgrau', name: 'Dunkelgrau', shortName: 'Grau', period: '1940-43', base: DUNKELGRAU, pattern: 'solid', colors: [] },
   'grau-braun': { id: 'grau-braun', name: 'Grau / Braun', shortName: 'Grau/Braun', period: '1937-40', base: DUNKELGRAU, pattern: 'blotches', colors: [DUNKELBRAUN] },
   wintertarnung: { id: 'wintertarnung', name: 'Winter whitewash', shortName: 'Winter', period: 'East, winter', base: DUNKELGRAU, pattern: 'whitewash', colors: [WHITEWASH] },
-  dunkelgelb: { id: 'dunkelgelb', name: 'Dunkelgelb', shortName: 'Gelb', period: '1943-45', base: DUNKELGELB, pattern: 'solid', colors: [] },
-  dreifarben: { id: 'dreifarben', name: 'Three-tone', shortName: 'Dreifarben', period: '1943-45', base: DUNKELGELB, pattern: 'bands', colors: [OLIVGRUEN, ROTBRAUN] },
-  hinterhalt: { id: 'hinterhalt', name: 'Hinterhalt (ambush)', shortName: 'Hinterhalt', period: '1944-45', base: DUNKELGELB, pattern: 'ambush', colors: [OLIVGRUEN, ROTBRAUN] },
+  dunkelgelb: { id: 'dunkelgelb', name: 'Dunkelgelb', shortName: 'Gelb', period: '1943-45', base: DUNKELGELB, pattern: 'solid', colors: [], zimmeritEra: true },
+  dreifarben: { id: 'dreifarben', name: 'Three-tone', shortName: 'Dreifarben', period: '1943-45', base: DUNKELGELB, pattern: 'bands', colors: [OLIVGRUEN, ROTBRAUN], zimmeritEra: true },
+  hinterhalt: { id: 'hinterhalt', name: 'Hinterhalt (ambush)', shortName: 'Hinterhalt', period: '1944-45', base: DUNKELGELB, pattern: 'ambush', colors: [OLIVGRUEN, ROTBRAUN], zimmeritEra: true },
 };
 
 /** Schemes available to a tank; tanks without a list wear their base colour. */
-export function resolveCamouflageSchemes(schemeIds: string[] | undefined, baseColor: string): CamouflageScheme[] {
-  const schemes = (schemeIds ?? []).map((id) => CAMOUFLAGE_SCHEMES[id]).filter(Boolean);
+export function resolveCamouflageSchemes(schemeIds: string[] | undefined, baseColor: string, zimmerit?: ZimmeritPattern): CamouflageScheme[] {
+  const schemes = (schemeIds ?? []).map((id) => CAMOUFLAGE_SCHEMES[id]).filter(Boolean)
+    .map((scheme) => (zimmerit && scheme.zimmeritEra ? { ...scheme, zimmerit } : scheme));
   return schemes.length > 0
     ? schemes
     : [{ id: 'factory', name: 'Factory paint', shortName: 'Factory', period: '', base: baseColor, pattern: 'solid', colors: [] }];

@@ -151,6 +151,7 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
       scale={node.scale}
       visible={node.visible !== false}
       name={node.name}
+      userData={{ partId: node.id }}
     >
       {child}
     </group>
@@ -266,7 +267,7 @@ export function createParametricRenderer(model: TankModelSpec): TankRenderer {
   const GunComponent: TankRenderer['GunComponent'] = (props) => {
     const slot = <SlotRenderer slot="gun" nodes={model.slots.gun} gunProps={props} />;
     return props.merged
-      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]} camouflage={props.camouflage} paintSeed={props.paintSeed}>{slot}</MergedSlot>
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]} camouflage={props.camouflage} paintSeed={props.paintSeed} bare>{slot}</MergedSlot>
       : slot;
   };
 

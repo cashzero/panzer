@@ -133,6 +133,8 @@ export interface TankSpec {
     baseColor: string;
     /** Camouflage scheme ids from `camouflage.ts`; the first is the default. */
     camouflage?: string[];
+    /** Zimmerit pattern worn under the 1943-44 schemes (German tanks only). */
+    zimmerit?: 'ribbed' | 'waffle';
   };
   durability: {
     health: number;

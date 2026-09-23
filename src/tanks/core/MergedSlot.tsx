@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { isVisibleUnder, mergeStaticEntries, type MergeEntry } from '../../rendering/staticMerge';
 import { armorWeathering, createCamouflageWeathering } from '../../rendering/surfaceWeathering';
 import type { CamouflageScheme } from './camouflage';
+import { zimmeritShader, type ZimmeritPattern } from '../../rendering/zimmerit';
 
 // Parts smaller than this (bounding-sphere radius, metres) are dropped from the far LOD.
 const FAR_LOD_MIN_PART_RADIUS = 0.12;
@@ -14,6 +15,21 @@ const FAR_LOD_ENTER_DISTANCE = 160;
 const FAR_LOD_EXIT_DISTANCE = 140;
 const REFERENCE_HALF_FOV_TAN = Math.tan(THREE.MathUtils.degToRad(30));
 
+// Zimmerit goes on the armour plates, not on fittings: parts smaller than this
+// (bounding radius, m) and parts whose id names a fitting stay bare.
+const ZIMMERIT_MIN_PART_RADIUS = 0.3;
+const ZIMMERIT_BARE_PART = /schurzen|skirt|hanger|rail|outrigger|track|wheel|exhaust|muffler|tool|shovel|jack|axe|crowbar|spare|lamp|lens|antenna|periscope|mg-|hinge|handle|grille|louvre|towing|tow-|mudflap|fender|smoke|discharger|cupola-ring|vision|visor/;
+
+/** Whether a mesh under `root` belongs to a coated armour plate. */
+function takesZimmerit(mesh: THREE.Object3D, root: THREE.Object3D, radius: number) {
+  if (radius < ZIMMERIT_MIN_PART_RADIUS) return false;
+  for (let node: THREE.Object3D | null = mesh; node && node !== root; node = node.parent) {
+    const id = node.userData.partId as string | undefined;
+    if (id && ZIMMERIT_BARE_PART.test(id)) return false;
+  }
+  return true;
+}
+
 /** Paint and fittings share one material per class across every tank; colour lives in vertices. */
 const sharedMaterials = new Map<string, THREE.MeshStandardMaterial>();
 
@@ -23,23 +39,29 @@ interface MaterialClass {
   bakeColor: boolean;
   /** Painted armour carrying a camouflage pattern: needs the `camoSeed` attribute. */
   camouflaged: boolean;
+  /** Painted armour under Zimmerit: needs the `zimmeritMask` attribute. */
+  zimmerit: boolean;
 }
 
-function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme | undefined): MaterialClass {
+function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme | undefined, bare: boolean): MaterialClass {
   const standard = material as THREE.MeshStandardMaterial;
   // Textured materials carry per-tank animated state (track scrolling) and
   // untyped materials have no known colour: keep the original instance.
   if (!standard.isMeshStandardMaterial || standard.map) {
-    return { key: material.uuid, material, bakeColor: false, camouflaged: false };
+    return { key: material.uuid, material, bakeColor: false, camouflaged: false, zimmerit: false };
   }
   // Only the weathered paint roles (hull, mantlet, barrel) carry the scheme.
   const pattern = camouflage && camouflage.pattern !== 'solid' && standard.onBeforeCompile === armorWeathering
     ? camouflage.pattern : null;
+  // Zimmerit covers the painted armour of hull and turret; the gun stays bare.
+  const zimmerit: ZimmeritPattern | null = !bare && camouflage?.zimmerit && standard.onBeforeCompile === armorWeathering
+    ? camouflage.zimmerit : null;
   const key = [
     standard.type, standard.roughness, standard.metalness, standard.envMapIntensity,
     standard.emissive.getHexString(), standard.emissiveIntensity, standard.wireframe,
     standard.side, standard.transparent, standard.opacity, standard.customProgramCacheKey(),
     pattern ? `camo:${camouflage!.id}` : '',
+    zimmerit ? `zim:${zimmerit}` : '',
   ].join('|');
   let shared = sharedMaterials.get(key);
   if (!shared) {
@@ -64,14 +86,24 @@ function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme
       shared.onBeforeCompile = standard.onBeforeCompile;
       shared.customProgramCacheKey = standard.customProgramCacheKey;
     }
+    if (zimmerit) {
+      const paint = shared.onBeforeCompile;
+      const paintKey = shared.customProgramCacheKey();
+      const paste = zimmeritShader(zimmerit);
+      shared.onBeforeCompile = (shader, renderer) => { paint.call(shared, shader, renderer); paste(shader, renderer); };
+      shared.customProgramCacheKey = () => `${paintKey}-zimmerit-${zimmerit}-v2`;
+    }
     sharedMaterials.set(key, shared);
   }
-  return { key, material: shared, bakeColor: true, camouflaged: pattern !== null };
+  return { key, material: shared, bakeColor: true, camouflaged: pattern !== null, zimmerit: zimmerit !== null };
 }
 
 interface Bucket extends MaterialClass {
   near: MergeEntry[];
   far: MergeEntry[];
+  /** Per entry: 1 where Zimmerit coats the part (only for Zimmerit classes). */
+  nearCoat: number[];
+  farCoat: number[];
   castShadow: boolean;
   receiveShadow: boolean;
 }
@@ -87,7 +119,7 @@ function partRadius(geometry: THREE.BufferGeometry, matrix: THREE.Matrix4) {
   return (geometry.boundingSphere?.radius ?? 0) * matrix.getMaxScaleOnAxis();
 }
 
-function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | undefined, paintSeed: number): BuiltSlot {
+function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | undefined, paintSeed: number, bare: boolean): BuiltSlot {
   source.updateMatrixWorld(true);
   const toSlot = source.matrixWorld.clone().invert();
   const buckets = new Map<string, Bucket>();
@@ -96,10 +128,10 @@ function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | 
   source.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material) || !isVisibleUnder(mesh, source)) return;
-    const materialClass = classifyMaterial(mesh.material, camouflage);
+    const materialClass = classifyMaterial(mesh.material, camouflage, bare);
     let bucket = buckets.get(materialClass.key);
     if (!bucket) {
-      bucket = { ...materialClass, near: [], far: [], castShadow: false, receiveShadow: false };
+      bucket = { ...materialClass, near: [], far: [], nearCoat: [], farCoat: [], castShadow: false, receiveShadow: false };
       buckets.set(materialClass.key, bucket);
     }
     bucket.castShadow ||= mesh.castShadow;
@@ -108,8 +140,11 @@ function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | 
     const meshToSlot = new THREE.Matrix4().multiplyMatrices(toSlot, mesh.matrixWorld);
     const add = (matrix: THREE.Matrix4) => {
       const entry = { geometry: mesh.geometry, matrix, color };
+      const radius = partRadius(mesh.geometry, matrix);
+      const coat = bucket.zimmerit && takesZimmerit(mesh, source, radius) ? 1 : 0;
       bucket.near.push(entry);
-      if (partRadius(mesh.geometry, matrix) >= FAR_LOD_MIN_PART_RADIUS) bucket.far.push(entry);
+      bucket.nearCoat.push(coat);
+      if (radius >= FAR_LOD_MIN_PART_RADIUS) { bucket.far.push(entry); bucket.farCoat.push(coat); }
     };
     const instanced = mesh as THREE.InstancedMesh;
     if (instanced.isInstancedMesh) {
@@ -127,9 +162,20 @@ function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | 
   far.visible = false;
   const geometries: THREE.BufferGeometry[] = [];
   for (const bucket of buckets.values()) {
-    for (const [target, entries, castShadow] of [[near, bucket.near, bucket.castShadow], [far, bucket.far, false]] as const) {
+    for (const [target, entries, coats, castShadow] of [[near, bucket.near, bucket.nearCoat, bucket.castShadow], [far, bucket.far, bucket.farCoat, false]] as const) {
       const geometry = mergeStaticEntries(entries, bucket.bakeColor);
       if (!geometry) continue;
+      if (bucket.zimmerit) {
+        // mergeStaticEntries keeps entry order and vertex counts, skipping empty ones.
+        const mask = new Float32Array(geometry.attributes.position.count);
+        let offset = 0;
+        entries.forEach((entry, index) => {
+          const count = entry.geometry.attributes.position?.count ?? 0;
+          mask.fill(coats[index], offset, offset + count);
+          offset += count;
+        });
+        geometry.setAttribute('zimmeritMask', new THREE.BufferAttribute(mask, 1));
+      }
       if (bucket.camouflaged) {
         const seeds = new Float32Array(geometry.attributes.position.count).fill(paintSeed);
         geometry.setAttribute('camoSeed', new THREE.BufferAttribute(seeds, 1));
@@ -157,11 +203,13 @@ function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | 
  * them as one mesh per material class with a small-part-free far LOD.
  * Battlefield only: editors and calibration pages need the named part tree.
  */
-export function MergedSlot({ children, rebuildKey, camouflage, paintSeed = 0 }: {
+export function MergedSlot({ children, rebuildKey, camouflage, paintSeed = 0, bare = false }: {
   children: ReactNode;
   rebuildKey: DependencyList;
   camouflage?: CamouflageScheme;
   paintSeed?: number;
+  /** No Zimmerit on this slot (the gun). */
+  bare?: boolean;
 }) {
   const source = useRef<THREE.Group>(null);
   const holder = useRef<THREE.Group>(null);
@@ -174,7 +222,7 @@ export function MergedSlot({ children, rebuildKey, camouflage, paintSeed = 0 }: 
     // Children have committed (and run their layout effects) by now. Keeping the
     // source out of the scene also skips its matrix updates every frame.
     source.current.removeFromParent();
-    const slot = buildMergedSlot(source.current, camouflage, paintSeed);
+    const slot = buildMergedSlot(source.current, camouflage, paintSeed, bare);
     slot.near.visible = !useFar.current;
     slot.far.visible = useFar.current;
     holder.current.add(slot.near, slot.far);
@@ -183,7 +231,7 @@ export function MergedSlot({ children, rebuildKey, camouflage, paintSeed = 0 }: 
       slot.dispose();
       built.current = null;
     };
-  }, [...rebuildKey, camouflage, paintSeed]);
+  }, [...rebuildKey, camouflage, paintSeed, bare]);
 
   useFrame(({ camera }) => {
     const slot = built.current;
