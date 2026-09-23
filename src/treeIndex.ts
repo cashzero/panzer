@@ -13,7 +13,7 @@ const key = (ix: number, iz: number) => ix * 73856093 ^ iz * 19349663;
 
 // Trees never move; updates (knockdown) swap objects but keep order and
 // positions, so count plus the end positions identify a layout.
-function signatureOf(trees: TreeInstance[]) {
+export function treeLayoutSignature(trees: TreeInstance[]) {
   if (trees.length === 0) return '0';
   const a = trees[0].position, b = trees[trees.length - 1].position;
   return `${trees.length}:${a[0]}:${a[2]}:${b[0]}:${b[2]}`;
@@ -24,7 +24,7 @@ function signatureOf(trees: TreeInstance[]) {
  * collision circle touches, so a cell walk never misses a tree near a border.
  */
 function getIndex(trees: TreeInstance[], radius: number): TreeIndex {
-  const signature = `${signatureOf(trees)}:${radius}`;
+  const signature = `${treeLayoutSignature(trees)}:${radius}`;
   if (cached?.signature === signature) return cached;
   const cells = new Map<number, number[]>();
   trees.forEach((tree, index) => {

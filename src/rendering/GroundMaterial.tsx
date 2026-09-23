@@ -6,6 +6,8 @@ import { useGameStore } from '../store';
 import { createTerrainSplatData, ROAD_DISTANCE_RANGE } from './terrainSplat';
 import hexTiling from './vendor/hexTiling.glsl?raw';
 import { getMeadowNoiseUniform, meadowNoise } from './meadowNoise';
+import { getWoodlandMask } from './woodland';
+import { treeLayoutSignature } from '../treeIndex';
 
 const paths = ['grass004', 'brown_mud_dry', 'gravel_road'].flatMap(
   (name) => ['Diffuse', 'nor_gl'].map((map) => `/assets/terrain/${name}/${map}.jpg`),
@@ -17,6 +19,16 @@ export function GroundMaterial() {
   const roadNetwork = useGameStore((s) => s.roadNetwork);
   const farmlands = useGameStore((s) => s.farmlands);
   const buildings = useGameStore((s) => s.buildings);
+  // Knockdowns replace the tree array but not the layout the floor follows.
+  const treeLayout = treeLayoutSignature(useGameStore((s) => s.trees));
+  const woodland = useMemo(() => {
+    const mask = getWoodlandMask(useGameStore.getState().trees, roadNetwork.terrainSize);
+    const texture = new THREE.DataTexture(mask.data, mask.resolution, mask.resolution, THREE.RedFormat);
+    texture.minFilter = texture.magFilter = THREE.LinearFilter;
+    texture.generateMipmaps = false;
+    texture.needsUpdate = true;
+    return texture;
+  }, [treeLayout, roadNetwork.terrainSize]);
   const textures = useMemo(() => loaded.map((source, index) => {
     const texture = source.clone();
     texture.colorSpace = index % 2 === 0 ? THREE.SRGBColorSpace : THREE.NoColorSpace;
@@ -49,7 +61,7 @@ export function GroundMaterial() {
         grassAlbedo: { value: textures[0] }, grassNormal: { value: textures[1] },
         soilAlbedo: { value: textures[2] }, soilNormal: { value: textures[3] },
         roadAlbedo: { value: textures[4] }, roadNormal: { value: textures[5] },
-        groundSplat: { value: splat.ground }, cropSplat: { value: splat.crops }, groundSize: { value: roadNetwork.terrainSize },
+        groundSplat: { value: splat.ground }, cropSplat: { value: splat.crops }, woodSplat: { value: woodland }, groundSize: { value: roadNetwork.terrainSize },
         meadowNoiseMap: getMeadowNoiseUniform(),
         hexTilingUseContrastCorrectedBlending: { value: false },
         hexTilingPatchScale: { value: 2 }, hexTilingLookupSkipThreshold: { value: 0.01 },
@@ -60,7 +72,7 @@ export function GroundMaterial() {
         '#include <begin_vertex>\nvGroundPosition = (modelMatrix * vec4(position, 1.0)).xyz;');
       shader.fragmentShader = `
         varying vec3 vGroundPosition;
-        uniform sampler2D macroAlbedo, grassAlbedo, grassNormal, soilAlbedo, soilNormal, roadAlbedo, roadNormal, groundSplat, cropSplat;
+        uniform sampler2D macroAlbedo, grassAlbedo, grassNormal, soilAlbedo, soilNormal, roadAlbedo, roadNormal, groundSplat, cropSplat, woodSplat;
         uniform float groundSize;
         ${hexTiling}
         ${meadowNoise}
@@ -152,6 +164,15 @@ export function GroundMaterial() {
           vec3 hayColor = dryGrass * vec3(1.14, 1.1, 0.84) * (0.92 + 0.16 * sheen);
           groundColor = mix(groundColor, hayColor, hay);
         }
+        // Leaf litter and moss under the woods and rows, in the canopy's shade.
+        float woodFloor = smoothstep(0.1, 0.6, texture2D(woodSplat, splatUv).r + edgeNoise * 0.25) * (1.0 - roadWeight);
+        if (woodFloor > 0.005) {
+          float litterNoise = meadowValue(groundUv / 3.5 + 41.0);
+          vec3 litter = vec3(groundLuma) * vec3(0.92, 0.74, 0.5) * (0.72 + 0.35 * litterNoise);
+          vec3 moss = lushGrass * 0.62;
+          vec3 floorColor = mix(litter, moss, 0.25 + smoothstep(0.4, 0.8, meadowValueB(groundUv / 9.0 - 13.0)) * 0.5) * 0.86;
+          groundColor = mix(groundColor, floorColor, woodFloor);
+        }
         // Past the range where the scans still read, field-sized blotches keep
         // the middle distance from settling into one flat tone.
         float farBlend = smoothstep(60.0, 320.0, length(vViewPosition));
@@ -181,9 +202,10 @@ export function GroundMaterial() {
       `);
     };
     return ground;
-  }, [textures, splat, roadNetwork.terrainSize]);
+  }, [textures, splat, woodland, roadNetwork.terrainSize]);
   useEffect(() => () => material.dispose(), [material]);
   useEffect(() => () => { splat.ground.dispose(); splat.crops.dispose(); }, [splat]);
+  useEffect(() => () => woodland.dispose(), [woodland]);
   useEffect(() => () => textures.forEach((texture) => texture.dispose()), [textures]);
   return <primitive object={material} attach="material" />;
 }

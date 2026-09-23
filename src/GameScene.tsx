@@ -27,7 +27,7 @@ import { fireTank, updatePlayerBurst } from './firing';
 import { computeTurretAiming } from './turretAiming';
 import { computeAimGunPivotWorld, computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
-import { Trees } from './TreeRenderer';
+import { Trees, Understory } from './TreeRenderer';
 import { WorldDressing } from './rendering/WorldDressing';
 import { HorizonSkirt } from './rendering/HorizonSkirt';
 import { Buildings } from './BuildingRenderer';
@@ -423,6 +423,7 @@ export function GameScene() {
           <Terrain showGroundCover={!isMapMode} />
           <Buildings />
           <Trees />
+          <Understory />
           <WorldDressing />
           <HorizonSkirt />
           <TrackRepairManager />

@@ -10,7 +10,7 @@ function random(seed: number) {
 const rng = random(7);
 const trees: TreeInstance[] = Array.from({ length: 2500 }, () => ({
   position: [(rng() - 0.5) * 1800, 0, (rng() - 0.5) * 1800],
-  rotation: 0, scale: 1, type: 'conifer', health: 100, fallen: false, fallDirection: 0, fallProgress: 0,
+  rotation: 0, scale: 1, type: 'conifer', habitat: 'wood', health: 100, fallen: false, fallDirection: 0, fallProgress: 0,
 }));
 const RADIUS = 1;
 

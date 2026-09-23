@@ -11,6 +11,8 @@ export interface TreeInstance {
   rotation: number;
   scale: number;
   type: 'deciduous' | 'conifer';
+  /** Where the tree grows: inside a wood, in a field-edge or roadside row, or alone. Visual only. */
+  habitat: 'wood' | 'line' | 'lone';
   health: number;
   fallen: boolean;
   fallDirection: number;
@@ -74,7 +76,8 @@ export function generateTrees(
   const halfRange = cfg.maxPlacementRadius * mapScale;
   const grid = new SpacingGrid(cfg.minSpacing * 2);
 
-  const tryPlace = (x: number, z: number, type: TreeInstance['type'], spacing: number, allowFieldEdge = false) => {
+  const tryPlace = (x: number, z: number, type: TreeInstance['type'], spacing: number,
+    habitat: TreeInstance['habitat'], allowFieldEdge = false) => {
     if (trees.length >= maxTrees) return false;
     if (Math.abs(x) > halfRange || Math.abs(z) > halfRange) return false;
     if (Math.hypot(x, z) < cfg.exclusionFromCenter) return false;
@@ -89,6 +92,7 @@ export function generateTrees(
       rotation: rng() * Math.PI * 2,
       scale: 0.8 + rng() * 0.5,
       type,
+      habitat,
       health: cfg.health,
       fallen: false,
       fallDirection: 0,
@@ -106,7 +110,7 @@ export function generateTrees(
     for (let d = rng() * 6; d < length; d += 8 + rng() * 6) {
       const t = d / length;
       tryPlace(ax + (bx - ax) * t + (rng() - 0.5) * 1.5, az + (bz - az) * t + (rng() - 0.5) * 1.5,
-        rng() < 0.85 ? 'deciduous' : 'conifer', cfg.minSpacing * 0.8, true);
+        rng() < 0.85 ? 'deciduous' : 'conifer', cfg.minSpacing * 0.8, 'line', true);
     }
   }
 
@@ -126,7 +130,7 @@ export function generateTrees(
         const t = d / length;
         const cx = ax + (bx - ax) * t, cz = az + (bz - az) * t;
         for (const sign of both ? [1, -1] : [side]) {
-          tryPlace(cx + nx * offset * sign, cz + nz * offset * sign, 'deciduous', cfg.minSpacing);
+          tryPlace(cx + nx * offset * sign, cz + nz * offset * sign, 'deciduous', cfg.minSpacing, 'line');
         }
       }
     }
@@ -149,7 +153,7 @@ export function generateTrees(
       const angle = rng() * Math.PI * 2;
       const r = Math.sqrt(rng()) * outline(angle);
       tryPlace(cx + Math.cos(angle) * r, cz + Math.sin(angle) * r,
-        (rng() < (conifer ? 0.82 : 0.22)) ? 'conifer' : 'deciduous', cfg.woodSpacing);
+        (rng() < (conifer ? 0.82 : 0.22)) ? 'conifer' : 'deciduous', cfg.woodSpacing, 'wood');
     }
   }
 
@@ -157,7 +161,7 @@ export function generateTrees(
   const loneCount = Math.round(cfg.lonePerKm2 * area);
   let lone = 0;
   for (let i = 0; i < loneCount * 3 && lone < loneCount; i++) {
-    if (tryPlace((rng() * 2 - 1) * halfRange, (rng() * 2 - 1) * halfRange, rng() < 0.7 ? 'deciduous' : 'conifer', cfg.minSpacing * 3)) lone++;
+    if (tryPlace((rng() * 2 - 1) * halfRange, (rng() * 2 - 1) * halfRange, rng() < 0.7 ? 'deciduous' : 'conifer', cfg.minSpacing * 3, 'lone')) lone++;
   }
 
   return trees;

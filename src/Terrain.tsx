@@ -8,6 +8,7 @@ import { useGameStore, MAP_SIZE_VALUES } from './store';
 import { getFarmlandCropInfluence, isPointNearAnyBuilding, type BuildingInstance } from './buildings';
 import { sampleTerrainHeight } from './terrainHeight';
 import { GAME_CONFIG } from './config';
+import { getWoodlandMask, sampleWoodlandMask } from './rendering/woodland';
 
 const COVER_GRID_RADIUS = 55;
 const COVER_GRID_WIDTH = COVER_GRID_RADIUS * 2 + 1;
@@ -91,7 +92,8 @@ function GroundCover() {
   const roadNetwork = useGameStore((state) => state.roadNetwork);
   const buildings = useGameStore((state) => state.buildings);
   const farmlands = useGameStore((state) => state.farmlands);
-  useEffect(() => { lastCellRef.current = [NaN, NaN]; }, [roadNetwork, buildings, farmlands]);
+  const trees = useGameStore((state) => state.trees);
+  useEffect(() => { lastCellRef.current = [NaN, NaN]; }, [roadNetwork, buildings, farmlands, trees]);
   useFrame(({ clock }) => {
     grassWind.value = reducedMotion.matches ? 0 : clock.elapsedTime;
     const mesh = meshRef.current;
@@ -111,6 +113,8 @@ function GroundCover() {
       Math.hypot(plot.width, plot.depth) * 0.5 + GAME_CONFIG.farmland.edgeBlend));
     const nearbyBuildings = state.buildings.filter((building) => nearGrid(building.position[0], building.position[2],
       Math.hypot(building.width, building.depth) * 0.5 + 1.5));
+    // Grass gives way to leaf litter under the woods.
+    const woodland = getWoodlandMask(state.trees, state.roadNetwork.terrainSize);
     let index = 0;
     for (let gz = -COVER_GRID_RADIUS; gz <= COVER_GRID_RADIUS; gz++) {
       for (let gx = -COVER_GRID_RADIUS; gx <= COVER_GRID_RADIUS; gx++) {
@@ -124,7 +128,8 @@ function GroundCover() {
         const blocked = road > 0.14 || isPointNearAnyBuilding(worldX, worldZ, nearbyBuildings, 1.5);
         const farmland = getFarmlandCropInfluence(worldX, worldZ, farmlands);
         const cropScale = farmland.crop ? 1 + (CROP_TUFT_SCALE[farmland.crop] - 1) * farmland.weight : 1;
-        const tuftScale = blocked ? 0 : (0.7 + randomB * 0.55) * cropScale;
+        const woodFloor = sampleWoodlandMask(woodland, worldX, worldZ);
+        const tuftScale = blocked ? 0 : (0.7 + randomB * 0.55) * cropScale * (1 - Math.min(1, woodFloor * 1.4) * 0.92);
 
         // Tufts sit on the rendered surface; the exact noise field is far costlier.
         position.set(worldX, blocked ? 0 : getTerrainMeshHeight(worldX, worldZ) + 0.008, worldZ);

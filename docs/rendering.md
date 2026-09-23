@@ -102,6 +102,18 @@ denser world dressing and distant shadows.
   corners and share seam vertices with the east and west strips. `Color.setHSL`
   works in the linear working space by default: pass `SRGBColorSpace` when the
   values are meant as sRGB albedo, or dark greens come out pale.
+- Foliage (`foliageCards.ts`): every leaf card stores its centre as `position` and
+  its corner as `cardOffset`; the vertex shader expands it facing the camera
+  (spherical for broadleaf and scrub, about the vertical for spruce). Normals and
+  vertex-colour occlusion come from the enclosing crown shape, and the fragment
+  shader keeps them unflipped on back faces. The default shadow depth material
+  would see degenerate quads, so every foliage mesh sets a `customDepthMaterial`
+  with the same billboard; the shadow pass still copies `map` and `alphaTest` in.
+  Bounding spheres are padded by the largest card, because positions are centres.
+- `woodland.ts` rasterises a 1024 px woodland-floor mask from tree habitats, then
+  box-blurs it twice so wood edges curve instead of scalloping; the ground shader
+  and the grass grid both read it, keyed on the tree layout so knockdowns do not
+  rebuild it.
 - `TreeRenderer` uploads instance matrices only when the store's tree array
   changes (a knockdown), then refreshes the instance bounding spheres used for
   frustum culling.

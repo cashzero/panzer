@@ -4,6 +4,10 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { useGameStore } from './store';
 import type { TreeInstance } from './trees';
+import { buildConiferCrown, buildCrown, foliageDepthMaterial, patchFoliageMaterial } from './rendering/foliageCards';
+import { planUnderstory } from './rendering/woodland';
+import { treeLayoutSignature } from './treeIndex';
+import { getTerrainMeshHeight } from './Terrain';
 
 function mergeGeometryParts(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
   const merged = mergeGeometries(parts, false);
@@ -83,44 +87,31 @@ function createBranchGeometry(): THREE.BufferGeometry {
 }
 
 function createDeciduousCanopyGeometry(): THREE.BufferGeometry {
-  const cards = [
-    { position: [0, 5.25, 0], size: [4.8, 4.35], rotationY: 0.08, rotationZ: -0.035 },
-    { position: [0.08, 5.3, -0.04], size: [4.65, 4.25], rotationY: Math.PI / 3, rotationZ: 0.025 },
-    { position: [-0.06, 5.35, 0.06], size: [4.55, 4.2], rotationY: (Math.PI * 2) / 3, rotationZ: -0.018 },
-    { position: [0.15, 5.75, -0.12], size: [3.7, 3.45], rotationY: Math.PI / 2, rotationZ: 0.04 },
-  ];
-
-  return mergeGeometryParts(cards.map(({ position, size, rotationY, rotationZ }) => {
-    const card = new THREE.PlaneGeometry(size[0], size[1]);
-    card.rotateZ(rotationZ);
-    card.rotateY(rotationY);
-    card.translate(position[0], position[1], position[2]);
-    return card;
-  }));
+  // A main crown with three offset lobes, so the silhouette is not a ball.
+  return buildCrown([
+    { center: [0, 5.85, 0], radii: [2.3, 1.8, 2.3], cards: 16, size: [1.7, 2.3] },
+    { center: [1.15, 5.05, 0.45], radii: [1.45, 1.15, 1.45], cards: 6, size: [1.4, 1.9] },
+    { center: [-0.95, 5.3, -0.75], radii: [1.5, 1.25, 1.5], cards: 6, size: [1.4, 1.9] },
+    { center: [0.2, 6.75, -0.3], radii: [1.35, 0.95, 1.35], cards: 4, size: [1.3, 1.7] },
+  ], { center: [0, 5.75, 0], radii: [2.9, 2.3, 2.9] }, 7331);
 }
 
 function createConiferCanopyGeometry(): THREE.BufferGeometry {
-  const tiers = [
+  return buildConiferCrown([
     { y: 3.75, width: 4.65, height: 2.55, offsetX: -0.08, offsetZ: 0.06, phase: 0.08 },
     { y: 4.75, width: 4.15, height: 2.45, offsetX: 0.1, offsetZ: -0.05, phase: 0.42 },
     { y: 5.75, width: 3.55, height: 2.25, offsetX: -0.06, offsetZ: -0.02, phase: 0.19 },
     { y: 6.68, width: 2.95, height: 2.05, offsetX: 0.08, offsetZ: 0.05, phase: 0.55 },
     { y: 7.52, width: 2.3, height: 1.85, offsetX: -0.04, offsetZ: 0.02, phase: 0.28 },
     { y: 8.25, width: 1.55, height: 1.55, offsetX: 0.04, offsetZ: -0.03, phase: 0.7 },
-  ];
-
-  const cards = tiers.flatMap((tier, tierIndex) => [0, 1, 2].map((direction) => {
-    const card = new THREE.PlaneGeometry(tier.width, tier.height);
-    card.rotateZ(((tierIndex + direction) % 2 === 0 ? -1 : 1) * 0.025);
-    card.rotateY(tier.phase + direction * (Math.PI / 3));
-    card.translate(tier.offsetX, tier.y, tier.offsetZ);
-    return card;
-  }));
-
-  return mergeGeometryParts(cards);
+  ]);
 }
 
 // Shared geometries and materials keep the forest to four draw calls.
+const shrubGeo = buildCrown([
+  { center: [0, 0.85, 0], radii: [1.3, 0.8, 1.3], cards: 9, size: [0.9, 1.3] },
+  { center: [0.7, 0.6, 0.3], radii: [0.8, 0.6, 0.8], cards: 4, size: [0.8, 1.1] },
+], { center: [0, 0.8, 0], radii: [1.6, 1.0, 1.6] }, 9127);
 const trunkGeo = createBentTrunkGeometry();
 const deciduousBranchGeo = createBranchGeometry();
 const deciduousCanopyGeo = createDeciduousCanopyGeometry();
@@ -142,18 +133,20 @@ const coniferFoliageTexture = textureLoader.load('/assets/trees/conifer-foliage.
 coniferFoliageTexture.colorSpace = THREE.SRGBColorSpace;
 coniferFoliageTexture.anisotropy = 4;
 
-// These geometries have no vertex color attribute. Instance colors are applied
-// independently by Three.js; enabling vertexColors here would blacken the trees.
+// Bark geometry has no vertex color attribute; enabling vertexColors on the
+// trunk material would blacken it. Foliage cards carry crown occlusion as
+// vertex colour, multiplied with the per-instance tint.
 const trunkMat = new THREE.MeshStandardMaterial({
   color: '#ffffff',
   map: barkTexture,
-  emissive: '#33271d',
-  emissiveIntensity: 0.28,
+  emissive: '#2a241d',
+  emissiveIntensity: 0.18,
   roughness: 1,
   metalness: 0,
 });
 const deciduousLeafMat = new THREE.MeshStandardMaterial({
   color: '#ffffff',
+  vertexColors: true,
   map: deciduousFoliageTexture,
   emissive: '#53654a',
   emissiveMap: deciduousFoliageTexture,
@@ -166,6 +159,7 @@ const deciduousLeafMat = new THREE.MeshStandardMaterial({
 });
 const coniferLeafMat = new THREE.MeshStandardMaterial({
   color: '#ffffff',
+  vertexColors: true,
   map: coniferFoliageTexture,
   emissive: '#435648',
   emissiveMap: coniferFoliageTexture,
@@ -177,12 +171,19 @@ const coniferLeafMat = new THREE.MeshStandardMaterial({
   side: THREE.DoubleSide,
 });
 
+patchFoliageMaterial(deciduousLeafMat, false);
+patchFoliageMaterial(coniferLeafMat, true);
+const deciduousLeafDepthMat = foliageDepthMaterial(false);
+const coniferLeafDepthMat = foliageDepthMaterial(true);
+
 const _mat = new THREE.Matrix4();
+const _crownMat = new THREE.Matrix4();
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 const _scale = new THREE.Vector3();
 const _euler = new THREE.Euler();
 const _color = new THREE.Color();
+const _up = new THREE.Vector3(0, 1, 0);
 
 function visualNoise(tree: TreeInstance, salt: number): number {
   const value = Math.sin(
@@ -191,6 +192,19 @@ function visualNoise(tree: TreeInstance, salt: number): number {
       + salt * 37.719,
   ) * 43758.5453;
   return value - Math.floor(value);
+}
+
+/**
+ * Crowns spread wider in woods and rows, where neighbours close the canopy.
+ * Visual only: collision and sight use the tree's own scale.
+ */
+const CROWN_SPREAD = { wood: 1.3, line: 1.12, lone: 1 } as const;
+const _crownSpread = new THREE.Matrix4();
+
+function setCrownMatrix(tree: TreeInstance, trunkMatrix: THREE.Matrix4, mat: THREE.Matrix4) {
+  const spread = CROWN_SPREAD[tree.habitat];
+  // Scale about the tree's own base so the crown widens without rising.
+  return mat.multiplyMatrices(trunkMatrix, _crownSpread.makeScale(spread, 1, spread));
 }
 
 function setTreeMatrix(tree: TreeInstance, mat: THREE.Matrix4) {
@@ -228,8 +242,9 @@ function colorTreeInstances(
   let coniferIndex = 0;
 
   trees.forEach((tree, index) => {
-    const trunkLightness = 0.82 + visualNoise(tree, 12) * 0.17;
-    _color.setRGB(trunkLightness, trunkLightness * 0.98, trunkLightness * 0.94);
+    // Grey-brown bark, darker than the albedo scan, which reads pink in the grade.
+    const trunkLightness = 0.5 + visualNoise(tree, 12) * 0.16;
+    _color.setRGB(trunkLightness * 0.93, trunkLightness * 0.96, trunkLightness * 0.95);
     trunk?.setColorAt(index, _color);
 
     if (tree.type === 'deciduous') {
@@ -303,10 +318,10 @@ export function Trees() {
 
       if (tree.type === 'deciduous') {
         deciduousBranchRef.current?.setMatrixAt(deciduousIndex, _mat);
-        deciduousRef.current?.setMatrixAt(deciduousIndex, _mat);
+        deciduousRef.current?.setMatrixAt(deciduousIndex, setCrownMatrix(tree, _mat, _crownMat));
         deciduousIndex++;
       } else {
-        coniferRef.current?.setMatrixAt(coniferIndex, _mat);
+        coniferRef.current?.setMatrixAt(coniferIndex, setCrownMatrix(tree, _mat, _crownMat));
         coniferIndex++;
       }
     }
@@ -353,6 +368,7 @@ export function Trees() {
           <instancedMesh
             ref={deciduousRef}
             args={[deciduousCanopyGeo, deciduousLeafMat, deciduousCount]}
+            customDepthMaterial={deciduousLeafDepthMat}
             castShadow
             receiveShadow
           />
@@ -362,10 +378,49 @@ export function Trees() {
         <instancedMesh
           ref={coniferRef}
           args={[coniferCanopyGeo, coniferLeafMat, coniferCount]}
+          customDepthMaterial={coniferLeafDepthMat}
           castShadow
           receiveShadow
         />
       )}
     </group>
   );
+}
+
+/** Lowest foliage on the spruce crown, in model units; saplings sink to it. */
+const CONIFER_CROWN_BASE = 2.4;
+
+/** Scrub and young spruce under the woods and along the rows (visual only). */
+export function Understory() {
+  const trees = useGameStore((state) => state.trees);
+  const roadNetwork = useGameStore((state) => state.roadNetwork);
+  const buildings = useGameStore((state) => state.buildings);
+  const farmlands = useGameStore((state) => state.farmlands);
+  // Knockdowns replace the tree array without moving trees: key on the layout.
+  const layout = treeLayoutSignature(trees);
+  const meshes = useMemo(() => {
+    const plan = planUnderstory(useGameStore.getState().trees, roadNetwork, buildings, farmlands);
+    const shrubs = new THREE.InstancedMesh(shrubGeo, deciduousLeafMat, Math.max(1, plan.shrubs.length));
+    const saplings = new THREE.InstancedMesh(coniferCanopyGeo, coniferLeafMat, Math.max(1, plan.saplings.length));
+    shrubs.customDepthMaterial = deciduousLeafDepthMat;
+    saplings.customDepthMaterial = coniferLeafDepthMat;
+    const place = (mesh: THREE.InstancedMesh, plants: typeof plan.shrubs, sink: number, tint: (shade: number) => void) => {
+      plants.forEach((plant, index) => {
+        _pos.set(plant.x, getTerrainMeshHeight(plant.x, plant.z) - sink * plant.scale, plant.z);
+        _quat.setFromAxisAngle(_up, plant.rotation);
+        _scale.set(plant.scale, plant.scale * (0.85 + plant.shade * 0.3), plant.scale);
+        mesh.setMatrixAt(index, _mat.compose(_pos, _quat, _scale));
+        tint(plant.shade);
+        mesh.setColorAt(index, _color);
+      });
+      mesh.count = plants.length;
+      mesh.castShadow = mesh.receiveShadow = true;
+      mesh.computeBoundingSphere();
+    };
+    place(shrubs, plan.shrubs, 0.05, (shade) => _color.setHSL(0.19 + shade * 0.06, 0.14 + shade * 0.06, 0.62 + shade * 0.12));
+    place(saplings, plan.saplings, CONIFER_CROWN_BASE, (shade) => _color.setHSL(0.33 + shade * 0.03, 0.12, 0.7 + shade * 0.08));
+    return [shrubs, saplings];
+  }, [layout, roadNetwork, buildings, farmlands]);
+  useEffect(() => () => meshes.forEach((mesh) => mesh.dispose()), [meshes]);
+  return <>{meshes.map((mesh) => <primitive key={mesh.uuid} object={mesh} />)}</>;
 }
