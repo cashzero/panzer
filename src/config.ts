@@ -37,7 +37,7 @@ export const GAME_CONFIG = {
     idleRPM: 800,
     maxRPM: 2800,
     colors: {
-      destroyed: '#2c3e50',
+      destroyed: '#2a2622', // burnt-out, sooted steel
       trackDark: '#24251f',
       trackLight: '#55564d',
     },
@@ -210,10 +210,15 @@ export const GAME_CONFIG = {
     // Off-road track effects; the surface under each track picks grass or mud.
     track_grass: { lifetime: 1200, color: '#4d6b2a', size: 1.0, expand: true },
     track_mud: { lifetime: 1400, color: '#4a3520', size: 1.0, expand: true },
-    burning_smoke: { lifetime: 5000, color: '#111111', size: 3.5, expand: true,
-      spawnInterval: 150,  // ms between smoke puffs at full intensity
-      initialDelay: 1000,  // ms before wreck smoke begins
+    burning_smoke: { lifetime: 9000, color: '#1d1a18', size: 1.6, expand: true,
+      spawnInterval: 180,   // ms between plume puffs
+      initialDelay: 1000,   // ms before wreck smoke begins
       rampUpDuration: 3500, // ms to reach full smoke density
+      fireDuration: 90000,  // ms of open flames before the wreck only smoulders
+      smokeDuration: 180000, // ms until the plume stops
+    },
+    wreck_fire: { lifetime: 700, color: '#ff6a1c', size: 1.0, expand: true,
+      spawnInterval: 120,   // ms between flame tongues
     },
     tree_hit: { lifetime: 800, color: '#8b6914', size: 2, expand: true },
     default: { lifetime: 500, color: '#ffffff', size: 1, expand: true },

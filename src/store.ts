@@ -34,7 +34,7 @@ export const GUNNER_ZOOM_LABELS = ['1x', '2x', '4x', '8x'] as const;
 
 export interface Particle {
   id: string;
-  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'non_pen_impact' | 'ricochet_impact' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'track_grass' | 'track_mud' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'tree_hit';
+  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'non_pen_impact' | 'ricochet_impact' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'track_grass' | 'track_mud' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'wreck_fire' | 'tree_hit';
   position: Vector3;
   normal?: Vector3;
   scale?: number;

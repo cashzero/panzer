@@ -5,7 +5,8 @@ import * as THREE from 'three';
 
 // One direction drives the visible sun, reflections and direct shadows.
 // About 35 degrees up: long enough shadows to model hulls and terrain relief.
-const SUN = new THREE.Vector3(-0.62, 0.52, -0.48).normalize();
+export const SUN_DIRECTION = new THREE.Vector3(-0.62, 0.52, -0.48).normalize();
+const SUN = SUN_DIRECTION;
 const SHADOW_SPAN = 100;
 const SHADOW_SIZE = 4096;
 // Pale, slightly warm summer haze shared by the background and distance fog.

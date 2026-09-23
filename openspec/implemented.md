@@ -57,7 +57,7 @@ Completed roadmap items are documented here.
 - Generated spatial transients cover shot, impact, and explosion playback.
 - Track effects follow the surface under the tank, using a CPU mirror of the terrain splat (`groundSurface.ts`). Roads raise the existing track dust. Grass throws torn turf with a faint haze, and exposed soil (farmland, building yards) flings mud clods and dirt puffs off the trailing end of each track.
 - Every tank leaves tread-patterned track marks that follow terrain slope and fade out over time (`GAME_CONFIG.trackMarks`). They are dark ruts in mud, crushed turf on grass, and faint on gravel roads.
-- Destroyed tanks emit persistent burning smoke.
+- Destroyed tanks turn sooted dark brown and burn: flickering flames over the engine deck for 90 s under a dense black plume that rises about 15 m, drifts downwind and dilutes to grey, then a thinner smoulder until 3 minutes.
 - The particle system supports effects including `fire`, `hit_penetrate`, `hit_bounce`, `hit_ground`, `he_hit_ground`, `he_hit_penetrate`, `tank_explosion`, `dust`, `dust_low`, `tree_hit`, `burning_smoke`, `non_pen_impact`, and `ricochet_impact`.
 - Shells in flight draw as HDR tracer streaks with a pixel-width floor so they stay readable at range. The streak collapses into the impact point after the shell stops, and ricochets flicker while tumbling. Length, color, width and fade time are set in `GAME_CONFIG.tracers`.
 - Muzzle flashes, armor impacts, HE bursts and tank explosions briefly light nearby hulls and ground through a fixed pool of four point lights, so no materials recompile.
@@ -73,6 +73,7 @@ Completed roadmap items are documented here.
 - Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry.
 - Particle rendering is pooled into a fixed set of shared `Points` and `InstancedMesh` batches instead of one draw call per effect. Tracers and crater decals each render as a single instanced draw.
+- Smoke, dust and thrown earth use a procedural four-variant puff atlas, are shaded as spheres against the sun direction, fade into the distance fog and draw back to front. Flames and fireballs use the same atlas additively; muzzle flashes use a rayed flash texture. Propellant smoke lingers for 2-3 s, HE throws a continuous earth fountain, and tank explosions rise as a fireball under a mushrooming column.
 - Battlefield tanks draw each slot (hull, both tracks, turret, gun) as one merged mesh per material class, with paint variation baked into vertex colours and materials shared across every tank. Parts under 0.12 m drop out beyond an FOV-normalised 160 m, so zoomed sights keep full detail. The tank select screen, editor and calibration pages still render the named part tree.
 - Buildings are baked into one world-space batch per material.
 - Line-of-sight spotting runs every `GAME_CONFIG.ai.spottingIntervalMs` (100 ms) against a cached copy of the rendered terrain mesh, which the terrain mesh and ground cover also read.

@@ -84,6 +84,13 @@ denser world dressing and distant shadows.
   sits on the paint. A `camoSeed` vertex attribute offsets it per vehicle without
   splitting materials. Only merged rendering draws camouflage; the select screen and
   order-of-battle previews use the merged path for that reason.
+- Effects (`Particles.tsx`): smoke, dirt and wreck plumes share one alpha-blended
+  pool sorted back to front each frame; the fire pool draws after it
+  (`renderOrder` 6) so flames stay visible inside their own smoke. Sprites read the
+  sun direction and scene fog through shared uniforms. `BurningWrecks.tsx` emits
+  `burning_smoke` (plume density) and `wreck_fire` (flames) on the schedule in
+  `GAME_CONFIG.particles.burning_smoke`. Sprites do not sample scene depth, so
+  large puffs still clip hard where they cross the ground.
 - Object-space armour weathering now samples slot space, so the mottling
   pattern differs from the unmerged editor preview while keeping the same scale.
 - `BuildingRenderer.tsx` bakes every building part into world space, one batch

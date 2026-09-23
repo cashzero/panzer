@@ -4,47 +4,43 @@ import { Vector3 } from 'three';
 import { useGameStore } from './store';
 import { GAME_CONFIG } from './config';
 
-const SMOKE_DURATION = 3 * 60 * 1000; // 3 minutes in ms
+const _offset = new Vector3();
 
+/**
+ * A knocked-out tank burns for a while, then smoulders: flames and a dense
+ * plume first, a thinner grey drift later, nothing after the smoke duration.
+ */
 export function BurningWrecks() {
-  const lastSpawnRef = useRef<Record<string, number>>({});
+  const lastSmokeRef = useRef<Record<string, number>>({});
+  const lastFireRef = useRef<Record<string, number>>({});
 
   useFrame(() => {
     const { playerTank, enemies, allies, spawnParticle } = useGameStore.getState();
     const now = Date.now();
-    const smokeConfig = GAME_CONFIG.particles.burning_smoke as typeof GAME_CONFIG.particles.burning_smoke & {
-      initialDelay?: number;
-      rampUpDuration?: number;
-    };
-    const baseSpawnInterval = smokeConfig.spawnInterval ?? 150;
-    const initialDelay = smokeConfig.initialDelay ?? 0;
-    const rampUpDuration = smokeConfig.rampUpDuration ?? 0;
-    const lastSpawn = lastSpawnRef.current;
+    const cfg = GAME_CONFIG.particles.burning_smoke;
 
-    const allTanks = [playerTank, ...enemies, ...allies];
-
-    for (const tank of allTanks) {
+    for (const tank of [playerTank, ...enemies, ...allies]) {
       if (!tank.destroyed || tank.destroyedAt === 0) continue;
+      const age = now - tank.destroyedAt;
+      if (age > cfg.smokeDuration || age < cfg.initialDelay) continue;
 
-      const wreckAge = now - tank.destroyedAt;
+      const ramp = Math.min(1, (age - cfg.initialDelay) / cfg.rampUpDuration);
+      const smoulder = age < cfg.fireDuration
+        ? 1
+        : 1 - 0.65 * (age - cfg.fireDuration) / (cfg.smokeDuration - cfg.fireDuration);
+      // Burning happens over the engine deck, behind the turret.
+      _offset.set(-Math.sin(tank.rotation) * 1.1, 1.9, -Math.cos(tank.rotation) * 1.1);
 
-      // Stop smoking after 3 minutes
-      if (wreckAge > SMOKE_DURATION) continue;
+      if (now - (lastSmokeRef.current[tank.id] ?? 0) >= cfg.spawnInterval) {
+        lastSmokeRef.current[tank.id] = now;
+        spawnParticle('burning_smoke', tank.position.clone().add(_offset), undefined, Math.max(0.2, ramp * smoulder));
+      }
 
-      if (wreckAge < initialDelay) continue;
-
-      const rampProgress = rampUpDuration > 0
-        ? Math.min(Math.max((wreckAge - initialDelay) / rampUpDuration, 0), 1)
-        : 1;
-      const intensity = 0.2 + rampProgress * 0.8;
-      const spawnInterval = Math.max(80, baseSpawnInterval / intensity);
-
-      // Check spawn interval
-      const last = lastSpawn[tank.id] ?? 0;
-      if (now - last < spawnInterval) continue;
-
-      lastSpawn[tank.id] = now;
-      spawnParticle('burning_smoke', tank.position.clone().add(new Vector3(0, 1.8, 0)));
+      const fire = age < cfg.fireDuration ? Math.min(1, 1.6 * (1 - age / cfg.fireDuration) + 0.2) : 0;
+      if (fire > 0 && now - (lastFireRef.current[tank.id] ?? 0) >= GAME_CONFIG.particles.wreck_fire.spawnInterval) {
+        lastFireRef.current[tank.id] = now;
+        spawnParticle('wreck_fire', tank.position.clone().add(_offset).setY(tank.position.y + 1.5), undefined, fire);
+      }
     }
   });
 

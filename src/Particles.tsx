@@ -6,6 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 import { queueFlashLight } from './rendering/FlashLights';
 import { queueImpactDecal } from './rendering/ImpactDecals';
+import { SUN_DIRECTION } from './rendering/BattlefieldLighting';
 
 // --- Textures ---
 const createDustTexture = () => {
@@ -57,6 +58,113 @@ const createRingTexture = () => {
 };
 const ringTexture = createRingTexture();
 
+function seededRandom(seed: number) {
+  return () => {
+    seed = (seed * 16807) % 2147483647;
+    return (seed - 1) / 2147483646;
+  };
+}
+
+// Four lumpy puffs in a 2x2 atlas. Overlapping soft lobes with an eroded edge
+// read as billowing smoke or thrown earth instead of a smooth ball.
+const createSmokeAtlas = () => {
+  const cell = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = cell * 2;
+  const ctx = canvas.getContext('2d')!;
+  for (let variant = 0; variant < 4; variant++) {
+    const random = seededRandom(97 + variant * 131);
+    const ox = (variant % 2) * cell;
+    const oy = Math.floor(variant / 2) * cell;
+    for (let lobe = 0; lobe < 15; lobe++) {
+      const angle = random() * Math.PI * 2;
+      const distance = random() * cell * 0.2;
+      const x = ox + cell / 2 + Math.cos(angle) * distance;
+      const y = oy + cell / 2 + Math.sin(angle) * distance;
+      const radius = cell * (0.13 + random() * 0.17);
+      const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+      gradient.addColorStop(0, 'rgba(255,255,255,' + (0.35 + random() * 0.3).toFixed(3) + ')');
+      gradient.addColorStop(0.6, 'rgba(255,255,255,0.18)');
+      gradient.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(ox, oy, cell, cell);
+    }
+  }
+  // Erode the alpha with value noise and force it to zero at each cell's rim.
+  const image = ctx.getImageData(0, 0, cell * 2, cell * 2);
+  const noiseRandom = seededRandom(11);
+  const grid = 17;
+  const lattice = Array.from({ length: grid * grid }, () => noiseRandom());
+  const noise = (x: number, y: number) => {
+    const gx = (x / (cell * 2)) * (grid - 1), gy = (y / (cell * 2)) * (grid - 1);
+    const ix = Math.min(grid - 2, Math.floor(gx)), iy = Math.min(grid - 2, Math.floor(gy));
+    const fx = gx - ix, fy = gy - iy;
+    const a = lattice[iy * grid + ix], b = lattice[iy * grid + ix + 1];
+    const c = lattice[(iy + 1) * grid + ix], d = lattice[(iy + 1) * grid + ix + 1];
+    return (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+  };
+  for (let y = 0; y < cell * 2; y++) {
+    for (let x = 0; x < cell * 2; x++) {
+      const r = Math.hypot((x % cell) - cell / 2, (y % cell) - cell / 2) / (cell / 2);
+      const rim = Math.max(0, Math.min(1, (1 - r) / 0.3));
+      const index = (y * cell * 2 + x) * 4 + 3;
+      image.data[index] = image.data[index] * rim * (0.55 + 0.45 * noise(x, y));
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.NoColorSpace;
+  return texture;
+};
+const smokeAtlas = createSmokeAtlas();
+
+// Hot core with short irregular rays: a gun flash rather than a round glow.
+const createFlashTexture = () => {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const random = seededRandom(5);
+  ctx.globalCompositeOperation = 'lighter';
+  for (let ray = 0; ray < 7; ray++) {
+    const angle = (ray / 7) * Math.PI * 2 + random() * 0.5;
+    const length = size * (0.28 + random() * 0.2);
+    ctx.save();
+    ctx.translate(size / 2, size / 2);
+    ctx.rotate(angle);
+    const gradient = ctx.createLinearGradient(0, 0, length, 0);
+    gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
+    gradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.05);
+    ctx.lineTo(length, 0);
+    ctx.lineTo(0, size * 0.05);
+    ctx.fill();
+    ctx.restore();
+  }
+  const core = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size * 0.3);
+  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(0.35, 'rgba(255,255,255,0.7)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, size, size);
+  return new THREE.CanvasTexture(canvas);
+};
+const flashTexture = createFlashTexture();
+
+// Shared by every sprite pool; refreshed once per frame.
+const spriteUniforms = {
+  uSunView: { value: new THREE.Vector3(0, 1, 0) },
+  uLightColor: { value: new THREE.Color(0.78, 0.7, 0.6) },
+  // Slightly warm skylight so brown earth does not turn blue-grey in shade.
+  uAmbientColor: { value: new THREE.Color(0.46, 0.44, 0.4) },
+  uFogColor: { value: new THREE.Color(0.7, 0.7, 0.66) },
+  uFogNear: { value: 120 },
+  uFogFar: { value: 1400 },
+};
+const WIND = { x: 0.9, z: 0.35 }; // m/s drift for smoke plumes
+
 // --- Pool sizes ---
 const MAX_ADDITIVE = 384; // world-space flash + fireball
 const MAX_MUZZLE_ADDITIVE = 160;
@@ -64,14 +172,15 @@ const MAX_IMPACT_ADDITIVE = 256;
 const MAX_IMPACT_SPARK = 512;
 const MAX_SHOCKWAVE = 96;
 const MAX_SPARK = 256;
-const MAX_SMOKE = 768;
+const MAX_SMOKE = 1024;
 const MAX_MUZZLE_SMOKE = 256;
+const MAX_FIRE = 512;
 const MAX_DEBRIS = 1024;
 
 // --- Sub-particle state ---
 interface SubState {
   particleId: string;
-  type: 'flash' | 'smoke' | 'dirt' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark' | 'ember';
+  type: 'flash' | 'smoke' | 'dirt' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark' | 'ember' | 'plume' | 'wreckFire';
   px: number; py: number; pz: number;
   vx: number; vy: number; vz: number;
   baseScale: number;
@@ -81,16 +190,10 @@ interface SubState {
   rotation: number;
   createdAt: number;
   lifetime: number;
-}
-
-interface BurningSmokeSubParticle {
-  type: 'smoke' | 'fireball';
-  pos: THREE.Vector3;
-  vel: THREE.Vector3;
-  scale: number;
-  color: string;
-  life: number;
-  rotSpeed: number;
+  /** Smoke atlas cell, 0-3. */
+  variant: number;
+  /** Colour a plume dilutes toward as it rises. */
+  r2: number; g2: number; b2: number;
 }
 
 // --- Shaders for Points ---
@@ -98,16 +201,21 @@ const spriteVertexShader = /* glsl */ `
 attribute float aSize;
 attribute float aOpacity;
 attribute float aRotation;
+attribute float aVariant;
 attribute vec3 aColor;
 varying float vOpacity;
 varying float vRotation;
+varying float vVariant;
+varying float vFogDepth;
 varying vec3 vColor;
 
 void main() {
   vOpacity = aOpacity;
   vRotation = aRotation;
+  vVariant = aVariant;
   vColor = aColor;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  vFogDepth = -mvPosition.z;
   gl_PointSize = aSize * (520.0 / -mvPosition.z);
   gl_PointSize = clamp(gl_PointSize, 0.0, 512.0);
   gl_Position = projectionMatrix * mvPosition;
@@ -116,19 +224,36 @@ void main() {
 
 const spriteFragmentShader = /* glsl */ `
 uniform sampler2D uMap;
+uniform float uAtlas, uLit, uAdditive;
+uniform vec3 uSunView, uLightColor, uAmbientColor, uFogColor;
+uniform float uFogNear, uFogFar;
 varying float vOpacity;
 varying float vRotation;
+varying float vVariant;
+varying float vFogDepth;
 varying vec3 vColor;
 
 void main() {
-  vec2 uv = gl_PointCoord - 0.5;
+  vec2 p = gl_PointCoord - 0.5;
   float c = cos(vRotation);
   float s = sin(vRotation);
-  uv = vec2(uv.x * c - uv.y * s, uv.x * s + uv.y * c) + 0.5;
+  vec2 uv = vec2(p.x * c - p.y * s, p.x * s + p.y * c) + 0.5;
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) discard;
+  if (uAtlas > 0.5) uv = (uv + vec2(mod(vVariant, 2.0), floor(vVariant * 0.5))) * 0.5;
   vec4 tex = texture2D(uMap, uv);
-  if (tex.a * vOpacity < 0.001) discard;
-  gl_FragColor = vec4(vColor * tex.rgb, tex.a * vOpacity);
+  float alpha = tex.a * vOpacity;
+  if (alpha < 0.002) discard;
+  vec3 color = vColor * tex.rgb;
+  if (uLit > 0.5) {
+    // Shade each puff as a sphere in view space: sunlit top, dark underside.
+    vec2 q = vec2(p.x, -p.y) * 2.0;
+    vec3 normal = normalize(vec3(q, sqrt(max(0.0, 1.0 - dot(q, q))) + 0.35));
+    float sun = clamp(dot(normal, uSunView) * 0.6 + 0.4, 0.0, 1.0);
+    color *= uAmbientColor + uLightColor * sun;
+  }
+  float fog = smoothstep(uFogNear, uFogFar, vFogDepth);
+  color = uAdditive > 0.5 ? color * (1.0 - fog) : mix(color, uFogColor, fog);
+  gl_FragColor = vec4(color, alpha);
 }
 `;
 
@@ -161,12 +286,13 @@ function createPointPool(
   maxCount: number,
   texture: THREE.Texture,
   blending: THREE.Blending,
-  options?: { depthTest?: boolean }
+  options?: { depthTest?: boolean; atlas?: boolean; lit?: boolean }
 ) {
   const positionAttr = new THREE.BufferAttribute(new Float32Array(maxCount * 3), 3);
   const sizeAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
   const opacityAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
   const rotationAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
+  const variantAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
   const colorAttr = new THREE.BufferAttribute(new Float32Array(maxCount * 3), 3);
 
   const geometry = new THREE.BufferGeometry();
@@ -174,11 +300,18 @@ function createPointPool(
   geometry.setAttribute('aSize', sizeAttr);
   geometry.setAttribute('aOpacity', opacityAttr);
   geometry.setAttribute('aRotation', rotationAttr);
+  geometry.setAttribute('aVariant', variantAttr);
   geometry.setAttribute('aColor', colorAttr);
   geometry.setDrawRange(0, 0);
 
   const material = new THREE.ShaderMaterial({
-    uniforms: { uMap: { value: texture } },
+    uniforms: {
+      ...spriteUniforms,
+      uMap: { value: texture },
+      uAtlas: { value: options?.atlas ? 1 : 0 },
+      uLit: { value: options?.lit ? 1 : 0 },
+      uAdditive: { value: blending === THREE.AdditiveBlending ? 1 : 0 },
+    },
     vertexShader: spriteVertexShader,
     fragmentShader: spriteFragmentShader,
     transparent: true,
@@ -194,8 +327,32 @@ function createPointPool(
     sizes: sizeAttr.array as Float32Array,
     opacities: opacityAttr.array as Float32Array,
     rotations: rotationAttr.array as Float32Array,
+    variants: variantAttr.array as Float32Array,
     colors: colorAttr.array as Float32Array,
   };
+}
+
+type PointPool = ReturnType<typeof createPointPool>;
+
+function writeSprite(pool: PointPool, index: number, sub: SubState, size: number, opacity: number, r = sub.r, g = sub.g, b = sub.b) {
+  pool.positions[index * 3] = sub.px;
+  pool.positions[index * 3 + 1] = sub.py;
+  pool.positions[index * 3 + 2] = sub.pz;
+  pool.sizes[index] = size;
+  pool.opacities[index] = opacity;
+  pool.rotations[index] = sub.rotation;
+  pool.variants[index] = sub.variant;
+  pool.colors[index * 3] = r;
+  pool.colors[index * 3 + 1] = g;
+  pool.colors[index * 3 + 2] = b;
+}
+
+function flagPool(pool: PointPool, count: number) {
+  pool.geometry.setDrawRange(0, count);
+  if (count === 0) return;
+  for (const name of ['position', 'aSize', 'aOpacity', 'aRotation', 'aVariant', 'aColor']) {
+    (pool.geometry.attributes[name] as THREE.BufferAttribute).needsUpdate = true;
+  }
 }
 
 // --- Particle spawning logic ---
@@ -217,6 +374,7 @@ function getConfig(type: Particle['type']) {
     case 'track_grass': return GAME_CONFIG.particles.track_grass;
     case 'track_mud': return GAME_CONFIG.particles.track_mud;
     case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
+    case 'wreck_fire': return GAME_CONFIG.particles.wreck_fire;
     case 'tree_hit': return GAME_CONFIG.particles.tree_hit;
     default: return GAME_CONFIG.particles.default;
   }
@@ -243,11 +401,13 @@ function pushSub(
     vx, vy, vz,
     baseScale: scale,
     r: _tmpColor.r, g: _tmpColor.g, b: _tmpColor.b,
+    r2: _tmpColor.r, g2: _tmpColor.g, b2: _tmpColor.b,
     lifeMultiplier: life,
     rotSpeed,
-    rotation: 0,
+    rotation: Math.random() * Math.PI * 2,
     createdAt,
     lifetime,
+    variant: Math.floor(Math.random() * 4),
   });
 }
 
@@ -331,7 +491,8 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
   if (type === 'hit_ground') {
     // Kinetic strike into soil: dull flash, a column of thrown earth, then a dust skirt.
     add('flash', 0, 0, 0, 0, 0, 0, 1.8 * s, '#ffc27a', 0.07, 0);
-    for (let i = 0; i < sc(13); i++) cone('dirt', 0.3, (10 + Math.random() * 11) * sv, (1.6 + Math.random() * 1.3) * s, DIRT[i % DIRT.length], 0.5 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(15); i++) cone('dirt', 0.3, (11 + Math.random() * 12) * sv, (1.7 + Math.random() * 1.4) * s, DIRT[i % DIRT.length], 0.6 + Math.random() * 0.4, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(3); i++) cone('smoke', 1.2, (0.6 + Math.random() * 1.0) * sv, (2.0 + Math.random() * 1.2) * s, '#6f6250', 1.4 + Math.random() * 0.6, (Math.random() - 0.5) * 0.8);
     ring('dirt', 9, 3, 6, 1.2, 1.6, 2.6, ['#8a7650', '#75623f'], 0.55, 0.8);
     for (let i = 0; i < sc(5); i++) cone('smoke', 1.0, (1.5 + Math.random() * 2.5) * sv, (1.8 + Math.random() * 1.6) * s, '#7a6848', 0.85 + Math.random() * 0.15, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(18); i++) cone('debris', 0.8, (9 + Math.random() * 9) * sv, (0.12 + Math.random() * 0.2) * s, i % 2 ? '#3d2e15' : '#2a2012', 0.7, 0);
@@ -482,9 +643,10 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     add('flash', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 4.2 * s, '#ffb060', 0.12, 0);
     add('shockwave', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 3.6 * s, '#e9dcc6', 0.12, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(5); i++) cone('fireball', 0.9, (3 + Math.random() * 4) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#ffd08a' : '#ff6a1a', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(16); i++) cone('dirt', 0.42, (12 + Math.random() * 12) * sv, (2.0 + Math.random() * 1.6) * s, i < 6 ? '#2e2519' : DIRT[i % DIRT.length], 0.5 + Math.random() * 0.4, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(26); i++) cone('dirt', 0.38, (5 + Math.random() * 23) * sv, (2.2 + Math.random() * 1.8) * s, i < 9 ? '#2e2519' : DIRT[i % DIRT.length], 0.7 + Math.random() * 0.5, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(6); i++) cone('smoke', 1.4, (0.8 + Math.random() * 1.4) * sv, (3.0 + Math.random() * 2.0) * s, i % 2 ? '#6b5d45' : '#574b38', 1.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.8);
     ring('dirt', 12, 5, 9, 1.5, 2.0, 3.2, ['#6e5c3e', '#5a4a30'], 0.55, 0.85);
-    for (let i = 0; i < sc(8); i++) cone('smoke', 1.2, (1.5 + Math.random() * 2) * sv, (2.6 + Math.random() * 2.4) * s, i < 4 ? '#2e2a24' : '#5a4a30', 0.9 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(8); i++) cone('smoke', 1.2, (1.5 + Math.random() * 2) * sv, (2.6 + Math.random() * 2.4) * s, i < 4 ? '#3e3428' : '#5f4f36', 0.9 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(24); i++) cone('debris', 1.3, (10 + Math.random() * 9) * sv, (0.16 + Math.random() * 0.24) * s, i % 2 ? '#3d2e15' : '#241b10', 0.6, 0);
   } else if (type === 'he_hit_penetrate') {
     const ox = n.x * 0.25 * s;
@@ -547,8 +709,9 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     add('shockwave', 0, 0.56 * s, 0, 0, 0, 0, 4.2 * s, '#b9b0a3', 0.32, Math.random() * Math.PI * 2);
     add('fireball', 0, 0.55 * s, 0, 0, 5.5 * sv, 0, 8.0 * s, '#ffe5ac', 0.16, (Math.random() - 0.5) * 1.6);
     add('fireball', 0, 0.92 * s, 0, 0, 4.2 * sv, 0, 6.0 * s, '#ff7426', 0.24, (Math.random() - 0.5) * 1.8);
-    radialBurst('fireball', 18, 2.2, 7.5, 12.5, 1.5, 4.0, 1.8, 3.9, '#ffe0b0', '#ff9f3c', 0.12, 0.24, 2.0);
-    radialBurst('smoke', 42, 2.4, 6.0, 10.0, 1.8, 4.2, 2.6, 4.8, '#141414', '#3b3026', 1.15, 1.45, 2.0);
+    radialBurst('fireball', 18, 1.6, 3.0, 6.5, 3.0, 8.0, 2.2, 4.2, '#ffe0b0', '#ff9f3c', 0.14, 0.3, 2.0);
+    radialBurst('smoke', 30, 1.8, 2.0, 4.5, 5.0, 10.0, 2.8, 4.8, '#141414', '#3b3026', 1.3, 1.9, 1.2);
+    radialBurst('smoke', 14, 2.6, 5.0, 8.0, 0.6, 1.8, 2.4, 3.6, '#2b2620', '#4a4034', 1.0, 1.4, 1.6);
     radialBurst('spark', 34, 1.9, 13.0, 20.0, 0.8, 2.6, 0.28, 0.42, '#fff0b0', '#ff9f1c', 0.28, 0.46, 0);
     radialBurst('debris', 10, 1.5, 10.0, 14.0, 0.4, 1.6, 0.05, 0.1, '#3b2d1f', '#111111', 0.65, 0.8, 0);
   } else if (type === 'fire') {
@@ -558,18 +721,20 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     add('muzzleFlash', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, 0, 0, 0, 5.2 * s, '#ffd08a', 0.07, 0);
     add('muzzleFlash', n.x * 1.5 * s, n.y * 1.5 * s, n.z * 1.5 * s, 0, 0, 0, 3.6 * s, '#ff7a1a', 0.06, 0);
     // Kept compact: a camera-facing ring this close to the lens otherwise balloons over the whole view.
-    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 2.6 * s, '#f7e6cf', 0.115, Math.random() * Math.PI * 2);
-    add('shockwave', n.x * 1.8 * s, n.y * 1.8 * s, n.z * 1.8 * s, 0, 0, 0, 1.9 * s, '#fff8eb', 0.08, Math.random() * Math.PI * 2);
+    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 2.6 * s, '#5e5850', 0.115, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(5); i++) {
       jet('muzzleFireball', 0.9 * s + Math.random() * 1.7 * s, 0.24, (11 + Math.random() * 10) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#fff0b0' : '#ff6a00', 0.085 + Math.random() * 0.035, (Math.random() - 0.5) * 1.8);
     }
     for (let i = 0; i < sc(7); i++) {
-      jet('muzzleSmoke', 0.8 * s + Math.random() * 1.6 * s, 0.42, (4.5 + Math.random() * 5.5) * sv, (1.8 + Math.random() * 1.5) * s, i < 4 ? '#f1eee6' : '#b9b3aa', 0.55 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
+      jet('muzzleSmoke', 0.8 * s + Math.random() * 1.6 * s, 0.42, (4.5 + Math.random() * 5.5) * sv, (1.8 + Math.random() * 1.5) * s, i < 4 ? '#c9c4bb' : '#98928a', 0.55 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
     }
     for (let i = 0; i < sc(4); i++) {
-      jet('muzzleSmoke', 0.25 * s + Math.random() * 0.7 * s, 0.18, (2.5 + Math.random() * 2.5) * sv, (1.4 + Math.random() * 0.9) * s, '#fffaf2', 0.14 + Math.random() * 0.05, (Math.random() - 0.5) * 2);
+      jet('muzzleSmoke', 0.25 * s + Math.random() * 0.7 * s, 0.18, (2.5 + Math.random() * 2.5) * sv, (1.4 + Math.random() * 0.9) * s, '#ded9cf', 0.14 + Math.random() * 0.05, (Math.random() - 0.5) * 2);
     }
     add('muzzleSmoke', n.x * 0.45 * s, n.y * 0.45 * s, n.z * 0.45 * s, nv.x, nv.y, nv.z, 3.2 * s, '#d7d2ca', 0.75, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(4); i++) {
+      jet('smoke', 1.2 * s + Math.random() * 2.2 * s, 0.5, (1.2 + Math.random() * 1.8) * sv, (1.6 + Math.random() * 1.2) * s, i % 2 ? '#a19b92' : '#8a847b', 2.0 + Math.random() * 0.8, (Math.random() - 0.5) * 0.8);
+    }
     add('muzzleSmoke', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, nv.x * 0.7, nv.y * 0.7, nv.z * 0.7, 2.6 * s, '#8a847d', 1.0, (Math.random() - 0.5) * 2);
 
     // Muzzle blast lifts a ring of dust off the ground beneath and ahead of the barrel.
@@ -603,21 +768,27 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
       }
     }
   } else if (type === 'burning_smoke') {
-    for (let i = 0; i < 3; i++) {
-      add('smoke',
-        (Math.random() - 0.5) * 1.5, Math.random() * 0.5, (Math.random() - 0.5) * 1.5,
-        (Math.random() - 0.5) * 0.8, 2 + Math.random() * 2, (Math.random() - 0.5) * 0.8,
-        config.size * (0.7 + Math.random() * 0.6), config.color, 1,
-        (Math.random() - 0.5) * 1.5
-      );
+    // Wreck plume: dense dark puffs off the engine deck that rise, swell,
+    // drift downwind and dilute toward grey. Scale is the current density.
+    const puffs = Math.random() < s ? 2 : 1;
+    for (let i = 0; i < puffs; i++) {
+      add('plume',
+        (Math.random() - 0.5) * 1.6, Math.random() * 0.4, (Math.random() - 0.5) * 1.6,
+        (Math.random() - 0.5) * 0.9, 3.0 + Math.random() * 1.6, (Math.random() - 0.5) * 0.9,
+        (2.1 + Math.random() * 1.3) * (0.6 + 0.4 * s), i === 0 ? '#141210' : '#221f1c',
+        0.8 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);
+      const sub = subs[subs.length - 1];
+      _tmpColor.set(Math.random() < 0.5 ? '#5d5953' : '#6f6a63');
+      sub.r2 = _tmpColor.r; sub.g2 = _tmpColor.g; sub.b2 = _tmpColor.b;
     }
-    if (Math.random() < 0.4) {
-      add('fireball',
-        (Math.random() - 0.5) * 0.8, 0.5, (Math.random() - 0.5) * 0.8,
-        0, 1 + Math.random(), 0,
-        1.5 + Math.random(), '#ff3300', 0.4,
-        (Math.random() - 0.5) * 2
-      );
+  } else if (type === 'wreck_fire') {
+    // Flames licking out of hatches and the engine deck at the plume's base.
+    for (let i = 0; i < 2; i++) {
+      add('wreckFire',
+        (Math.random() - 0.5) * 1.1, Math.random() * 0.3, (Math.random() - 0.5) * 1.1,
+        (Math.random() - 0.5) * 0.3, 1.2 + Math.random() * 1.2, (Math.random() - 0.5) * 0.3,
+        (1.1 + Math.random() * 0.9) * s, Math.random() < 0.35 ? '#ffc46a' : '#ff6a1c',
+        0.55 + Math.random() * 0.45, (Math.random() - 0.5) * 3);
     }
   } else if (type === 'tree_hit') {
     add('flash', 0, 0, 0, 0, 0, 0, 2.0 * s, '#ffcc66', 0.15, 0);
@@ -638,9 +809,10 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     add('smoke', 0, 0.1, 0, (Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6, (1.0 + Math.random() * 0.5) * clod, '#7a6446', 0.7 + Math.random() * 0.3, (Math.random() - 0.5) * 1.2);
   } else if (type === 'track_grass') {
     // Torn turf and root soil flicked off the track, with only a faint haze.
-    const TURF = ['#3f5a22', '#4d6b2a', '#56722e', '#3a2c1a'];
+    const TURF = ['#343f1e', '#3d4822', '#2f2616', '#44381f'];
     const bit = 0.7 + 0.3 * s;
-    for (let i = 0; i < sc(6); i++) cone('debris', 0.7, (2 + Math.random() * 3.5) * sv, (0.05 + Math.random() * 0.07) * bit, TURF[i % TURF.length], 0.5 + Math.random() * 0.3, 0);
+    for (let i = 0; i < sc(4); i++) cone('debris', 0.7, (2 + Math.random() * 3.5) * sv, (0.035 + Math.random() * 0.045) * bit, TURF[i % TURF.length], 0.5 + Math.random() * 0.3, 0);
+    for (let i = 0; i < sc(2); i++) cone('dirt', 0.8, (0.8 + Math.random() * 1.2) * sv, (0.35 + Math.random() * 0.3) * bit, i % 2 ? '#4a4128' : '#5a5033', 0.4 + Math.random() * 0.3, (Math.random() - 0.5) * 1.6);
     if (Math.random() < 0.5 + 0.4 * Math.min(1, s)) {
       add('smoke', 0, 0.15, 0, (Math.random() - 0.5) * 0.5, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.5, (0.8 + Math.random() * 0.5) * bit, '#8c8a64', 0.55 + Math.random() * 0.25, (Math.random() - 0.5) * 1.2);
     }
@@ -708,113 +880,20 @@ const _debrisQuat = new THREE.Quaternion();
 const _debrisScale = new THREE.Vector3();
 const _debrisEuler = new THREE.Euler();
 const _debrisBoxGeo = new THREE.BoxGeometry(1, 1, 1);
-
-function BurningSmokeEffect({ particle }: { particle: Particle }) {
-  const removeParticle = useGameStore((state) => state.removeParticle);
-  const groupRef = useRef<THREE.Group>(null);
-  const { position, createdAt } = particle;
-  const config = GAME_CONFIG.particles.burning_smoke;
-
-  const subParticles = useMemo(() => {
-    const subs: BurningSmokeSubParticle[] = [];
-
-    for (let i = 0; i < 3; i++) {
-      subs.push({
-        type: 'smoke',
-        pos: new THREE.Vector3((Math.random() - 0.5) * 1.5, Math.random() * 0.5, (Math.random() - 0.5) * 1.5),
-        vel: new THREE.Vector3((Math.random() - 0.5) * 0.8, 2 + Math.random() * 2, (Math.random() - 0.5) * 0.8),
-        scale: config.size * (0.7 + Math.random() * 0.6),
-        color: config.color,
-        life: 1,
-        rotSpeed: (Math.random() - 0.5) * 1.5,
-      });
-    }
-
-    if (Math.random() < 0.4) {
-      subs.push({
-        type: 'fireball',
-        pos: new THREE.Vector3((Math.random() - 0.5) * 0.8, 0.5, (Math.random() - 0.5) * 0.8),
-        vel: new THREE.Vector3(0, 1 + Math.random(), 0),
-        scale: 1.5 + Math.random(),
-        color: '#ff3300',
-        life: 0.4,
-        rotSpeed: (Math.random() - 0.5) * 2,
-      });
-    }
-
-    return subs;
-  }, [config.color, config.size]);
-
-  const subParticlesData = useRef(subParticles.map((sp) => ({
-    ...sp,
-    currentPos: sp.pos.clone(),
-    currentVel: sp.vel.clone(),
-  })));
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      removeParticle(particle.id);
-    }, config.lifetime);
-    return () => clearTimeout(timer);
-  }, [config.lifetime, particle.id, removeParticle]);
-
-  useFrame((_, delta) => {
-    if (!groupRef.current) return;
-
-    const age = Date.now() - createdAt;
-    const children = groupRef.current.children;
-
-    subParticlesData.current.forEach((sp, i) => {
-      const child = children[i] as THREE.Sprite | undefined;
-      if (!child) return;
-
-      const progress = Math.min(age / (config.lifetime * sp.life), 1);
-
-      sp.currentVel.multiplyScalar(1 - 2 * delta);
-      sp.currentVel.y += 1.5 * delta;
-      sp.currentPos.addScaledVector(sp.currentVel, delta);
-      child.position.copy(sp.currentPos);
-
-      const scale = sp.scale * (1 + progress * 2);
-      child.scale.setScalar(scale);
-
-      const material = child.material as THREE.SpriteMaterial;
-      material.opacity = (1 - Math.pow(progress, 1.5)) * (sp.type === 'fireball' ? 1 : 0.6);
-      material.rotation += sp.rotSpeed * delta;
-      child.visible = progress < 1;
-    });
-  });
-
-  return (
-    <group ref={groupRef} position={position}>
-      {subParticles.map((sp, i) => (
-        <sprite key={i} scale={[sp.scale, sp.scale, 1]}>
-          <spriteMaterial
-            map={dustTexture}
-            color={sp.color}
-            transparent
-            opacity={1}
-            depthWrite={false}
-            blending={sp.type === 'smoke' ? THREE.NormalBlending : THREE.AdditiveBlending}
-          />
-        </sprite>
-      ))}
-    </group>
-  );
-}
+const _viewForward = new THREE.Vector3();
 
 export function Particles() {
   const removeParticle = useGameStore((state) => state.removeParticle);
-  const particles = useGameStore((state) => state.particles);
-  const burningSmokeParticles = useMemo(
-    () => particles.filter((p) => p.type === 'burning_smoke'),
-    [particles]
-  );
 
   // Pools (created once)
   const additivePool = useMemo(() => createPointPool(MAX_ADDITIVE, dustTexture, THREE.AdditiveBlending), []);
   const muzzleAdditivePool = useMemo(
-    () => createPointPool(MAX_MUZZLE_ADDITIVE, dustTexture, THREE.AdditiveBlending),
+    () => createPointPool(MAX_MUZZLE_ADDITIVE, flashTexture, THREE.AdditiveBlending),
+    []
+  );
+  // Billowing flame (fireballs, muzzle fire, burning wrecks) uses the lumpy atlas.
+  const firePool = useMemo(
+    () => createPointPool(MAX_FIRE, smokeAtlas, THREE.AdditiveBlending, { atlas: true }),
     []
   );
   const impactAdditivePool = useMemo(
@@ -830,9 +909,12 @@ export function Particles() {
     () => createPointPool(MAX_IMPACT_SPARK, sparkTexture, THREE.AdditiveBlending),
     []
   );
-  const smokePool = useMemo(() => createPointPool(MAX_SMOKE, dustTexture, THREE.NormalBlending), []);
+  const smokePool = useMemo(
+    () => createPointPool(MAX_SMOKE, smokeAtlas, THREE.NormalBlending, { atlas: true, lit: true }),
+    []
+  );
   const muzzleSmokePool = useMemo(
-    () => createPointPool(MAX_MUZZLE_SMOKE, dustTexture, THREE.NormalBlending),
+    () => createPointPool(MAX_MUZZLE_SMOKE, smokeAtlas, THREE.NormalBlending, { atlas: true, lit: true }),
     []
   );
 
@@ -848,17 +930,33 @@ export function Particles() {
   const subsRef = useRef<SubState[]>([]);
   const processedRef = useRef<Set<string>>(new Set());
   const pendingRemoveRef = useRef<Map<string, number>>(new Map()); // particleId -> removeAt timestamp
+  const smokeStageRef = useRef({
+    index: new Uint16Array(MAX_SMOKE),
+    depth: new Float32Array(MAX_SMOKE),
+    size: new Float32Array(MAX_SMOKE),
+    opacity: new Float32Array(MAX_SMOKE),
+    color: new Float32Array(MAX_SMOKE * 3),
+    subs: new Array<SubState | undefined>(MAX_SMOKE),
+  });
 
-  useFrame((_, delta) => {
+  useFrame(({ camera, scene }, delta) => {
     const state = useGameStore.getState();
     const now = Date.now();
     const subs = subsRef.current;
+
+    // Sun direction in view space and scene fog, shared by every sprite pool.
+    spriteUniforms.uSunView.value.copy(SUN_DIRECTION).transformDirection(camera.matrixWorldInverse);
+    if (scene.fog instanceof THREE.Fog) {
+      spriteUniforms.uFogColor.value.copy(scene.fog.color);
+      spriteUniforms.uFogNear.value = scene.fog.near;
+      spriteUniforms.uFogFar.value = scene.fog.far;
+    }
+    camera.getWorldDirection(_viewForward);
     const processed = processedRef.current;
     const pendingRemove = pendingRemoveRef.current;
 
     // 1. Spawn sub-particles for new effects
     for (const p of state.particles) {
-      if (p.type === 'burning_smoke') continue;
       if (!processed.has(p.id)) {
         processed.add(p.id);
         spawnSubParticles(p, subs);
@@ -890,12 +988,14 @@ export function Particles() {
     let addIdx = 0;
     let muzzleAddIdx = 0;
     let impactAddIdx = 0;
+    let fireIdx = 0;
     let shockIdx = 0;
     let spkIdx = 0;
     let impactSpkIdx = 0;
-    let smkIdx = 0;
+    let smkCount = 0;
     let muzzleSmkIdx = 0;
     let debIdx = 0;
+    const stage = smokeStageRef.current;
 
     let i = subs.length;
     while (i-- > 0) {
@@ -913,6 +1013,14 @@ export function Particles() {
       // Physics
       if (sub.type === 'debris' || sub.type === 'spark' || sub.type === 'impactSpark') {
         sub.vy -= 25 * delta;
+      } else if (sub.type === 'plume') {
+        // Buoyancy fades as the puff cools; the wind takes over.
+        const drag = 1 - 0.35 * delta;
+        sub.vx = sub.vx * drag + WIND.x * 0.35 * delta;
+        sub.vz = sub.vz * drag + WIND.z * 0.35 * delta;
+        sub.vy = sub.vy * drag + (1 - progress) * 0.6 * delta;
+      } else if (sub.type === 'wreckFire') {
+        sub.vy += 1.8 * delta;
       } else if (
         sub.type === 'smoke' ||
         sub.type === 'fireball' ||
@@ -939,170 +1047,72 @@ export function Particles() {
       sub.rotation += sub.rotSpeed * delta;
 
       // Populate appropriate buffer
-      if (sub.type === 'flash' || sub.type === 'fireball') {
-        if (addIdx < MAX_ADDITIVE) {
-          const pool = additivePool;
-          const scale = sub.type === 'flash'
-            ? sub.baseScale * (1 + progress * 1.5)
-            : sub.baseScale * (1 + progress * 2);
-          const opacity = sub.type === 'flash'
-            ? 1 - Math.pow(progress, 0.5)
-            : 1 - Math.pow(progress, 1.5);
-          pool.positions[addIdx * 3] = sub.px;
-          pool.positions[addIdx * 3 + 1] = sub.py;
-          pool.positions[addIdx * 3 + 2] = sub.pz;
-          pool.sizes[addIdx] = scale;
-          pool.opacities[addIdx] = opacity;
-          pool.rotations[addIdx] = sub.rotation;
-          pool.colors[addIdx * 3] = sub.r;
-          pool.colors[addIdx * 3 + 1] = sub.g;
-          pool.colors[addIdx * 3 + 2] = sub.b;
-          addIdx++;
+      if (sub.type === 'flash') {
+        if (addIdx < MAX_ADDITIVE) writeSprite(additivePool, addIdx++, sub, sub.baseScale * (1 + progress * 1.5), 1 - Math.pow(progress, 0.5));
+      } else if (sub.type === 'fireball') {
+        if (fireIdx < MAX_FIRE) writeSprite(firePool, fireIdx++, sub, sub.baseScale * (1 + progress * 2), 1 - Math.pow(progress, 1.5));
+      } else if (sub.type === 'muzzleFireball') {
+        if (fireIdx < MAX_FIRE) writeSprite(firePool, fireIdx++, sub, sub.baseScale * (1 + progress * 2.2), 1 - Math.pow(progress, 1.3));
+      } else if (sub.type === 'wreckFire') {
+        if (fireIdx < MAX_FIRE) {
+          // Tongues shrink as they rise and flicker; cooler colour at the tips.
+          const flicker = 0.75 + 0.25 * Math.sin(age * 0.045 + sub.variant * 1.7);
+          const cool = 1 - progress * 0.6;
+          writeSprite(firePool, fireIdx++, sub, sub.baseScale * (1.1 - progress * 0.5),
+            Math.min(1, progress * 8) * (1 - progress) * flicker, sub.r * 2.2, sub.g * cool * 2.2, sub.b * cool * cool * 2.2);
         }
-      } else if (sub.type === 'muzzleFlash' || sub.type === 'muzzleFireball') {
-        if (muzzleAddIdx < MAX_MUZZLE_ADDITIVE) {
-          const pool = muzzleAdditivePool;
-          const scale = sub.type === 'muzzleFlash'
-            ? sub.baseScale * (1 + progress * 1.8)
-            : sub.baseScale * (1 + progress * 2.2);
-          const opacity = sub.type === 'muzzleFlash'
-            ? 1 - Math.pow(progress, 0.45)
-            : 1 - Math.pow(progress, 1.3);
-          pool.positions[muzzleAddIdx * 3] = sub.px;
-          pool.positions[muzzleAddIdx * 3 + 1] = sub.py;
-          pool.positions[muzzleAddIdx * 3 + 2] = sub.pz;
-          pool.sizes[muzzleAddIdx] = scale;
-          pool.opacities[muzzleAddIdx] = opacity;
-          pool.rotations[muzzleAddIdx] = sub.rotation;
-          pool.colors[muzzleAddIdx * 3] = sub.r;
-          pool.colors[muzzleAddIdx * 3 + 1] = sub.g;
-          pool.colors[muzzleAddIdx * 3 + 2] = sub.b;
-          muzzleAddIdx++;
-        }
+      } else if (sub.type === 'muzzleFlash') {
+        if (muzzleAddIdx < MAX_MUZZLE_ADDITIVE) writeSprite(muzzleAdditivePool, muzzleAddIdx++, sub, sub.baseScale * (1 + progress * 1.8), 1 - Math.pow(progress, 0.45));
       } else if (sub.type === 'impactFlash') {
-        if (impactAddIdx < MAX_IMPACT_ADDITIVE) {
-          const pool = impactAdditivePool;
-          const scale = sub.baseScale * (1 + progress * 1.4);
-          const opacity = 1 - Math.pow(progress, 0.42);
-          pool.positions[impactAddIdx * 3] = sub.px;
-          pool.positions[impactAddIdx * 3 + 1] = sub.py;
-          pool.positions[impactAddIdx * 3 + 2] = sub.pz;
-          pool.sizes[impactAddIdx] = scale;
-          pool.opacities[impactAddIdx] = opacity;
-          pool.rotations[impactAddIdx] = sub.rotation;
-          pool.colors[impactAddIdx * 3] = sub.r;
-          pool.colors[impactAddIdx * 3 + 1] = sub.g;
-          pool.colors[impactAddIdx * 3 + 2] = sub.b;
-          impactAddIdx++;
-        }
+        if (impactAddIdx < MAX_IMPACT_ADDITIVE) writeSprite(impactAdditivePool, impactAddIdx++, sub, sub.baseScale * (1 + progress * 1.4), 1 - Math.pow(progress, 0.42));
       } else if (sub.type === 'ember') {
         if (impactAddIdx < MAX_IMPACT_ADDITIVE) {
-          const pool = impactAdditivePool;
           // Hot metal cools: green and blue drop out first, leaving a dull red glow.
           const cool = 1 - progress;
-          pool.positions[impactAddIdx * 3] = sub.px;
-          pool.positions[impactAddIdx * 3 + 1] = sub.py;
-          pool.positions[impactAddIdx * 3 + 2] = sub.pz;
-          pool.sizes[impactAddIdx] = sub.baseScale * (1 - progress * 0.45);
-          pool.opacities[impactAddIdx] = Math.pow(cool, 1.4) * (0.85 + 0.15 * Math.sin(age * 0.04));
-          pool.rotations[impactAddIdx] = 0;
-          pool.colors[impactAddIdx * 3] = sub.r;
-          pool.colors[impactAddIdx * 3 + 1] = sub.g * cool;
-          pool.colors[impactAddIdx * 3 + 2] = sub.b * cool * cool;
-          impactAddIdx++;
+          const savedRotation = sub.rotation;
+          sub.rotation = 0;
+          writeSprite(impactAdditivePool, impactAddIdx++, sub, sub.baseScale * (1 - progress * 0.45),
+            Math.pow(cool, 1.4) * (0.85 + 0.15 * Math.sin(age * 0.04)), sub.r, sub.g * cool, sub.b * cool * cool);
+          sub.rotation = savedRotation;
         }
       } else if (sub.type === 'shockwave') {
-        if (shockIdx < MAX_SHOCKWAVE) {
-          const pool = shockwavePool;
-          const scale = sub.baseScale * (1 + progress * 4.5);
-          const opacity = Math.max(0, 1 - Math.pow(progress, 0.9) * 1.02) * 0.98;
-          pool.positions[shockIdx * 3] = sub.px;
-          pool.positions[shockIdx * 3 + 1] = sub.py;
-          pool.positions[shockIdx * 3 + 2] = sub.pz;
-          pool.sizes[shockIdx] = scale;
-          pool.opacities[shockIdx] = opacity;
-          pool.rotations[shockIdx] = sub.rotation;
-          pool.colors[shockIdx * 3] = sub.r;
-          pool.colors[shockIdx * 3 + 1] = sub.g;
-          pool.colors[shockIdx * 3 + 2] = sub.b;
-          shockIdx++;
-        }
+        if (shockIdx < MAX_SHOCKWAVE) writeSprite(shockwavePool, shockIdx++, sub, sub.baseScale * (1 + progress * 4.5), Math.max(0, 1 - Math.pow(progress, 0.9) * 1.02) * 0.98);
       } else if (sub.type === 'spark') {
-        if (spkIdx < MAX_SPARK) {
-          const pool = sparkPool;
-          const opacity = 1 - Math.pow(progress, 2);
-          pool.positions[spkIdx * 3] = sub.px;
-          pool.positions[spkIdx * 3 + 1] = sub.py;
-          pool.positions[spkIdx * 3 + 2] = sub.pz;
-          pool.sizes[spkIdx] = sub.baseScale;
-          pool.opacities[spkIdx] = opacity;
-          pool.rotations[spkIdx] = 0;
-          pool.colors[spkIdx * 3] = sub.r;
-          pool.colors[spkIdx * 3 + 1] = sub.g;
-          pool.colors[spkIdx * 3 + 2] = sub.b;
-          spkIdx++;
-        }
+        if (spkIdx < MAX_SPARK) writeSprite(sparkPool, spkIdx++, sub, sub.baseScale, 1 - Math.pow(progress, 2));
       } else if (sub.type === 'impactSpark') {
-        if (impactSpkIdx < MAX_IMPACT_SPARK) {
-          const pool = impactSparkPool;
-          const opacity = 1 - Math.pow(progress, 1.8);
-          pool.positions[impactSpkIdx * 3] = sub.px;
-          pool.positions[impactSpkIdx * 3 + 1] = sub.py;
-          pool.positions[impactSpkIdx * 3 + 2] = sub.pz;
-          pool.sizes[impactSpkIdx] = sub.baseScale * (1 + progress * 0.25);
-          pool.opacities[impactSpkIdx] = opacity;
-          pool.rotations[impactSpkIdx] = 0;
-          pool.colors[impactSpkIdx * 3] = sub.r;
-          pool.colors[impactSpkIdx * 3 + 1] = sub.g;
-          pool.colors[impactSpkIdx * 3 + 2] = sub.b;
-          impactSpkIdx++;
-        }
-      } else if (sub.type === 'smoke') {
-        if (smkIdx < MAX_SMOKE) {
-          const pool = smokePool;
-          const scale = sub.baseScale * (1 + progress * 2);
-          const opacity = (1 - Math.pow(progress, 1.5)) * 0.6;
-          pool.positions[smkIdx * 3] = sub.px;
-          pool.positions[smkIdx * 3 + 1] = sub.py;
-          pool.positions[smkIdx * 3 + 2] = sub.pz;
-          pool.sizes[smkIdx] = scale;
-          pool.opacities[smkIdx] = opacity;
-          pool.rotations[smkIdx] = sub.rotation;
-          pool.colors[smkIdx * 3] = sub.r;
-          pool.colors[smkIdx * 3 + 1] = sub.g;
-          pool.colors[smkIdx * 3 + 2] = sub.b;
-          smkIdx++;
-        }
-      } else if (sub.type === 'dirt') {
-        if (smkIdx < MAX_SMOKE) {
-          const pool = smokePool;
-          pool.positions[smkIdx * 3] = sub.px;
-          pool.positions[smkIdx * 3 + 1] = sub.py;
-          pool.positions[smkIdx * 3 + 2] = sub.pz;
-          pool.sizes[smkIdx] = sub.baseScale * (1 + progress * 1.6);
-          pool.opacities[smkIdx] = (1 - Math.pow(progress, 1.3)) * 0.85;
-          pool.rotations[smkIdx] = sub.rotation;
-          pool.colors[smkIdx * 3] = sub.r;
-          pool.colors[smkIdx * 3 + 1] = sub.g;
-          pool.colors[smkIdx * 3 + 2] = sub.b;
-          smkIdx++;
+        if (impactSpkIdx < MAX_IMPACT_SPARK) writeSprite(impactSparkPool, impactSpkIdx++, sub, sub.baseScale * (1 + progress * 0.25), 1 - Math.pow(progress, 1.8));
+      } else if (sub.type === 'smoke' || sub.type === 'dirt' || sub.type === 'plume') {
+        if (smkCount < MAX_SMOKE) {
+          let size: number;
+          let opacity: number;
+          let r = sub.r, g = sub.g, b = sub.b;
+          if (sub.type === 'smoke') {
+            size = sub.baseScale * (1 + progress * 2);
+            opacity = (1 - Math.pow(progress, 1.5)) * 0.6;
+          } else if (sub.type === 'dirt') {
+            size = sub.baseScale * (1 + progress * 1.6);
+            // Thrown earth is opaque; thin dark puffs over the sky otherwise read blue.
+            opacity = (1 - Math.pow(progress, 1.3)) * 0.98;
+          } else {
+            // Swell from a tight dark knot into a broad grey drift.
+            size = sub.baseScale * (1 + progress * 4);
+            opacity = Math.min(1, progress * 6) * Math.pow(1 - progress, 1.1) * 0.72;
+            const dilute = Math.min(1, progress * 1.6);
+            r += (sub.r2 - r) * dilute; g += (sub.g2 - g) * dilute; b += (sub.b2 - b) * dilute;
+          }
+          stage.index[smkCount] = smkCount;
+          stage.depth[smkCount] = (sub.px - camera.position.x) * _viewForward.x
+            + (sub.py - camera.position.y) * _viewForward.y + (sub.pz - camera.position.z) * _viewForward.z;
+          stage.subs[smkCount] = sub;
+          stage.size[smkCount] = size;
+          stage.opacity[smkCount] = opacity;
+          stage.color[smkCount * 3] = r;
+          stage.color[smkCount * 3 + 1] = g;
+          stage.color[smkCount * 3 + 2] = b;
+          smkCount++;
         }
       } else if (sub.type === 'muzzleSmoke') {
-        if (muzzleSmkIdx < MAX_MUZZLE_SMOKE) {
-          const pool = muzzleSmokePool;
-          const scale = sub.baseScale * (1 + progress * 2.3);
-          const opacity = (1 - Math.pow(progress, 1.25)) * 0.75;
-          pool.positions[muzzleSmkIdx * 3] = sub.px;
-          pool.positions[muzzleSmkIdx * 3 + 1] = sub.py;
-          pool.positions[muzzleSmkIdx * 3 + 2] = sub.pz;
-          pool.sizes[muzzleSmkIdx] = scale;
-          pool.opacities[muzzleSmkIdx] = opacity;
-          pool.rotations[muzzleSmkIdx] = sub.rotation;
-          pool.colors[muzzleSmkIdx * 3] = sub.r;
-          pool.colors[muzzleSmkIdx * 3 + 1] = sub.g;
-          pool.colors[muzzleSmkIdx * 3 + 2] = sub.b;
-          muzzleSmkIdx++;
-        }
+        if (muzzleSmkIdx < MAX_MUZZLE_SMOKE) writeSprite(muzzleSmokePool, muzzleSmkIdx++, sub, sub.baseScale * (1 + progress * 2.3), (1 - Math.pow(progress, 1.25)) * 0.75);
       } else if (sub.type === 'debris') {
         if (debIdx < MAX_DEBRIS && debrisRef.current) {
           const opacity = 1 - progress;
@@ -1110,7 +1120,8 @@ export function Particles() {
           _debrisEuler.set(sub.vy * progress * 3, sub.vx * progress * 3, 0);
           _debrisQuat.setFromEuler(_debrisEuler);
           _debrisPos.set(sub.px, sub.py, sub.pz);
-          _debrisScale.setScalar(sub.baseScale);
+          // Flattened chips read as clods and turf rather than cubes.
+          _debrisScale.set(sub.baseScale, sub.baseScale * 0.45, sub.baseScale * 0.8);
           _debrisMat.compose(_debrisPos, _debrisQuat, _debrisScale);
           debrisRef.current.setMatrixAt(debIdx, _debrisMat);
 
@@ -1123,83 +1134,23 @@ export function Particles() {
       }
     }
 
-    // Update additive pool
-    additivePool.geometry.setDrawRange(0, addIdx);
-    if (addIdx > 0) {
-      (additivePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (additivePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (additivePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (additivePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (additivePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
+    // Alpha-blended smoke must be drawn back to front, or dark puffs pop over light ones.
+    const order = stage.index.subarray(0, smkCount).sort((a, b) => stage.depth[b] - stage.depth[a]);
+    for (let k = 0; k < smkCount; k++) {
+      const j = order[k];
+      writeSprite(smokePool, k, stage.subs[j]!, stage.size[j], stage.opacity[j],
+        stage.color[j * 3], stage.color[j * 3 + 1], stage.color[j * 3 + 2]);
     }
 
-    // Update muzzle additive pool
-    muzzleAdditivePool.geometry.setDrawRange(0, muzzleAddIdx);
-    if (muzzleAddIdx > 0) {
-      (muzzleAdditivePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleAdditivePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleAdditivePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleAdditivePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleAdditivePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    impactAdditivePool.geometry.setDrawRange(0, impactAddIdx);
-    if (impactAddIdx > 0) {
-      (impactAdditivePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (impactAdditivePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (impactAdditivePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (impactAdditivePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (impactAdditivePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    // Update shockwave pool
-    shockwavePool.geometry.setDrawRange(0, shockIdx);
-    if (shockIdx > 0) {
-      (shockwavePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (shockwavePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (shockwavePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (shockwavePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (shockwavePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    // Update spark pool
-    sparkPool.geometry.setDrawRange(0, spkIdx);
-    if (spkIdx > 0) {
-      (sparkPool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (sparkPool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (sparkPool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (sparkPool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (sparkPool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    impactSparkPool.geometry.setDrawRange(0, impactSpkIdx);
-    if (impactSpkIdx > 0) {
-      (impactSparkPool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (impactSparkPool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (impactSparkPool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (impactSparkPool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (impactSparkPool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    // Update smoke pool
-    smokePool.geometry.setDrawRange(0, smkIdx);
-    if (smkIdx > 0) {
-      (smokePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (smokePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (smokePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (smokePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (smokePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
-
-    // Update muzzle smoke pool
-    muzzleSmokePool.geometry.setDrawRange(0, muzzleSmkIdx);
-    if (muzzleSmkIdx > 0) {
-      (muzzleSmokePool.geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleSmokePool.geometry.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleSmokePool.geometry.attributes.aOpacity as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleSmokePool.geometry.attributes.aRotation as THREE.BufferAttribute).needsUpdate = true;
-      (muzzleSmokePool.geometry.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    }
+    flagPool(additivePool, addIdx);
+    flagPool(muzzleAdditivePool, muzzleAddIdx);
+    flagPool(impactAdditivePool, impactAddIdx);
+    flagPool(firePool, fireIdx);
+    flagPool(shockwavePool, shockIdx);
+    flagPool(sparkPool, spkIdx);
+    flagPool(impactSparkPool, impactSpkIdx);
+    flagPool(smokePool, smkCount);
+    flagPool(muzzleSmokePool, muzzleSmkIdx);
 
     // Update debris instanced mesh
     if (debrisRef.current) {
@@ -1234,8 +1185,10 @@ export function Particles() {
 
   return (
     <group>
-      {/* Additive sprites (flash + fireball) */}
+      {/* Additive flash sprites */}
       <points geometry={additivePool.geometry} material={additivePool.material} frustumCulled={false} />
+      {/* Billowing flame: fireballs, muzzle fire and burning wrecks */}
+      <points geometry={firePool.geometry} material={firePool.material} frustumCulled={false} renderOrder={6} />
       {/* Muzzle flash sprites ignore barrel depth */}
       <points geometry={muzzleAdditivePool.geometry} material={muzzleAdditivePool.material} frustumCulled={false} renderOrder={20} />
       {/* Impact flashes temporarily ignore depth for visibility tuning */}
@@ -1250,9 +1203,6 @@ export function Particles() {
       <points geometry={smokePool.geometry} material={smokePool.material} frustumCulled={false} />
       {/* Muzzle smoke ignores barrel depth */}
       <points geometry={muzzleSmokePool.geometry} material={muzzleSmokePool.material} frustumCulled={false} renderOrder={18} />
-      {burningSmokeParticles.map((p) => (
-        <BurningSmokeEffect key={p.id} particle={p} />
-      ))}
       {/* Debris boxes */}
       <instancedMesh
         ref={debrisRef}
