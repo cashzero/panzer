@@ -5,6 +5,8 @@ import { useGameStore } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
+import { sampleGroundSurface, type GroundSurfaceKind } from './groundSurface';
+import { estimateTrackFootprint } from './rendering/TrackMarks';
 
 function createTrackTexture() {
   const canvas = document.createElement('canvas');
@@ -45,6 +47,9 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
 
   const lastDustSpawn = useRef<number>(0);
   const lastLowDustSpawn = useRef<number>(0);
+  const lastTrackFxSpawn = useRef<number>(0);
+  const lastSurfaceSample = useRef<number>(0);
+  const surfaceKind = useRef<GroundSurfaceKind | null>(null);
 
   const leftTrackTexture = useMemo(() => createTrackTexture(), []);
   const rightTrackTexture = useMemo(() => createTrackTexture(), []);
@@ -80,7 +85,7 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
 
   const { HullComponent, TracksComponent, TurretComponent, GunComponent } = def;
 
-  useFrame(() => {
+  useFrame(({ camera }) => {
     const data = isPlayer
       ? useGameStore.getState().playerTank
       : (useGameStore.getState().enemies.find(e => e.id === id) ?? useGameStore.getState().allies.find(a => a.id === id));
@@ -154,7 +159,45 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
     const turnSpeed = Math.abs((data.leftTrackSpeed || 0) - (data.rightTrackSpeed || 0));
     const dustCfg = GAME_CONFIG.particles.dust;
 
-    const canSpawnDust = (!isReversing || dustCfg.allowReverse) &&
+    // Off-road the tracks churn turf or mud instead of raising road dust.
+    const trackFxCfg = GAME_CONFIG.trackEffects;
+    const trackMotion = Math.max(speed, turnSpeed * 0.5);
+    if (trackMotion > trackFxCfg.minSpeed && camera.position.distanceTo(data.position) < trackFxCfg.maxCameraDistance) {
+      if (surfaceKind.current === null || now - lastSurfaceSample.current > trackFxCfg.surfaceSampleInterval) {
+        lastSurfaceSample.current = now;
+        const world = useGameStore.getState();
+        surfaceKind.current = sampleGroundSurface(data.position.x, data.position.z, world.roadNetwork, world.farmlands, world.buildings).kind;
+      }
+    }
+    if (surfaceKind.current && surfaceKind.current !== 'road' && trackMotion > trackFxCfg.minSpeed) {
+      const intensity = Math.min(1, trackMotion / trackFxCfg.fullSpeed);
+      const interval = trackFxCfg.maxSpawnInterval - (trackFxCfg.maxSpawnInterval - trackFxCfg.minSpawnInterval) * intensity;
+      if (now - lastTrackFxSpawn.current > interval && camera.position.distanceTo(data.position) < trackFxCfg.maxCameraDistance) {
+        lastTrackFxSpawn.current = now;
+        const spawnParticle = useGameStore.getState().spawnParticle;
+        const { gauge, halfContact } = estimateTrackFootprint(def.trackWidth);
+        const fx = Math.sin(data.rotation);
+        const fz = Math.cos(data.rotation);
+        const type = surfaceKind.current === 'mud' ? 'track_mud' : 'track_grass';
+        for (const [side, trackSpeed] of [[-1, data.leftTrackSpeed || 0], [1, data.rightTrackSpeed || 0]] as const) {
+          if (Math.abs(trackSpeed) < trackFxCfg.minSpeed * 0.5) continue;
+          // Material leaves the trailing end of the belt: the rear when driving forward.
+          const dir = Math.sign(trackSpeed);
+          const along = -dir * halfContact;
+          const lateral = side * gauge / 2;
+          const pos = new THREE.Vector3(
+            data.position.x + fx * along + fz * lateral,
+            data.position.y + 0.25,
+            data.position.z + fz * along - fx * lateral,
+          );
+          const throwDir = new THREE.Vector3(-fx * dir * 0.8, 1, -fz * dir * 0.8).normalize();
+          const trackIntensity = Math.max(0.3, Math.min(1.2, Math.abs(trackSpeed) / trackFxCfg.fullSpeed));
+          spawnParticle(type, pos, throwDir, trackIntensity);
+        }
+      }
+    }
+
+    const canSpawnDust = surfaceKind.current === 'road' &&(!isReversing || dustCfg.allowReverse) &&
       (speed > dustCfg.speedThreshold || turnSpeed > dustCfg.turnSpeedThreshold);
     if (canSpawnDust) {
       const spawnInterval = Math.max(dustCfg.minSpawnInterval, dustCfg.maxSpawnInterval - ((speed - dustCfg.speedThreshold) * dustCfg.spawnSpeedScale));
@@ -181,7 +224,7 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
         );
         spawnParticle('dust', rightDustPos, new THREE.Vector3(0, 1, 0));
       }
-    } else if (speed > GAME_CONFIG.particles.dust_low.speedThreshold || turnSpeed > 1) {
+    } else if (surfaceKind.current === 'road' && (speed > GAME_CONFIG.particles.dust_low.speedThreshold || turnSpeed > 1)) {
       // Low-speed track-level dust
       const dustLowCfg = GAME_CONFIG.particles.dust_low;
       if (now - lastLowDustSpawn.current > dustLowCfg.spawnInterval) {

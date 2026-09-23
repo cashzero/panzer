@@ -55,9 +55,14 @@ Completed roadmap items are documented here.
 
 - Player engine audio uses a layered Web Audio backend with lazy unlock and 3D listener sync.
 - Generated spatial transients cover shot, impact, and explosion playback.
-- Tank movement produces low-speed track dust.
+- Track effects follow the surface under the tank, using a CPU mirror of the terrain splat (`groundSurface.ts`). Roads raise the existing track dust. Grass throws torn turf with a faint haze, and exposed soil (farmland, building yards) flings mud clods and dirt puffs off the trailing end of each track.
+- Every tank leaves tread-patterned track marks that follow terrain slope and fade out over time (`GAME_CONFIG.trackMarks`). They are dark ruts in mud, crushed turf on grass, and faint on gravel roads.
 - Destroyed tanks emit persistent burning smoke.
 - The particle system supports effects including `fire`, `hit_penetrate`, `hit_bounce`, `hit_ground`, `he_hit_ground`, `he_hit_penetrate`, `tank_explosion`, `dust`, `dust_low`, `tree_hit`, `burning_smoke`, `non_pen_impact`, and `ricochet_impact`.
+- Shells in flight draw as HDR tracer streaks with a pixel-width floor so they stay readable at range. The streak collapses into the impact point after the shell stops, and ricochets flicker while tumbling. Length, color, width and fade time are set in `GAME_CONFIG.tracers`.
+- Muzzle flashes, armor impacts, HE bursts and tank explosions briefly light nearby hulls and ground through a fixed pool of four point lights, so no materials recompile.
+- Ground strikes throw a column of earth and a low dust skirt. HE adds a blast ring and fireball. Penetrations leave a cooling ember at the hole with smoke leaking out, and a muzzle blast lifts dust off the ground when the barrel is low.
+- Terrain impacts are resolved onto the surface with the local terrain normal. Each one leaves a crater decal that fades out (`GAME_CONFIG.impactDecals`): brown churned earth for AP, black scorch for HE.
 
 ## Performance And Rendering
 
@@ -67,7 +72,7 @@ Completed roadmap items are documented here.
 - Instanced ground cover uses tapered blades, root-to-tip colour, wind and distance fade; wind respects reduced-motion preferences.
 - Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry.
-- Particle rendering is pooled into shared `Points` and `InstancedMesh` batches, reducing draw calls from hundreds to 4.
+- Particle rendering is pooled into a fixed set of shared `Points` and `InstancedMesh` batches instead of one draw call per effect. Tracers and crater decals each render as a single instanced draw.
 
 ### Layered terrain surfaces
 - Grass, dry soil and gravel use local CC0 albedo/normal maps and MIT stochastic hex tiling.

@@ -30,17 +30,6 @@ Implementation tasks:
 Player-facing validation:
 - [ ] Firing and incoming hits create readable but controlled camera shake without hurting aim usability
 
-### Feature 2.2: Shell Tracer Visualization [S]
-
-Objective: make shell travel easier to track during combat.
-
-Implementation tasks:
-- [ ] Add trail geometry per projectile in `ProjectileManager.tsx` using `THREE.Line` or a stretched mesh
-- [ ] Add `tracerLength`, `tracerColor`, and `tracerFadeTime` to `config.ts`
-
-Player-facing validation:
-- [ ] Fast shots remain visible long enough to read trajectory and impact direction
-
 ---
 
 ## Sprint 2: Scoring And Sound

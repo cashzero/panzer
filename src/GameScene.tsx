@@ -8,6 +8,9 @@ import { BattlefieldPostProcessing } from './rendering/BattlefieldPostProcessing
 import { Terrain } from './Terrain';
 import { ProjectileManager } from './ProjectileManager';
 import { Particles } from './Particles';
+import { FlashLights } from './rendering/FlashLights';
+import { ImpactDecals } from './rendering/ImpactDecals';
+import { TrackMarks } from './rendering/TrackMarks';
 import { EnemyAI } from './EnemyAI';
 import { AllyAI } from './AllyAI';
 import { useGameStore, AmmoType } from './store';
@@ -444,7 +447,10 @@ export function GameScene() {
           )}
 
           <ProjectileManager />
+          <TrackMarks />
+          <ImpactDecals />
           <Particles />
+          <FlashLights />
           <BurningWrecks />
           <EnemyAI />
           <AllyAI />

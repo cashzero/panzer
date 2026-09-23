@@ -62,7 +62,8 @@ The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.
 
 **Rendering & views**:
 - `Tank.tsx` / `TankModel.tsx` — legacy procedural tank geometry + animation
-- `Particles.tsx` — 11+ effect types (fire, penetrate, bounce, ground/HE hits, explosion, dust, smoke, tree hits, non-pen, ricochet), pooled `Points` + `InstancedMesh` (4 draw calls)
+- `Particles.tsx` — 11+ effect types (fire, penetrate, bounce, ground/HE hits, explosion, dust, smoke, tree hits, non-pen, ricochet), pooled `Points` + `InstancedMesh`; also queues flash lights and crater decals per effect
+- `rendering/ShellTracers.tsx` (screen-space HDR tracer streaks, rendered by `ProjectileManager`), `rendering/FlashLights.tsx` (fixed 4-light flash pool), `rendering/ImpactDecals.tsx` (multiply-blended ground craters), `rendering/TrackMarks.tsx` (tread marks per track); `groundSurface.ts` classifies grass / mud / road under a point for surface-dependent effects
 - `MapMode.tsx` + `MapMarker.tsx` — top-down tactical view (M key) with pan/zoom
 - `BurningWrecks.tsx` — time-limited smoke on destroyed tanks
 

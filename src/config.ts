@@ -150,16 +150,45 @@ export const GAME_CONFIG = {
     zoomStep: 10,
     panSpeed: 0.5,
   },
+  tracers: {
+    tracerLength: 14,        // m, streak length at the reference muzzle velocity
+    referenceSpeed: 750,     // m/s, speed at which the streak reaches tracerLength
+    tracerColor: '#ff6a1f',
+    ricochetColor: '#ff4210',
+    tracerFadeTime: 160,     // ms, streak collapses into the impact point after the shell stops
+    width: 0.09,             // m, glowing core width for a 75mm shell (scales with caliber)
+    minPixelWidth: 3,        // px, keeps distant tracers readable
+    intensity: 16,           // HDR multiplier so the bloom pass catches the hot core
+  },
+  impactDecals: {
+    lifetime: 45000,         // ms before a crater has fully faded
+    fadeTime: 12000,         // ms of fade-out at the end of the lifetime
+    maxCount: 96,
+  },
+  trackEffects: {
+    minSpeed: 0.6,              // m/s of track motion before turf or mud is thrown
+    fullSpeed: 8,               // m/s at which spawn rate and intensity peak
+    minSpawnInterval: 70,       // ms between bursts at full speed
+    maxSpawnInterval: 240,      // ms between bursts at minimum speed
+    surfaceSampleInterval: 250, // ms between ground surface lookups per tank
+    maxCameraDistance: 220,     // m, no track particles beyond this range
+  },
+  trackMarks: {
+    segmentLength: 0.8,         // m of travel per mark quad
+    lifetime: 40000,            // ms before a mark has fully faded
+    fadeTime: 15000,            // ms of fade-out at the end of the lifetime
+    maxCount: 4096,
+  },
   particles: {
-    fire: { lifetime: 300, color: '#ffaa00', size: 1.5, expand: true },
-    hit_penetrate: { lifetime: 800, color: '#ff3300', size: 2, expand: true },
+    fire: { lifetime: 1200, color: '#ffaa00', size: 1.5, expand: true },
+    hit_penetrate: { lifetime: 1800, color: '#ff3300', size: 2, expand: true },
     hit_bounce: { lifetime: 400, color: '#ffff00', size: 0.8, expand: false },
     non_pen_impact: { lifetime: 680, color: '#ffd46b', size: 2.9, expand: false },
     ricochet_impact: { lifetime: 740, color: '#ffe08c', size: 3.4, expand: false },
-    hit_ground: { lifetime: 1000, color: '#8b5a2b', size: 3, expand: true },
+    hit_ground: { lifetime: 1400, color: '#8b5a2b', size: 3, expand: true },
     tank_explosion: { lifetime: 2200, color: '#ff5500', size: 8, expand: true },
-    he_hit_ground: { lifetime: 1200, color: '#ff5500', size: 4, expand: true },
-    he_hit_penetrate: { lifetime: 1000, color: '#ff4400', size: 3.5, expand: true },
+    he_hit_ground: { lifetime: 1800, color: '#ff5500', size: 4, expand: true },
+    he_hit_penetrate: { lifetime: 1800, color: '#ff4400', size: 3.5, expand: true },
     dust: { lifetime: 2000, color: '#c2b280', size: 2.5, expand: true,
       speedThreshold: 8,      // minimum forward speed to spawn dust
       turnSpeedThreshold: 6,  // minimum turn speed to spawn dust
@@ -176,6 +205,9 @@ export const GAME_CONFIG = {
       speedThreshold: 0.5,
       spawnInterval: 350,
     },
+    // Off-road track effects; the surface under each track picks grass or mud.
+    track_grass: { lifetime: 1200, color: '#4d6b2a', size: 1.0, expand: true },
+    track_mud: { lifetime: 1400, color: '#4a3520', size: 1.0, expand: true },
     burning_smoke: { lifetime: 5000, color: '#111111', size: 3.5, expand: true,
       spawnInterval: 150,  // ms between smoke puffs at full intensity
       initialDelay: 1000,  // ms before wreck smoke begins

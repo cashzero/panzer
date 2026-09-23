@@ -3,6 +3,9 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, Particle } from './store';
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
+import { getTerrainHeight } from './Terrain';
+import { queueFlashLight } from './rendering/FlashLights';
+import { queueImpactDecal } from './rendering/ImpactDecals';
 
 // --- Textures ---
 const createDustTexture = () => {
@@ -61,14 +64,14 @@ const MAX_IMPACT_ADDITIVE = 256;
 const MAX_IMPACT_SPARK = 512;
 const MAX_SHOCKWAVE = 96;
 const MAX_SPARK = 256;
-const MAX_SMOKE = 512;
-const MAX_MUZZLE_SMOKE = 192;
-const MAX_DEBRIS = 384;
+const MAX_SMOKE = 768;
+const MAX_MUZZLE_SMOKE = 256;
+const MAX_DEBRIS = 1024;
 
 // --- Sub-particle state ---
 interface SubState {
   particleId: string;
-  type: 'flash' | 'smoke' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark';
+  type: 'flash' | 'smoke' | 'dirt' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark' | 'ember';
   px: number; py: number; pz: number;
   vx: number; vy: number; vz: number;
   baseScale: number;
@@ -211,6 +214,8 @@ function getConfig(type: Particle['type']) {
     case 'tank_explosion': return GAME_CONFIG.particles.tank_explosion;
     case 'dust': return GAME_CONFIG.particles.dust;
     case 'dust_low': return GAME_CONFIG.particles.dust_low;
+    case 'track_grass': return GAME_CONFIG.particles.track_grass;
+    case 'track_mud': return GAME_CONFIG.particles.track_mud;
     case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
     case 'tree_hit': return GAME_CONFIG.particles.tree_hit;
     default: return GAME_CONFIG.particles.default;
@@ -269,6 +274,10 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     return dir.add(realTangent.multiplyScalar(Math.cos(angle) * radius)).add(bitangent.multiplyScalar(Math.sin(angle) * radius)).normalize();
   };
 
+  // Tangent basis around the surface normal for ground-hugging rings.
+  const t1 = new THREE.Vector3().crossVectors(n, Math.abs(n.y) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0)).normalize();
+  const t2 = new THREE.Vector3().crossVectors(n, t1).normalize();
+
   const add = (type: SubState['type'], ox: number, oy: number, oz: number, vx: number, vy: number, vz: number, scale: number, color: string, life: number, rot: number) =>
     pushSub(subs, p.id, type, pos, ox, oy, oz, vx, vy, vz, scale, color, life, rot, createdAt, lifetime);
 
@@ -294,14 +303,55 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     );
   };
 
+  // Low skirt of material pushed outward along the surface.
+  const ring = (type: SubState['type'], count: number, speedMin: number, speedMax: number, lift: number, scaleMin: number, scaleMax: number, colors: string[], lifeMin: number, lifeMax: number) => {
+    const total = sc(count);
+    for (let i = 0; i < total; i++) {
+      const angle = (i / total) * Math.PI * 2 + Math.random() * 0.6;
+      const speed = (speedMin + Math.random() * (speedMax - speedMin)) * sv;
+      const c = Math.cos(angle);
+      const sn = Math.sin(angle);
+      const dx = t1.x * c + t2.x * sn;
+      const dy = t1.y * c + t2.y * sn;
+      const dz = t1.z * c + t2.z * sn;
+      add(
+        type,
+        dx * 0.4 * s + n.x * 0.2 * s, dy * 0.4 * s + n.y * 0.2 * s, dz * 0.4 * s + n.z * 0.2 * s,
+        dx * speed + n.x * lift * sv, dy * speed + n.y * lift * sv, dz * speed + n.z * lift * sv,
+        (scaleMin + Math.random() * (scaleMax - scaleMin)) * s,
+        colors[i % colors.length],
+        lifeMin + Math.random() * (lifeMax - lifeMin),
+        (Math.random() - 0.5) * 1.6,
+      );
+    }
+  };
+
+  const DIRT = ['#6e5834', '#57452a', '#806842', '#4a3a22'];
+
   if (type === 'hit_ground') {
-    add('flash', 0, 0, 0, 0, 0, 0, 3.5 * s, '#ffaa00', 0.15, 0);
-    for (let i = 0; i < sc(6); i++) cone('smoke', 1.2, (2 + Math.random() * 3) * sv, (2.0 + Math.random() * 2) * s, '#6b5428', 1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(15); i++) cone('debris', 1.5, (8 + Math.random() * 8) * sv, (0.15 + Math.random() * 0.2) * s, '#3d2e15', 0.8, 0);
+    // Kinetic strike into soil: dull flash, a column of thrown earth, then a dust skirt.
+    add('flash', 0, 0, 0, 0, 0, 0, 1.8 * s, '#ffc27a', 0.07, 0);
+    for (let i = 0; i < sc(13); i++) cone('dirt', 0.3, (10 + Math.random() * 11) * sv, (1.6 + Math.random() * 1.3) * s, DIRT[i % DIRT.length], 0.5 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
+    ring('dirt', 9, 3, 6, 1.2, 1.6, 2.6, ['#8a7650', '#75623f'], 0.55, 0.8);
+    for (let i = 0; i < sc(5); i++) cone('smoke', 1.0, (1.5 + Math.random() * 2.5) * sv, (1.8 + Math.random() * 1.6) * s, '#7a6848', 0.85 + Math.random() * 0.15, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(18); i++) cone('debris', 0.8, (9 + Math.random() * 9) * sv, (0.12 + Math.random() * 0.2) * s, i % 2 ? '#3d2e15' : '#2a2012', 0.7, 0);
   } else if (type === 'hit_penetrate') {
-    add('flash', 0, 0, 0, 0, 0, 0, 2.2 * s, '#fff6de', 0.12, 0);
-    for (let i = 0; i < sc(25); i++) cone('spark', 1.5, (12 + Math.random() * 12) * sv, 0.5 * s, '#ffdd44', 0.4 + Math.random() * 0.4, 0);
-    for (let i = 0; i < sc(5); i++) cone('smoke', 0.8, (1 + Math.random() * 2) * sv, (1.5 + Math.random() * 1.5) * s, '#444444', 1, (Math.random() - 0.5) * 2);
+    const ox = n.x * 0.18 * s;
+    const oy = n.y * 0.18 * s;
+    const oz = n.z * 0.18 * s;
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.0 * s, '#fffaf0', 0.05, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.0 * s, '#ffc46b', 0.08, 0);
+    // Short tongue of flame blown back out of the breach.
+    for (let i = 0; i < sc(3); i++) jet('fireball', 0.3 * s, 0.35, (3 + Math.random() * 3) * sv, (1.2 + Math.random() * 0.8) * s, i === 0 ? '#ffd08a' : '#ff6a1a', 0.08 + Math.random() * 0.05, (Math.random() - 0.5) * 2);
+    // Molten spall and burning fragments thrown back out of the breach.
+    for (let i = 0; i < sc(26); i++) {
+      cone('impactSpark', 1.3, (10 + Math.random() * 16) * sv, (0.4 + Math.random() * 0.22) * s, i < 8 ? '#fff4c8' : (i < 18 ? '#ffc04a' : '#ff7a14'), 0.12 + Math.random() * 0.18, 0);
+    }
+    for (let i = 0; i < sc(10); i++) cone('spark', 0.9, (5 + Math.random() * 6) * sv, 0.34 * s, '#ff9a2a', 0.3 + Math.random() * 0.25, 0);
+    // Glowing hole that cools from yellow to dull red.
+    add('ember', n.x * 0.05 * s, n.y * 0.05 * s, n.z * 0.05 * s, 0, 0, 0, 1.1 * s, '#ffb050', 0.55, 0);
+    // Smoke leaking out of the breach.
+    for (let i = 0; i < sc(6); i++) cone('smoke', 0.5, (0.8 + Math.random() * 1.4) * sv, (0.9 + Math.random() * 0.8) * s, i < 3 ? '#2b2926' : '#4a4640', 0.5 + Math.random() * 0.5, (Math.random() - 0.5) * 2);
   } else if (type === 'hit_bounce') {
     const ox = n.x * 0.28 * s;
     const oy = n.y * 0.28 * s;
@@ -400,6 +450,8 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     for (let i = 0; i < sc(2); i++) {
       cone('smoke', 0.7, (0.8 + Math.random() * 0.9) * sv, (0.75 + Math.random() * 0.25) * s * cs, i === 0 ? '#80776f' : '#5b554f', 0.3 + Math.random() * 0.12, (Math.random() - 0.5) * 1.2);
     }
+    // Brief hot gouge where the shell struck.
+    add('ember', ox * 0.3, oy * 0.3, oz * 0.3, 0, 0, 0, 0.7 * s, '#ffc870', 0.45, 0);
   } else if (type === 'ricochet_impact') {
     const ox = n.x * 0.24 * s;
     const oy = n.y * 0.24 * s;
@@ -425,15 +477,26 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
       );
     }
   } else if (type === 'he_hit_ground') {
-    add('flash', 0, 0, 0, 0, 0, 0, 5.0 * s, '#ffffff', 0.15, 0);
-    for (let i = 0; i < sc(4); i++) cone('fireball', 1.5, (2 + Math.random() * 3) * sv, (3.0 + Math.random() * 2) * s, '#ff5500', 0.5, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(8); i++) cone('smoke', 1.5, (2 + Math.random() * 2) * sv, (2.5 + Math.random() * 2.5) * s, '#5a4020', 1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(20); i++) cone('debris', 2.0, (10 + Math.random() * 8) * sv, (0.2 + Math.random() * 0.25) * s, '#3d2e15', 0.8, 0);
+    // Detonation in soil: white-hot flash, short fireball, blast ring, tall dark earth column.
+    add('flash', 0, 0, 0, 0, 0, 0, 6.5 * s, '#fff4e0', 0.06, 0);
+    add('flash', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 4.2 * s, '#ffb060', 0.12, 0);
+    add('shockwave', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 3.6 * s, '#e9dcc6', 0.12, Math.random() * Math.PI * 2);
+    for (let i = 0; i < sc(5); i++) cone('fireball', 0.9, (3 + Math.random() * 4) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#ffd08a' : '#ff6a1a', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(16); i++) cone('dirt', 0.42, (12 + Math.random() * 12) * sv, (2.0 + Math.random() * 1.6) * s, i < 6 ? '#2e2519' : DIRT[i % DIRT.length], 0.5 + Math.random() * 0.4, (Math.random() - 0.5) * 2);
+    ring('dirt', 12, 5, 9, 1.5, 2.0, 3.2, ['#6e5c3e', '#5a4a30'], 0.55, 0.85);
+    for (let i = 0; i < sc(8); i++) cone('smoke', 1.2, (1.5 + Math.random() * 2) * sv, (2.6 + Math.random() * 2.4) * s, i < 4 ? '#2e2a24' : '#5a4a30', 0.9 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(24); i++) cone('debris', 1.3, (10 + Math.random() * 9) * sv, (0.16 + Math.random() * 0.24) * s, i % 2 ? '#3d2e15' : '#241b10', 0.6, 0);
   } else if (type === 'he_hit_penetrate') {
-    add('flash', 0, 0, 0, 0, 0, 0, 5.0 * s, '#ffffff', 0.15, 0);
-    for (let i = 0; i < sc(3); i++) cone('fireball', 1.2, (2 + Math.random() * 2) * sv, (2.5 + Math.random() * 2) * s, '#ff4400', 0.5, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(15); i++) cone('spark', 1.5, (12 + Math.random() * 12) * sv, 0.5 * s, '#ffdd44', 0.4 + Math.random() * 0.4, 0);
-    for (let i = 0; i < sc(8); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (2.0 + Math.random() * 2) * s, '#333333', 1, (Math.random() - 0.5) * 2);
+    const ox = n.x * 0.25 * s;
+    const oy = n.y * 0.25 * s;
+    const oz = n.z * 0.25 * s;
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.5 * s, '#fff4e0', 0.05, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.5 * s, '#ffb060', 0.09, 0);
+    add('shockwave', ox, oy, oz, 0, 0, 0, 3.2 * s, '#e9dcc6', 0.11, Math.random() * Math.PI * 2);
+    for (let i = 0; i < sc(4); i++) cone('fireball', 1.0, (2.5 + Math.random() * 3) * sv, (1.8 + Math.random() * 1.5) * s, i < 2 ? '#ffd08a' : '#ff5a14', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(20); i++) cone('impactSpark', 1.5, (12 + Math.random() * 14) * sv, (0.42 + Math.random() * 0.2) * s, i < 8 ? '#fff0b8' : '#ffa030', 0.14 + Math.random() * 0.16, 0);
+    add('ember', n.x * 0.05 * s, n.y * 0.05 * s, n.z * 0.05 * s, 0, 0, 0, 1.4 * s, '#ff9a40', 0.5, 0);
+    for (let i = 0; i < sc(8); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (2.0 + Math.random() * 2) * s, i < 4 ? '#221f1c' : '#3a3632', 0.7 + Math.random() * 0.3, (Math.random() - 0.5) * 2);
   } else if (type === 'tank_explosion') {
     // Large blast silhouette with restrained fragment size.
     const radialBurst = (
@@ -489,23 +552,56 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     radialBurst('spark', 34, 1.9, 13.0, 20.0, 0.8, 2.6, 0.28, 0.42, '#fff0b0', '#ff9f1c', 0.28, 0.46, 0);
     radialBurst('debris', 10, 1.5, 10.0, 14.0, 0.4, 1.6, 0.05, 0.1, '#3b2d1f', '#111111', 0.65, 0.8, 0);
   } else if (type === 'fire') {
+    // Life multipliers are fractions of the 1200 ms 'fire' lifetime: flash ~90 ms, smoke ~1 s.
     const nv = n.clone().multiplyScalar(6.5 * sv);
-    add('muzzleFlash', n.x * 0.55 * s, n.y * 0.55 * s, n.z * 0.55 * s, 0, 0, 0, 7.5 * s, '#fff8eb', 0.32, 0);
-    add('muzzleFlash', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, 0, 0, 0, 5.2 * s, '#ffd08a', 0.28, 0);
-    add('muzzleFlash', n.x * 1.5 * s, n.y * 1.5 * s, n.z * 1.5 * s, 0, 0, 0, 3.6 * s, '#ff7a1a', 0.24, 0);
-    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 5.2 * s, '#f7e6cf', 0.46, Math.random() * Math.PI * 2);
-    add('shockwave', n.x * 1.8 * s, n.y * 1.8 * s, n.z * 1.8 * s, 0, 0, 0, 3.7 * s, '#fff8eb', 0.32, Math.random() * Math.PI * 2);
+    add('muzzleFlash', n.x * 0.55 * s, n.y * 0.55 * s, n.z * 0.55 * s, 0, 0, 0, 7.5 * s, '#fff8eb', 0.08, 0);
+    add('muzzleFlash', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, 0, 0, 0, 5.2 * s, '#ffd08a', 0.07, 0);
+    add('muzzleFlash', n.x * 1.5 * s, n.y * 1.5 * s, n.z * 1.5 * s, 0, 0, 0, 3.6 * s, '#ff7a1a', 0.06, 0);
+    // Kept compact: a camera-facing ring this close to the lens otherwise balloons over the whole view.
+    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 2.6 * s, '#f7e6cf', 0.115, Math.random() * Math.PI * 2);
+    add('shockwave', n.x * 1.8 * s, n.y * 1.8 * s, n.z * 1.8 * s, 0, 0, 0, 1.9 * s, '#fff8eb', 0.08, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(5); i++) {
-      jet('muzzleFireball', 0.9 * s + Math.random() * 1.7 * s, 0.24, (11 + Math.random() * 10) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#fff0b0' : '#ff6a00', 0.34 + Math.random() * 0.14, (Math.random() - 0.5) * 1.8);
+      jet('muzzleFireball', 0.9 * s + Math.random() * 1.7 * s, 0.24, (11 + Math.random() * 10) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#fff0b0' : '#ff6a00', 0.085 + Math.random() * 0.035, (Math.random() - 0.5) * 1.8);
     }
     for (let i = 0; i < sc(7); i++) {
-      jet('muzzleSmoke', 0.8 * s + Math.random() * 1.6 * s, 0.42, (4.5 + Math.random() * 5.5) * sv, (1.8 + Math.random() * 1.5) * s, i < 4 ? '#f1eee6' : '#b9b3aa', 0.95 + Math.random() * 0.45, (Math.random() - 0.5) * 2);
+      jet('muzzleSmoke', 0.8 * s + Math.random() * 1.6 * s, 0.42, (4.5 + Math.random() * 5.5) * sv, (1.8 + Math.random() * 1.5) * s, i < 4 ? '#f1eee6' : '#b9b3aa', 0.55 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
     }
     for (let i = 0; i < sc(4); i++) {
-      jet('muzzleSmoke', 0.25 * s + Math.random() * 0.7 * s, 0.18, (2.5 + Math.random() * 2.5) * sv, (1.4 + Math.random() * 0.9) * s, '#fffaf2', 0.55 + Math.random() * 0.18, (Math.random() - 0.5) * 2);
+      jet('muzzleSmoke', 0.25 * s + Math.random() * 0.7 * s, 0.18, (2.5 + Math.random() * 2.5) * sv, (1.4 + Math.random() * 0.9) * s, '#fffaf2', 0.14 + Math.random() * 0.05, (Math.random() - 0.5) * 2);
     }
-    add('muzzleSmoke', n.x * 0.45 * s, n.y * 0.45 * s, n.z * 0.45 * s, nv.x, nv.y, nv.z, 3.2 * s, '#d7d2ca', 1.15, (Math.random() - 0.5) * 2);
-    add('muzzleSmoke', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, nv.x * 0.7, nv.y * 0.7, nv.z * 0.7, 2.6 * s, '#8a847d', 1.35, (Math.random() - 0.5) * 2);
+    add('muzzleSmoke', n.x * 0.45 * s, n.y * 0.45 * s, n.z * 0.45 * s, nv.x, nv.y, nv.z, 3.2 * s, '#d7d2ca', 0.75, (Math.random() - 0.5) * 2);
+    add('muzzleSmoke', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, nv.x * 0.7, nv.y * 0.7, nv.z * 0.7, 2.6 * s, '#8a847d', 1.0, (Math.random() - 0.5) * 2);
+
+    // Muzzle blast lifts a ring of dust off the ground beneath and ahead of the barrel.
+    const blastX = pos.x + n.x * 1.5 * s;
+    const blastZ = pos.z + n.z * 1.5 * s;
+    const groundY = getTerrainHeight(blastX, blastZ);
+    const clearance = pos.y + n.y * 1.5 * s - groundY;
+    const blastReach = 3.4 * sv;
+    if (clearance < blastReach && clearance > -0.5) {
+      const strength = 1 - Math.max(0, clearance) / blastReach;
+      const horiz = Math.hypot(n.x, n.z) || 1;
+      const fx = n.x / horiz;
+      const fz = n.z / horiz;
+      const count = sc(Math.round(10 * strength) + 2);
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
+        // Bias the ring forward along the line of fire.
+        const rx = Math.cos(angle) + fx * 0.8;
+        const rz = Math.sin(angle) + fz * 0.8;
+        const rl = Math.hypot(rx, rz) || 1;
+        const speed = (5 + Math.random() * 6) * sv * (0.5 + strength * 0.5);
+        add(
+          'muzzleSmoke',
+          blastX - pos.x + (rx / rl) * 0.5 * s, groundY - pos.y + 0.35 * s, blastZ - pos.z + (rz / rl) * 0.5 * s,
+          (rx / rl) * speed, 0.6 + Math.random() * 0.8, (rz / rl) * speed,
+          (1.4 + Math.random() * 1.2) * s,
+          i % 2 ? '#b8a582' : '#a39070',
+          0.6 + Math.random() * 0.3,
+          (Math.random() - 0.5) * 1.6,
+        );
+      }
+    }
   } else if (type === 'burning_smoke') {
     for (let i = 0; i < 3; i++) {
       add('smoke',
@@ -532,11 +628,76 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
       (Math.random() - 0.5) * 2, Math.random() * 1.5 + 0.5, (Math.random() - 0.5) * 2,
       config.size, config.color, 1, (Math.random() - 0.5) * 2
     );
+  } else if (type === 'track_mud') {
+    // Normal is the throw direction off the sprocket (behind the track, tilted up).
+    // Scale is track-speed intensity, so clod size only grows gently with it.
+    const MUD = ['#3a2a18', '#4a3520', '#2e2114', '#55402a'];
+    const clod = 0.7 + 0.3 * s;
+    for (let i = 0; i < sc(5); i++) cone('debris', 0.55, (2.5 + Math.random() * 4) * sv, (0.06 + Math.random() * 0.09) * clod, MUD[i % MUD.length], 0.55 + Math.random() * 0.35, 0);
+    for (let i = 0; i < sc(2); i++) cone('dirt', 0.9, (0.8 + Math.random() * 1.4) * sv, (0.7 + Math.random() * 0.6) * clod, i % 2 ? '#5a4630' : '#6b5538', 0.45 + Math.random() * 0.35, (Math.random() - 0.5) * 1.6);
+    add('smoke', 0, 0.1, 0, (Math.random() - 0.5) * 0.6, 0.3 + Math.random() * 0.4, (Math.random() - 0.5) * 0.6, (1.0 + Math.random() * 0.5) * clod, '#7a6446', 0.7 + Math.random() * 0.3, (Math.random() - 0.5) * 1.2);
+  } else if (type === 'track_grass') {
+    // Torn turf and root soil flicked off the track, with only a faint haze.
+    const TURF = ['#3f5a22', '#4d6b2a', '#56722e', '#3a2c1a'];
+    const bit = 0.7 + 0.3 * s;
+    for (let i = 0; i < sc(6); i++) cone('debris', 0.7, (2 + Math.random() * 3.5) * sv, (0.05 + Math.random() * 0.07) * bit, TURF[i % TURF.length], 0.5 + Math.random() * 0.3, 0);
+    if (Math.random() < 0.5 + 0.4 * Math.min(1, s)) {
+      add('smoke', 0, 0.15, 0, (Math.random() - 0.5) * 0.5, 0.25 + Math.random() * 0.35, (Math.random() - 0.5) * 0.5, (0.8 + Math.random() * 0.5) * bit, '#8c8a64', 0.55 + Math.random() * 0.25, (Math.random() - 0.5) * 1.2);
+    }
   } else if (type === 'dust_low') {
     add('smoke', 0, 0, 0,
       (Math.random() - 0.5) * 1, Math.random() * 0.3 + 0.1, (Math.random() - 0.5) * 1,
       config.size, config.color, 1, (Math.random() - 0.5) * 1
     );
+  }
+}
+
+// Transient point light plus persistent ground crater for each effect type.
+function spawnSecondaryEffects(p: Particle) {
+  const { type, position: pos, normal, scale: s = 1 } = p;
+  const nx = normal?.x ?? 0;
+  const ny = normal?.y ?? 1;
+  const nz = normal?.z ?? 0;
+  const sv = Math.sqrt(s);
+  const light = (offset: number, color: string, intensity: number, range: number, duration: number, flicker = false) =>
+    queueFlashLight({
+      x: pos.x + nx * offset, y: pos.y + ny * offset, z: pos.z + nz * offset,
+      color, intensity, range, duration, flicker,
+    });
+
+  switch (type) {
+    case 'fire':
+      light(1.0 * s, '#ffb866', 90 * Math.pow(s, 1.5), 18 * sv, 90);
+      break;
+    case 'hit_penetrate':
+      light(0.6, '#ffd49a', 50 * s, 12 * sv, 110);
+      break;
+    case 'non_pen_impact':
+    case 'ricochet_impact':
+    case 'hit_bounce':
+      light(0.6, '#ffc070', 35 * s, 10 * sv, 80);
+      break;
+    case 'he_hit_ground':
+    case 'he_hit_penetrate':
+      light(0.8, '#ffa050', 160 * s, 22 * sv, 220);
+      break;
+    case 'tank_explosion':
+      light(1.5, '#ff9040', 900 * s, 45 * sv, 900, true);
+      break;
+    case 'hit_ground':
+      light(0.5, '#ffc88a', 12 * s, 8 * sv, 60);
+      break;
+    default:
+      break;
+  }
+
+  // Craters only on ground-facing surfaces; walls may later collapse or move.
+  if (normal && ny > 0.6) {
+    if (type === 'hit_ground') {
+      queueImpactDecal(pos, normal, (2.4 + Math.random() * 0.6) * s, 'ap');
+    } else if (type === 'he_hit_ground') {
+      queueImpactDecal(pos, normal, (4.6 + Math.random() * 1.0) * s, 'he');
+    }
   }
 }
 
@@ -701,6 +862,7 @@ export function Particles() {
       if (!processed.has(p.id)) {
         processed.add(p.id);
         spawnSubParticles(p, subs);
+        spawnSecondaryEffects(p);
         // Schedule store removal based on config lifetime
         const cfg = getConfig(p.type);
         pendingRemove.set(p.id, now + cfg.lifetime + 100); // small buffer
@@ -762,6 +924,13 @@ export function Particles() {
         sub.vy *= drag;
         sub.vz *= drag;
         sub.vy += 1.5 * delta;
+      } else if (sub.type === 'dirt') {
+        // Thrown earth: heavier than smoke, so the column slows, spreads and sags back.
+        const drag = 1 - 1.4 * delta;
+        sub.vx *= drag;
+        sub.vy *= drag;
+        sub.vz *= drag;
+        sub.vy -= 7 * delta;
       }
 
       sub.px += sub.vx * delta;
@@ -826,6 +995,22 @@ export function Particles() {
           pool.colors[impactAddIdx * 3 + 2] = sub.b;
           impactAddIdx++;
         }
+      } else if (sub.type === 'ember') {
+        if (impactAddIdx < MAX_IMPACT_ADDITIVE) {
+          const pool = impactAdditivePool;
+          // Hot metal cools: green and blue drop out first, leaving a dull red glow.
+          const cool = 1 - progress;
+          pool.positions[impactAddIdx * 3] = sub.px;
+          pool.positions[impactAddIdx * 3 + 1] = sub.py;
+          pool.positions[impactAddIdx * 3 + 2] = sub.pz;
+          pool.sizes[impactAddIdx] = sub.baseScale * (1 - progress * 0.45);
+          pool.opacities[impactAddIdx] = Math.pow(cool, 1.4) * (0.85 + 0.15 * Math.sin(age * 0.04));
+          pool.rotations[impactAddIdx] = 0;
+          pool.colors[impactAddIdx * 3] = sub.r;
+          pool.colors[impactAddIdx * 3 + 1] = sub.g * cool;
+          pool.colors[impactAddIdx * 3 + 2] = sub.b * cool * cool;
+          impactAddIdx++;
+        }
       } else if (sub.type === 'shockwave') {
         if (shockIdx < MAX_SHOCKWAVE) {
           const pool = shockwavePool;
@@ -882,6 +1067,20 @@ export function Particles() {
           pool.positions[smkIdx * 3 + 2] = sub.pz;
           pool.sizes[smkIdx] = scale;
           pool.opacities[smkIdx] = opacity;
+          pool.rotations[smkIdx] = sub.rotation;
+          pool.colors[smkIdx * 3] = sub.r;
+          pool.colors[smkIdx * 3 + 1] = sub.g;
+          pool.colors[smkIdx * 3 + 2] = sub.b;
+          smkIdx++;
+        }
+      } else if (sub.type === 'dirt') {
+        if (smkIdx < MAX_SMOKE) {
+          const pool = smokePool;
+          pool.positions[smkIdx * 3] = sub.px;
+          pool.positions[smkIdx * 3 + 1] = sub.py;
+          pool.positions[smkIdx * 3 + 2] = sub.pz;
+          pool.sizes[smkIdx] = sub.baseScale * (1 + progress * 1.6);
+          pool.opacities[smkIdx] = (1 - Math.pow(progress, 1.3)) * 0.85;
           pool.rotations[smkIdx] = sub.rotation;
           pool.colors[smkIdx * 3] = sub.r;
           pool.colors[smkIdx * 3 + 1] = sub.g;

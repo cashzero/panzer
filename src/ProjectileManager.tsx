@@ -1,5 +1,4 @@
 import { useFrame } from '@react-three/fiber';
-import { Sphere } from '@react-three/drei';
 import { useGameStore } from './store';
 import * as THREE from 'three';
 import { testProjectileAgainstTank } from './armorModel';
@@ -7,9 +6,34 @@ import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
 import { GAME_CONFIG } from './config';
 import { checkTerrainCollision, checkTreeRayCollision, checkBuildingCollision } from './projectilePhysics';
+import { getTerrainHeight } from './Terrain';
+import { ShellTracers } from './rendering/ShellTracers';
+
+const NORMAL_SAMPLE = 0.6; // m, finite-difference step for the terrain normal
+
+// Bisect the frame's travel segment to place the impact on the surface instead of below it.
+function resolveTerrainImpact(from: THREE.Vector3, to: THREE.Vector3) {
+  let lo = 0;
+  let hi = 1;
+  const point = new THREE.Vector3();
+  for (let i = 0; i < 8; i++) {
+    const mid = (lo + hi) * 0.5;
+    point.lerpVectors(from, to, mid);
+    if (point.y <= getTerrainHeight(point.x, point.z)) hi = mid;
+    else lo = mid;
+  }
+  point.lerpVectors(from, to, hi);
+  point.y = getTerrainHeight(point.x, point.z);
+  const e = NORMAL_SAMPLE;
+  const normal = new THREE.Vector3(
+    getTerrainHeight(point.x - e, point.z) - getTerrainHeight(point.x + e, point.z),
+    2 * e,
+    getTerrainHeight(point.x, point.z - e) - getTerrainHeight(point.x, point.z + e),
+  ).normalize();
+  return { point, normal };
+}
 
 export function ProjectileManager() {
-  const projectiles = useGameStore((state) => state.projectiles);
   const updateProjectiles = useGameStore((state) => state.updateProjectiles);
   const handleHit = useGameStore((state) => state.handleHit);
 
@@ -43,7 +67,8 @@ export function ProjectileManager() {
 
       // Check collision with ground
       if (checkTerrainCollision(nextPos).hit) {
-        handleHit(p.id, 'ground', nextPos.clone(), new THREE.Vector3(0, 1, 0));
+        const impact = resolveTerrainImpact(prevPos, nextPos);
+        handleHit(p.id, 'ground', impact.point, impact.normal);
         return;
       }
 
@@ -97,16 +122,5 @@ export function ProjectileManager() {
     updateProjectiles(delta);
   });
 
-  return (
-    <group>
-      {projectiles.map((p) => {
-        const radius = 0.02 + 0.02 * ((p.caliber || 75) / 75);
-        return (
-          <Sphere key={p.id} args={[radius, 8, 8]} position={p.position}>
-            <meshBasicMaterial color={p.ricochet ? '#cc6600' : '#ffaa00'} />
-          </Sphere>
-        );
-      })}
-    </group>
-  );
+  return <ShellTracers />;
 }
