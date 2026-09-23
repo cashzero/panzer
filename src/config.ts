@@ -108,34 +108,57 @@ export const GAME_CONFIG = {
     microRelief: 1,       // scale of the metre-high swells across the plains (0 = flat)
   },
   buildings: {
-    roadsideSpacing: 120,
-    roadsideChance: 0.42,
-    roadsideSetback: 10,
-    minSpacing: 14,
-    maxSlopeDelta: 2.8,
-    placementMaxSlopeDelta: 0.65,
+    placementMaxSlopeDelta: 1.5,  // m across a footprint; the pad beneath flattens the rest
+    minBuildingGap: 3,            // m between neighbouring buildings
+    // Villages: a street down each road out of a junction.
+    villageStreetStart: 18,       // m from the junction to the first house
+    villageStreetLength: [60, 105] as [number, number],
+    villageFill: 0.8,             // share of street plots that get a building
+    streetSetback: 4,             // m from the road edge to the house front
+    streetGap: [3, 9] as [number, number],
+    // Farmsteads along the open road.
+    farmsteadSpacing: [330, 560] as [number, number],
+    farmsteadSetback: 9,
+    farmsteadVillageClearance: 170,
+    gardenChance: 0.7,            // village houses with a walled garden behind
+    secondBarnChance: 0.65,       // farm courts closed by a second barn or grange
     exclusionFromCenter: 80,
     villageFlattenRadius: 90,
     villageCoreRadius: 46,
     foundationFlatMargin: 3,
     footprintFlattenMargin: 16,
-    junctionClusterMin: 3,
-    junctionClusterMax: 6,
   },
   farmland: {
     color: 0x6c6a2e,
     edgeBlend: 3,         // m over which a plot fades into the surrounding grass
+    // Parcels: frontage along the road, depth away from it (m).
+    frontage: [55, 120] as [number, number],
+    depth: [70, 150] as [number, number],
+    tierChance: [0.95, 0.7, 0.4], // chance of a first, second and third parcel back from a road
+    laneWidth: 4,         // m between neighbouring parcels (one shared hedge)
+    roadMargin: 6,        // m of verge between a road and a parcel
+    yardMargin: 10,       // m of farmyard kept clear around each building
+    infillSpacing: 95,    // m between candidate parcels away from the roads
+    infillChance: 0.35,
+    growChance: 0.72,     // chance of each neighbour when the patchwork grows out from a parcel
+    pastureShare: 0.4,    // hedged pasture rather than arable
+    maxFieldRelief: 4,    // m of height across a parcel; steeper ground is left as rough grazing or wood
+    orchardChance: 0.6,   // farmhouses with an orchard behind them
+    orchardSpacing: 8,    // m between orchard trees
+    villageOrchards: 3,   // orchard plots on the edge of each village
     treeExclusionMargin: 6,
     villageTreeSuppressionRadius: 120,
     villageTreeSuppressionChance: 0.55,
   },
   trees: {
     // Densities are per square kilometre of map.
-    maxCountPerKm2: 420,
-    woodsPerKm2: 4,
+    maxCountPerKm2: 700,
+    woodsPerKm2: 4,       // copses scattered through farmland and open ground
     woodRadius: [35, 110] as [number, number],
     woodSpacing: 7.5,     // m between trees inside woods
-    lonePerKm2: 14,
+    forestSpacing: 10.5,  // m between trees inside the forest zones (crowns spread to close the canopy)
+    lonePerKm2: 40,       // mostly on open grazing land
+    openScrubChance: 0.14, // share of 14 m cells on open land with a scrub bush
     roadsideRowChance: 0.35,
     minSpacing: 8,
     trunkRadius: 0.3,

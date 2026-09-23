@@ -1,4 +1,5 @@
 import type { RoadNetwork } from './roads';
+import type { FarmYard } from './landLayout';
 import { GAME_CONFIG } from './config';
 import { CROP_SOIL, type BuildingInstance, type FarmlandPlot } from './buildings';
 
@@ -39,6 +40,7 @@ export function sampleGroundSurface(
   network: RoadNetwork,
   farmlands: FarmlandPlot[],
   buildings: BuildingInstance[],
+  yards: FarmYard[] = [],
 ): GroundSurface {
   let roadDistance = Infinity;
   for (const road of network.segments) {
@@ -60,7 +62,10 @@ export function sampleGroundSurface(
     soil = Math.max(soil, soilPatch(x, z, plot.center[0], plot.center[2], plot.width, plot.depth, plot.rotation, GAME_CONFIG.farmland.edgeBlend, CROP_SOIL[plot.crop]));
   }
   for (const b of buildings) {
-    soil = Math.max(soil, soilPatch(x, z, b.position[0], b.position[2], b.width + 3, b.depth + 3, b.rotation, 5, 1));
+    soil = Math.max(soil, soilPatch(x, z, b.position[0], b.position[2], b.width + 3, b.depth + 3, -b.rotation, 5, 1));
+  }
+  for (const yard of yards) {
+    soil = Math.max(soil, soilPatch(x, z, yard.x, yard.z, yard.halfWidth * 2, yard.halfDepth * 2, Math.atan2(yard.uz, yard.ux), 1.5, yard.kind === 'court' ? 0.9 : 0.7));
   }
 
   const mud = soil * (1 - road);

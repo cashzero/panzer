@@ -10,7 +10,7 @@ function treesNear(trees: TreeInstance[], x: number, z: number, reach: number): 
   forEachTreeNear(trees, GAME_CONFIG.trees.collisionRadius, x, z, reach, (index) => found.push(index));
   return found.sort((a, b) => a - b);
 }
-import { getBuildingClearanceRadius, type BuildingInstance } from './buildings';
+import { buildingLocalToWorld, getBuildingClearanceRadius, worldToBuildingLocal, type BuildingInstance } from './buildings';
 
 const _tempVec = new THREE.Vector3();
 const _candidateDir = new THREE.Vector3();
@@ -214,10 +214,7 @@ export function resolveBuildingCollision(newPos: THREE.Vector3, buildings: Build
   for (const building of buildings) {
     const dx = newPos.x - building.position[0];
     const dz = newPos.z - building.position[2];
-    const c = Math.cos(-building.rotation);
-    const s = Math.sin(-building.rotation);
-    const localX = dx * c - dz * s;
-    const localZ = dx * s + dz * c;
+    const [localX, localZ] = worldToBuildingLocal(dx, dz, building.rotation);
     const expandedHalfW = building.width * 0.5 + tankRadius;
     const expandedHalfD = building.depth * 0.5 + tankRadius;
 
@@ -229,14 +226,9 @@ export function resolveBuildingCollision(newPos: THREE.Vector3, buildings: Build
     const outZ = localZ >= 0 ? expandedHalfD : -expandedHalfD;
     const resolvedLocalX = pushX < pushZ ? outX : localX;
     const resolvedLocalZ = pushZ <= pushX ? outZ : localZ;
-    const wc = Math.cos(building.rotation);
-    const ws = Math.sin(building.rotation);
+    const [pushedX, pushedZ] = buildingLocalToWorld(resolvedLocalX, resolvedLocalZ, building.rotation);
 
-    _buildingPush.set(
-      building.position[0] + resolvedLocalX * wc - resolvedLocalZ * ws,
-      newPos.y,
-      building.position[2] + resolvedLocalX * ws + resolvedLocalZ * wc,
-    );
+    _buildingPush.set(building.position[0] + pushedX, newPos.y, building.position[2] + pushedZ);
     newPos.x = _buildingPush.x;
     newPos.z = _buildingPush.z;
   }

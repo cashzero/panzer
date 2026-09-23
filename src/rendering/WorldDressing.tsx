@@ -22,7 +22,10 @@ function mulberry32(seed: number) {
   };
 }
 
-const PROFILE = 10; // vertices around the hedge cross-section
+const PROFILE = 7; // vertices around the hedge cross-section
+// Station spacing along a hedge (m). Hundreds of field hedges now line the
+// parcels, so the loft is kept coarse; the leaf mottling carries the detail.
+const HEDGE_STEP = 1.6;
 
 /**
  * One continuous hedge along a run of stations: a lofted, slightly flat-topped
@@ -37,11 +40,11 @@ function appendHedgeRun(
   const base = positions.length / 3;
   const color = new THREE.Color();
   stations.forEach((station, i) => {
-    const s = i * 0.8 + phase;
-    const bumps = Math.sin(s * 0.9) * 0.18 + Math.sin(s * 2.3 + 1.7) * 0.1 + Math.sin(s * 5.1 + 0.4) * 0.05;
+    const s = i * HEDGE_STEP + phase;
+    const bumps = Math.sin(s * 0.9) * 0.18 + Math.sin(s * 1.7 + 1.7) * 0.12;
     const endTaper = Math.min(1, i / 2, (stations.length - 1 - i) / 2);
     const height = (1.75 + bumps) * (0.35 + 0.65 * endTaper);
-    const width = (1.55 + Math.sin(s * 0.7 + 2.9) * 0.2 + Math.sin(s * 3.3) * 0.08) * (0.5 + 0.5 * endTaper);
+    const width = (1.55 + Math.sin(s * 0.7 + 2.9) * 0.2 + Math.sin(s * 1.3) * 0.08) * (0.5 + 0.5 * endTaper);
     color.setHSL(0.21 + Math.sin(s * 0.31 + phase) * 0.02, 0.36, 0.19 + Math.sin(s * 0.53 + 2 * phase) * 0.025, THREE.SRGBColorSpace);
     for (let k = 0; k < PROFILE; k++) {
       const theta = (k / (PROFILE - 1)) * Math.PI;
@@ -110,10 +113,10 @@ export function WorldDressing() {
       const phase = rng() * 100;
       let run: Array<{ x: number; z: number; y: number }> = [];
       const flush = () => {
-        if (run.length >= 4) appendHedgeRun(run, dirX, dirZ, phase + hedgePositions.length * 0.001, hedgePositions, hedgeColors, hedgeIndices);
+        if (run.length >= 3) appendHedgeRun(run, dirX, dirZ, phase + hedgePositions.length * 0.001, hedgePositions, hedgeColors, hedgeIndices);
         run = [];
       };
-      for (let d = 0; d <= length; d += 0.8) {
+      for (let d = 0; d <= length; d += HEDGE_STEP) {
         const x = ax + dirX * d, z = az + dirZ * d;
         if (isOnRoadForNetwork(x, z, roadNetwork, 3) || isPointNearAnyBuilding(x, z, buildings, 4)) { flush(); continue; }
         run.push({ x, z, y: getTerrainMeshHeight(x, z) });

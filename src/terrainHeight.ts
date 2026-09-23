@@ -105,8 +105,9 @@ export function sampleTerrainHeight(
     // Most visibility-ray samples are far away: skip their trig and distance work.
     const bounds = (building.width + building.depth) * 0.5 + hardMargin * 2 + flattenMargin;
     if (Math.abs(dx) > bounds || Math.abs(dz) > bounds) continue;
-    const c = Math.cos(-building.rotation);
-    const s = Math.sin(-building.rotation);
+    // Building rotation is a three.js Y rotation (see worldToBuildingLocal in buildings.ts).
+    const c = Math.cos(building.rotation);
+    const s = Math.sin(building.rotation);
     const localX = dx * c - dz * s;
     const localZ = dx * s + dz * c;
     const padHalfWidth = building.width * 0.5 + hardMargin;

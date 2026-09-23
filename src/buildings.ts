@@ -5,6 +5,13 @@ import type { RoadNetwork, RoadSegment } from './roads';
 import { getRoadInfluence } from './roads';
 import { sampleTerrainHeight, sampleTerrainWithoutBuildings } from './terrainHeight';
 
+/** Regional building tradition, shared by the buildings of one settlement. */
+export interface BuildingStyle {
+  walls: 'timber' | 'stone' | 'brick';
+  roof: 'tile' | 'slate' | 'thatch';
+  shutters: 'green' | 'grey' | 'oxblood';
+}
+
 export interface BuildingInstance {
   id: string;
   kind: 'farmhouse' | 'barn' | 'warehouse';
@@ -14,10 +21,12 @@ export interface BuildingInstance {
   depth: number;
   height: number;
   roofHeight: number;
+  /** Visual tradition; the renderer picks one from the id when unset. */
+  style?: BuildingStyle;
 }
 
-/** Late-summer field states: freshly ploughed, harvested stubble, or uncut hay. */
-export type FarmlandCrop = 'ploughed' | 'stubble' | 'hay';
+/** Late-summer field states: freshly ploughed, harvested stubble, uncut hay, hedged pasture, or an orchard. */
+export type FarmlandCrop = 'ploughed' | 'stubble' | 'hay' | 'pasture' | 'orchard';
 
 export interface FarmlandPlot {
   id: string;
@@ -29,9 +38,9 @@ export interface FarmlandPlot {
 }
 
 /** How much bare soil each crop shows; shared by the terrain splat and surface effects. */
-export const CROP_SOIL: Record<FarmlandCrop, number> = { ploughed: 0.95, stubble: 0.45, hay: 0.15 };
+export const CROP_SOIL: Record<FarmlandCrop, number> = { ploughed: 0.95, stubble: 0.45, hay: 0.15, pasture: 0, orchard: 0 };
 
-interface BuildingShape {
+export interface BuildingShape {
   width: number;
   depth: number;
   height: number;
@@ -54,10 +63,28 @@ function mulberry32(seed: number) {
   };
 }
 
-function rotateLocalToWorld(x: number, z: number, rotation: number): [number, number] {
+/**
+ * Building rotation is a three.js Y rotation, as BuildingRenderer and the
+ * projectile raycast apply it: local +x (width) points along (cos r, -sin r)
+ * in world XZ and local +z (depth) along (sin r, cos r). Every footprint test
+ * must use these two helpers; the math-convention rotation mirrors the
+ * footprint wherever a building is not axis-aligned.
+ */
+export function buildingLocalToWorld(x: number, z: number, rotation: number): [number, number] {
   const c = Math.cos(rotation);
   const s = Math.sin(rotation);
-  return [x * c - z * s, x * s + z * c];
+  return [x * c + z * s, -x * s + z * c];
+}
+
+export function worldToBuildingLocal(dx: number, dz: number, rotation: number): [number, number] {
+  const c = Math.cos(rotation);
+  const s = Math.sin(rotation);
+  return [dx * c - dz * s, dx * s + dz * c];
+}
+
+/** Building rotation whose width (local +x) runs along the world direction. */
+export function buildingRotationAlong(dirX: number, dirZ: number): number {
+  return Math.atan2(-dirZ, dirX);
 }
 
 function getBuildingRadius(building: Pick<BuildingInstance, 'width' | 'depth'>): number {
@@ -68,21 +95,7 @@ export function getBuildingClearanceRadius(building: Pick<BuildingInstance, 'wid
   return getBuildingRadius(building);
 }
 
-function isNearExistingBuilding(
-  x: number,
-  z: number,
-  radius: number,
-  buildings: BuildingInstance[],
-  margin: number,
-): boolean {
-  return buildings.some((building) => {
-    const dx = building.position[0] - x;
-    const dz = building.position[2] - z;
-    return Math.hypot(dx, dz) < getBuildingRadius(building) + radius + margin;
-  });
-}
-
-function sampleSlope(
+export function sampleSlope(
   x: number,
   z: number,
   rotation: number,
@@ -102,7 +115,7 @@ function sampleSlope(
     for (let ix = 0; ix < 3; ix++) {
       const lx = THREE.MathUtils.lerp(-halfW, halfW, ix * 0.5);
       const lz = THREE.MathUtils.lerp(-halfD, halfD, iz * 0.5);
-      const [wx, wz] = rotateLocalToWorld(lx, lz, rotation);
+      const [wx, wz] = buildingLocalToWorld(lx, lz, rotation);
       const y = sampleTerrainWithoutBuildings(x + wx, z + wz, roadNetwork, getRoadInfluence);
       minY = Math.min(minY, y);
       maxY = Math.max(maxY, y);
@@ -112,34 +125,32 @@ function sampleSlope(
   return maxY - minY;
 }
 
-function createBuildingShape(kind: BuildingInstance['kind'], rng: () => number): BuildingShape {
+export function createBuildingShape(kind: BuildingInstance['kind'], rng: () => number): BuildingShape {
+  // Steep roofs of about 50 degrees, as on Norman and Picard farms.
   if (kind === 'barn') {
-    return {
-      width: 18 + rng() * 4,
-      depth: 10 + rng() * 3,
-      height: 6 + rng() * 1.5,
-      roofHeight: 3,
-    };
+    const depth = 9 + rng() * 3;
+    return { width: 16 + rng() * 7, depth, height: 4.6 + rng() * 1.4, roofHeight: depth * (0.52 + rng() * 0.08) };
   }
 
   if (kind === 'warehouse') {
-    return {
-      width: 24 + rng() * 8,
-      depth: 12 + rng() * 5,
-      height: 7 + rng() * 2,
-      roofHeight: 2.2,
-    };
+    // A tithe-barn sized grange.
+    const depth = 11 + rng() * 3;
+    return { width: 22 + rng() * 8, depth, height: 5.6 + rng() * 1.4, roofHeight: depth * (0.5 + rng() * 0.06) };
   }
 
+  const depth = 7 + rng() * 2.5;
+  // Most farmhouses are long, low houses with dormers in a tall roof; some are
+  // two-storey maisons de maître.
+  const longHouse = rng() < 0.55;
   return {
-    width: 10 + rng() * 5,
-    depth: 7 + rng() * 3,
-    height: 4.5 + rng() * 1.2,
-    roofHeight: 2.4,
+    width: longHouse ? 12 + rng() * 5 : 9.5 + rng() * 3.5,
+    depth,
+    height: longHouse ? 3.3 + rng() * 0.5 : 5.4 + rng() * 0.8,
+    roofHeight: depth * (longHouse ? 0.6 + rng() * 0.06 : 0.5 + rng() * 0.06),
   };
 }
 
-function createBuildingFromShape(
+export function createBuildingFromShape(
   id: string,
   kind: BuildingInstance['kind'],
   x: number,
@@ -158,7 +169,7 @@ function createBuildingFromShape(
     [shape.width * 0.5, shape.depth * 0.5],
     [-shape.width * 0.5, shape.depth * 0.5],
   ] as [number, number][]) {
-    const [wx, wz] = rotateLocalToWorld(lx, lz, rotation);
+    const [wx, wz] = buildingLocalToWorld(lx, lz, rotation);
     samples.push(sampleTerrainWithoutBuildings(x + wx, z + wz, roadNetwork, getRoadInfluence));
   }
   const y = samples.reduce((sum, sample) => sum + sample, 0) / samples.length;
@@ -172,129 +183,6 @@ function createBuildingFromShape(
     height: shape.height,
     roofHeight: shape.roofHeight,
   };
-}
-
-function findFlatBuildingPosition(
-  targetX: number,
-  targetZ: number,
-  rotation: number,
-  shape: BuildingShape,
-  roadNetwork: RoadNetwork,
-  buildings: BuildingInstance[],
-  mapHalfSize: number,
-): [number, number] | null {
-  const radii = [0, 10, 20, 32, 46, 62];
-  for (const radius of radii) {
-    const steps = radius === 0 ? 1 : 12;
-    for (let i = 0; i < steps; i++) {
-      const angle = radius === 0 ? 0 : (Math.PI * 2 * i) / steps;
-      const x = targetX + Math.cos(angle) * radius;
-      const z = targetZ + Math.sin(angle) * radius;
-      if (Math.hypot(x, z) < GAME_CONFIG.buildings.exclusionFromCenter) continue;
-      if (Math.abs(x) > mapHalfSize - 45 || Math.abs(z) > mapHalfSize - 45) continue;
-      if (getRoadInfluence(x, z, roadNetwork).influence > 0.08) continue;
-      if (sampleSlope(x, z, rotation, shape.width, shape.depth, roadNetwork) > GAME_CONFIG.buildings.placementMaxSlopeDelta) continue;
-      if (isNearExistingBuilding(x, z, getBuildingRadius(shape), buildings, GAME_CONFIG.buildings.minSpacing)) continue;
-      return [x, z];
-    }
-  }
-
-  return null;
-}
-
-function tryPlaceRoadsideBuilding(
-  buildings: BuildingInstance[],
-  roadNetwork: RoadNetwork,
-  segment: RoadSegment,
-  ax: number,
-  az: number,
-  bx: number,
-  bz: number,
-  t: number,
-  side: 1 | -1,
-  id: string,
-  rng: () => number,
-  mapHalfSize: number,
-): void {
-  const x = ax + (bx - ax) * t;
-  const z = az + (bz - az) * t;
-  const tangentX = bx - ax;
-  const tangentZ = bz - az;
-  const length = Math.hypot(tangentX, tangentZ);
-  if (length < 1) return;
-
-  const dirX = tangentX / length;
-  const dirZ = tangentZ / length;
-  const normalX = dirZ * side;
-  const normalZ = -dirX * side;
-  const facing = Math.atan2(dirX, dirZ);
-  const kindRoll = rng();
-  const kind: BuildingInstance['kind'] = kindRoll < 0.58 ? 'farmhouse' : kindRoll < 0.86 ? 'barn' : 'warehouse';
-  const shape = createBuildingShape(kind, rng);
-  const setback = segment.halfWidth + GAME_CONFIG.buildings.roadsideSetback + shape.depth * 0.5 + rng() * 10;
-  const jitter = (rng() - 0.5) * 14;
-  const targetX = x + normalX * setback + dirX * jitter;
-  const targetZ = z + normalZ * setback + dirZ * jitter;
-  const placement = findFlatBuildingPosition(targetX, targetZ, facing, shape, roadNetwork, buildings, mapHalfSize);
-  if (!placement) return;
-
-  buildings.push(createBuildingFromShape(id, kind, placement[0], placement[1], facing, roadNetwork, shape));
-}
-
-export function generateBuildings(mapSize: MapSize, roadNetwork: RoadNetwork, seed: number): BuildingInstance[] {
-  const rng = mulberry32(seed ^ 0x9E3779B9);
-  const buildings: BuildingInstance[] = [];
-  const mapHalfSize = MAP_METERS_BY_SIZE[mapSize] * 0.5;
-  let idCounter = 0;
-
-  for (const [jx, jz] of roadNetwork.junctions) {
-    const angle = rng() * Math.PI * 2;
-    const clusterCount = GAME_CONFIG.buildings.junctionClusterMin + Math.floor(rng() * (GAME_CONFIG.buildings.junctionClusterMax - GAME_CONFIG.buildings.junctionClusterMin + 1));
-    for (let i = 0; i < clusterCount; i++) {
-      const localAngle = angle + (Math.PI * 2 * i) / clusterCount + (rng() - 0.5) * 0.4;
-      const dist = 32 + rng() * 36;
-      const kind: BuildingInstance['kind'] = i % 4 === 0 ? 'warehouse' : i % 3 === 0 ? 'barn' : 'farmhouse';
-      const rotation = localAngle + Math.PI * 0.5 + (rng() - 0.5) * 0.5;
-      const x = jx + Math.cos(localAngle) * dist;
-      const z = jz + Math.sin(localAngle) * dist;
-      const shape = createBuildingShape(kind, rng);
-      const placement = findFlatBuildingPosition(x, z, rotation, shape, roadNetwork, buildings, mapHalfSize);
-      if (!placement) continue;
-      buildings.push(createBuildingFromShape(`bld-${idCounter++}`, kind, placement[0], placement[1], rotation, roadNetwork, shape));
-    }
-  }
-
-  for (const segment of roadNetwork.segments) {
-    const points = segment.points;
-    for (let i = 0; i < points.length - 1; i++) {
-      const [ax, az] = points[i];
-      const [bx, bz] = points[i + 1];
-      const segmentLength = Math.hypot(bx - ax, bz - az);
-      const spacing = GAME_CONFIG.buildings.roadsideSpacing * (0.75 + rng() * 0.5);
-      const steps = Math.max(1, Math.floor(segmentLength / spacing));
-
-      for (let step = 1; step < steps; step++) {
-        if (rng() > GAME_CONFIG.buildings.roadsideChance) continue;
-        const t = step / steps;
-        tryPlaceRoadsideBuilding(
-          buildings,
-          roadNetwork,
-          segment,
-          ax,
-          az,
-          bx,
-          bz,
-          t,
-          rng() > 0.5 ? 1 : -1,
-          `bld-${idCounter++}`,
-          rng,
-          mapHalfSize,
-        );
-      }
-    }
-  }
-
-  return buildings;
 }
 
 export function projectBuildingsToTerrain(buildings: BuildingInstance[], roadNetwork: RoadNetwork): BuildingInstance[] {
@@ -318,48 +206,6 @@ export function isPointInsideFarmland(x: number, z: number, plot: FarmlandPlot, 
   return Math.abs(localX) <= plot.width * 0.5 + margin && Math.abs(localZ) <= plot.depth * 0.5 + margin;
 }
 
-export function generateFarmlands(
-  buildings: BuildingInstance[],
-  roadNetwork: RoadNetwork,
-  mapSize: MapSize,
-  seed: number,
-): FarmlandPlot[] {
-  const rng = mulberry32(seed ^ 0x51f15e);
-  // A separate stream, so crops do not shift the plot layout of existing seeds.
-  const cropRng = mulberry32(seed ^ 0x2c9f1a);
-  const farmlands: FarmlandPlot[] = [];
-  const mapHalfSize = MAP_METERS_BY_SIZE[mapSize] * 0.5;
-
-  for (const building of buildings) {
-    if (building.kind === 'warehouse') continue;
-    const plots = building.kind === 'barn' ? 2 : 1;
-    for (let i = 0; i < plots; i++) {
-      const side = i === 0 ? 1 : -1;
-      const width = building.kind === 'barn' ? 42 + rng() * 24 : 30 + rng() * 18;
-      const depth = building.kind === 'barn' ? 60 + rng() * 28 : 42 + rng() * 20;
-      const offset = building.depth * 0.6 + depth * 0.52 + 10 + rng() * 10;
-      const angle = building.rotation + (rng() - 0.5) * 0.18;
-      const normalX = Math.sin(building.rotation) * side;
-      const normalZ = Math.cos(building.rotation) * side;
-      const cx = building.position[0] + normalX * offset;
-      const cz = building.position[2] + normalZ * offset;
-      if (Math.abs(cx) > mapHalfSize - 30 || Math.abs(cz) > mapHalfSize - 30) continue;
-      if (getRoadInfluence(cx, cz, roadNetwork).influence > 0.12) continue;
-      if (isPointNearAnyBuilding(cx, cz, buildings, Math.min(width, depth) * 0.2)) continue;
-      farmlands.push({
-        id: `${building.id}-field-${i}`,
-        center: [cx, building.position[1], cz],
-        rotation: angle,
-        width,
-        depth,
-        crop: ((roll) => roll < 0.4 ? 'stubble' : roll < 0.72 ? 'ploughed' : 'hay')(cropRng()),
-      });
-    }
-  }
-
-  return farmlands;
-}
-
 export function isPointInsideBuildingFootprint(
   x: number,
   z: number,
@@ -368,10 +214,7 @@ export function isPointInsideBuildingFootprint(
 ): boolean {
   const dx = x - building.position[0];
   const dz = z - building.position[2];
-  const c = Math.cos(-building.rotation);
-  const s = Math.sin(-building.rotation);
-  const localX = dx * c - dz * s;
-  const localZ = dx * s + dz * c;
+  const [localX, localZ] = worldToBuildingLocal(dx, dz, building.rotation);
   return Math.abs(localX) <= building.width * 0.5 + margin && Math.abs(localZ) <= building.depth * 0.5 + margin;
 }
 

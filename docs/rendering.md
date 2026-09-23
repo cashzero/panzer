@@ -123,6 +123,9 @@ denser world dressing and distant shadows.
   box-blurs it twice so wood edges curve instead of scalloping; the ground shader
   and the grass grid both read it, keyed on the tree layout so knockdowns do not
   rebuild it.
+- Hedges are lofted at 1.6 m stations with a 7-vertex profile: parcels now carry
+  several hundred hedges per map, and the finer 0.8 m / 10-vertex loft added
+  about 1.5 M triangles on the medium map.
 - `TreeRenderer` uploads instance matrices only when the store's tree array
   changes (a knockdown), then refreshes the instance bounding spheres used for
   frustum culling.
@@ -145,6 +148,11 @@ denser world dressing and distant shadows.
   because translucent chips over the sky read as glass.
 - Object-space armour weathering now samples slot space, so the mottling
   pattern differs from the unmerged editor preview while keeping the same scale.
+- Buildings and yards are built from shared unit primitives (box, gable prism,
+  cylinder, cone, mound) scaled by their matrices, then merged per material:
+  about 30 materials, so the whole settlement layer is about 30 draw calls. At 4K
+  on a GTX 1050 Ti it costs about 0.8 ms. Building `rotation` is a three.js Y
+  rotation; the layout places a building by the direction its front (+z) faces.
 - `BuildingRenderer.tsx` bakes every building part into world space, one batch
   per material. `src/rendering/staticMerge.ts` holds the shared merge helper,
   including winding correction for mirrored parts.

@@ -34,6 +34,7 @@ export function GroundMaterial() {
   const roadNetwork = useGameStore((s) => s.roadNetwork);
   const farmlands = useGameStore((s) => s.farmlands);
   const buildings = useGameStore((s) => s.buildings);
+  const yards = useGameStore((s) => s.yards);
   // Knockdowns replace the tree array but not the layout the floor follows.
   const treeLayout = treeLayoutSignature(useGameStore((s) => s.trees));
   const woodland = useMemo(() => {
@@ -53,7 +54,7 @@ export function GroundMaterial() {
     return texture;
   }), [loaded, gl]);
   const splat = useMemo(() => {
-    const { data, resolution, crops, cropResolution } = createTerrainSplatData(roadNetwork, farmlands, buildings);
+    const { data, resolution, crops, cropResolution } = createTerrainSplatData(roadNetwork, farmlands, buildings, 2048, yards);
     const toTexture = (source: Uint8Array, size: number, format: THREE.PixelFormat) => {
       const texture = new THREE.DataTexture(source, size, size, format);
       texture.minFilter = texture.magFilter = THREE.LinearFilter;
@@ -62,7 +63,7 @@ export function GroundMaterial() {
       return texture;
     };
     return { ground: toTexture(data, resolution, THREE.RGFormat), crops: toTexture(crops, cropResolution, THREE.RGBAFormat) };
-  }, [roadNetwork, farmlands, buildings]);
+  }, [roadNetwork, farmlands, buildings, yards]);
 
   const material = useMemo(() => {
     const ground = new THREE.MeshPhysicalMaterial({

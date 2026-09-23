@@ -113,6 +113,8 @@ Tracks:
 ## World Generation
 
 - Battlefield layout should be procedurally generated from a seed so maps can vary while remaining readable and traversable.
+- The land reads as surveyed countryside, not a scatter: villages line the streets out of each junction, farmsteads stand square to the road with barns around a yard, and fields are rectangular parcels in strips back from the roads, sharing hedges across narrow lanes.
+- Each map mixes land uses in zones several hundred metres across: enclosed farmland on level ground, open rough grazing with lone trees and scrub, and large forests, with orchards behind farmhouses and on village edges. Steep ground is never cultivated.
 - Terrain should support open maneuvering, local cover, and elevation-driven sightlines.
 - Even open plains carry low swells about a metre high: enough to hide a hull at range and break up the horizon, never enough to stop a tank. Roads sit slightly below the fields either side, like worn lanes.
 - Farmland shows late-summer states: freshly ploughed earth, harvested stubble and uncut hay. Pasture varies from lush green in patches to sun-dried straw, with verges and animal tracks, so no stretch of ground reads as a uniform lawn.
@@ -123,7 +125,8 @@ Tracks:
 - Woods read as woods, not orchards: closed crowns, scrub and young trees in the understory, and leaf litter instead of pasture underfoot. Understory is scenery; it neither collides nor blocks sight.
 - Woodland follows the land rather than an even scatter: copses and conifer plantations, treelines on field edges, avenues along some roads and a few lone trees. Trees derive from the world seed, so the map seed changes them too.
 - Low field hedges, telegraph lines and the countryside beyond the map edge are scenery only: they neither collide nor block sight, so they add depth without changing combat. The map edge never ends in a visible cut-off.
-- Farm buildings read as period rural architecture (stone granges with planked doors, shuttered farmhouses); nothing on the field looks modern industrial.
+- Farm buildings read as the rural architecture of 1944 Normandy and Picardy: half-timbered, limestone or brick walls, steep tiled, slate or thatched roofs, long houses with dormers, barns with cart doors. A settlement shares one tradition. Nothing on the field looks modern industrial.
+- Farmsteads are walled courts: the house across the back, barns down the sides and a gateway on the road, with a well, haystack, manure heap, cart and woodpile inside. Village houses front the street and keep a walled or fenced kitchen garden behind. Yard walls and props are scenery only, like hedges.
 
 ## Vehicles And Factions
 

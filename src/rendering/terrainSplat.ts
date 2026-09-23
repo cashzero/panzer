@@ -1,10 +1,12 @@
 import type { RoadNetwork } from '../roads';
+import type { FarmYard } from '../landLayout';
 import { GAME_CONFIG } from '../config';
 import { CROP_SOIL, type BuildingInstance, type FarmlandCrop, type FarmlandPlot } from '../buildings';
 
 export const ROAD_DISTANCE_RANGE = 16;
 
-const CROP_CHANNEL: Record<FarmlandCrop, number> = { ploughed: 0, stubble: 1, hay: 2 };
+/** Crop-map channel per crop; pasture is plain grass and has none. */
+const CROP_CHANNEL: Record<FarmlandCrop, number | null> = { ploughed: 0, stubble: 1, hay: 2, pasture: null, orchard: null };
 /** Crop weights reach this far past the plot edge; direction reaches further still. */
 const CROP_BLEND = GAME_CONFIG.farmland.edgeBlend;
 
@@ -18,7 +20,7 @@ const CROP_BLEND = GAME_CONFIG.farmland.edgeBlend;
  */
 export function createTerrainSplatData(
   network: RoadNetwork, farmlands: FarmlandPlot[], buildings: BuildingInstance[],
-  resolution = 2048,
+  resolution = 2048, yards: FarmYard[] = [],
 ) {
   const size = network.terrainSize;
   const spacing = size / resolution;
@@ -64,7 +66,9 @@ export function createTerrainSplatData(
     });
   };
   for (const plot of farmlands) soilPatch(plot.center[0], plot.center[2], plot.width, plot.depth, plot.rotation, CROP_BLEND, CROP_SOIL[plot.crop]);
-  for (const building of buildings) soilPatch(building.position[0], building.position[2], building.width + 3, building.depth + 3, building.rotation, 5, 1);
+  for (const building of buildings) soilPatch(building.position[0], building.position[2], building.width + 3, building.depth + 3, -building.rotation, 5, 1);
+  // Farm courts are beaten earth; gardens dug beds with grass paths.
+  for (const yard of yards) soilPatch(yard.x, yard.z, yard.halfWidth * 2, yard.halfDepth * 2, Math.atan2(yard.uz, yard.ux), 1.5, yard.kind === 'court' ? 0.9 : 0.7);
 
   const cropResolution = Math.max(1, resolution >> 1);
   const cropSpacing = size / cropResolution;
@@ -72,6 +76,8 @@ export function createTerrainSplatData(
   // Strongest plot per texel, so overlapping plots keep one consistent direction.
   const cropOwner = new Float32Array(cropResolution * cropResolution).fill(-1);
   for (const plot of farmlands) {
+    const channel = CROP_CHANNEL[plot.crop];
+    if (channel === null) continue;
     const [x, , z] = plot.center;
     const c = Math.cos(plot.rotation), s = Math.sin(plot.rotation);
     const reach = CROP_BLEND + cropSpacing * 3;
@@ -82,7 +88,6 @@ export function createTerrainSplatData(
     const z0 = Math.max(0, Math.floor((z - boundZ + half) / cropSpacing));
     const z1 = Math.min(cropResolution - 1, Math.ceil((z + boundZ + half) / cropSpacing));
     const angle = ((plot.rotation % Math.PI) + Math.PI) % Math.PI;
-    const channel = CROP_CHANNEL[plot.crop];
     for (let iz = z0; iz <= z1; iz++) {
       const wz = (iz + 0.5) * cropSpacing - half;
       for (let ix = x0; ix <= x1; ix++) {

@@ -1,8 +1,11 @@
-import type { TreeInstance } from '../trees';
+import { createFarmlandLookup, type TreeInstance } from '../trees';
 import { treeLayoutSignature } from '../treeIndex';
 import type { RoadNetwork } from '../roads';
 import { isOnRoadForNetwork } from '../roads';
-import { isPointInsideFarmland, isPointNearAnyBuilding, type BuildingInstance, type FarmlandPlot } from '../buildings';
+import { GAME_CONFIG } from '../config';
+import { landUseAt } from '../landUse';
+import { isPointInYard, type FarmYard } from '../landLayout';
+import { isPointNearAnyBuilding, type BuildingInstance, type FarmlandPlot } from '../buildings';
 
 /**
  * Woodland floor mask: how much leaf litter and canopy shade covers the ground.
@@ -100,12 +103,15 @@ function hash(a: number, b: number, salt: number) {
  */
 export function planUnderstory(
   trees: TreeInstance[], roadNetwork: RoadNetwork, buildings: BuildingInstance[], farmlands: FarmlandPlot[],
+  yards: FarmYard[] = [],
 ): UnderstoryPlan {
+  const inFarmland = createFarmlandLookup(farmlands);
   const shrubs: UnderstoryPlant[] = [];
   const saplings: UnderstoryPlant[] = [];
   const clear = (x: number, z: number) => !isOnRoadForNetwork(x, z, roadNetwork, 1.5)
     && !isPointNearAnyBuilding(x, z, buildings, 3)
-    && !farmlands.some((plot) => isPointInsideFarmland(x, z, plot, -0.5));
+    && !inFarmland(x, z, -0.5)
+    && !yards.some((yard) => isPointInYard(x, z, yard, 1.5));
   for (const tree of trees) {
     if (tree.habitat === 'lone') continue;
     const [tx, , tz] = tree.position;
@@ -125,6 +131,17 @@ export function planUnderstory(
       // Young spruce seed in under conifers; everything else is broadleaf scrub.
       if (tree.type === 'conifer' && tree.habitat === 'wood' && roll < 0.35) saplings.push({ ...plant, scale: 0.28 + plant.shade * 0.14 });
       else shrubs.push(plant);
+    }
+  }
+  // Scrub scattered over the open grazing land: gorse, bramble and thorn.
+  const half = roadNetwork.terrainSize / 2 - 20;
+  const cell = 14;
+  for (let x = -half; x < half; x += cell) {
+    for (let z = -half; z < half; z += cell) {
+      if (hash(x, z, 71) > GAME_CONFIG.trees.openScrubChance) continue;
+      const px = x + hash(x, z, 72) * cell, pz = z + hash(x, z, 73) * cell;
+      if (landUseAt(px, pz, roadNetwork.seed) !== 'open' || !clear(px, pz)) continue;
+      shrubs.push({ x: px, z: pz, rotation: hash(x, z, 74) * Math.PI * 2, scale: 0.6 + hash(x, z, 75) * 0.7, shade: hash(x, z, 76) });
     }
   }
   return { shrubs, saplings };

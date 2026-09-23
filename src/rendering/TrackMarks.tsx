@@ -191,7 +191,7 @@ export function TrackMarks() {
     material.uniforms.uNow.value = (now - TIME_BASE) / 1000;
 
     const state = useGameStore.getState();
-    const { roadNetwork, farmlands, buildings } = state;
+    const { roadNetwork, farmlands, buildings, yards } = state;
     const seen = new Set<string>();
     let first = -1;
     let count = 0;
@@ -218,7 +218,7 @@ export function TrackMarks() {
       cursor.current = (cursor.current + 1) % cfg.maxCount;
       mesh.setMatrixAt(index, _mat);
 
-      const surface = sampleGroundSurface(mx, mz, roadNetwork, farmlands, buildings);
+      const surface = sampleGroundSurface(mx, mz, roadNetwork, farmlands, buildings, yards);
       const g = SURFACE_TINT.grass;
       const m = SURFACE_TINT.mud;
       const r = SURFACE_TINT.road;

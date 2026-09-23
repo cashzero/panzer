@@ -171,7 +171,7 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
       if (surfaceKind.current === null || now - lastSurfaceSample.current > trackFxCfg.surfaceSampleInterval) {
         lastSurfaceSample.current = now;
         const world = useGameStore.getState();
-        surfaceKind.current = sampleGroundSurface(data.position.x, data.position.z, world.roadNetwork, world.farmlands, world.buildings).kind;
+        surfaceKind.current = sampleGroundSurface(data.position.x, data.position.z, world.roadNetwork, world.farmlands, world.buildings, world.yards).kind;
       }
     }
     if (surfaceKind.current && surfaceKind.current !== 'road' && trackMotion > trackFxCfg.minSpeed) {

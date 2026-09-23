@@ -399,7 +399,7 @@ export function Understory() {
   // Knockdowns replace the tree array without moving trees: key on the layout.
   const layout = treeLayoutSignature(trees);
   const meshes = useMemo(() => {
-    const plan = planUnderstory(useGameStore.getState().trees, roadNetwork, buildings, farmlands);
+    const plan = planUnderstory(useGameStore.getState().trees, roadNetwork, buildings, farmlands, useGameStore.getState().yards);
     const shrubs = new THREE.InstancedMesh(shrubGeo, deciduousLeafMat, Math.max(1, plan.shrubs.length));
     const saplings = new THREE.InstancedMesh(coniferCanopyGeo, coniferLeafMat, Math.max(1, plan.saplings.length));
     shrubs.customDepthMaterial = deciduousLeafDepthMat;
