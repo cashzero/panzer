@@ -39,8 +39,9 @@ function skirtHeight(x: number, z: number, half: number) {
   return edge + (hills - edge) * smoothstep(0, 1500, distance);
 }
 
-const FIELD = new THREE.Color('#5f6040');
-const DRY = new THREE.Color('#77714b');
+// Matched against the rendered pasture just inside the map edge.
+const FIELD = new THREE.Color('#57561f');
+const DRY = new THREE.Color('#6e6429');
 const WOOD = new THREE.Color('#353c26');
 
 /**

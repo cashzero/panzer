@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { getRoadInfluence, type RoadNetwork } from './roads';
 import { GroundMaterial } from './rendering/GroundMaterial';
 import { useGameStore, MAP_SIZE_VALUES } from './store';
-import { getFarmlandInfluence, isPointNearAnyBuilding, type BuildingInstance } from './buildings';
+import { getFarmlandCropInfluence, isPointNearAnyBuilding, type BuildingInstance } from './buildings';
 import { sampleTerrainHeight } from './terrainHeight';
 import { GAME_CONFIG } from './config';
 
@@ -24,6 +24,7 @@ function hash2D(x: number, y: number): number {
 
 function createGrassTuftGeometry() {
   const positions: number[] = [];
+  const normals: number[] = [];
   const colors: number[] = [];
   const root = new THREE.Color('#6b6943');
   const tip = new THREE.Color('#aaa572');
@@ -34,7 +35,11 @@ function createGrassTuftGeometry() {
     const width = 0.014 + hash2D(blade, 8) * 0.018;
     const x = Math.cos(angle) * 0.16;
     const z = Math.sin(angle) * 0.16;
+    // Mostly upward normals, leaning out with the blade: the tuft shades like a
+    // soft clump instead of a fan of lit and unlit cards.
+    const normal = new THREE.Vector3(Math.cos(angle) * 0.35, 1, Math.sin(angle) * 0.35).normalize();
     const point = (t: number, side: number) => {
+      normals.push(normal.x, normal.y, normal.z);
       const bend = t * t * 0.12;
       positions.push(x + Math.cos(angle) * (side * width * (1 - t) + bend), height * t,
         z + Math.sin(angle) * (side * width * (1 - t) + bend));
@@ -51,7 +56,7 @@ function createGrassTuftGeometry() {
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeVertexNormals();
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   return geometry;
 }
 
@@ -65,9 +70,12 @@ const grassTuftMaterial = new THREE.MeshPhysicalMaterial({
   vertexColors: true,
 });
 grassTuftMaterial.onBeforeCompile = grassShader;
-const TUFT_FARMLAND = new THREE.Color('#d4c590');
+const TUFT_STUBBLE = new THREE.Color('#e0c98e');
+const TUFT_HAY = new THREE.Color('#d2cb96');
 const TUFT_LIGHT = new THREE.Color('#cac39a');
 const TUFT_BASE = new THREE.Color('#b4b289');
+/** Tuft size by crop: ploughed ground keeps only a few weeds, hay stands tall. */
+const CROP_TUFT_SCALE = { ploughed: 0.08, stubble: 0.55, hay: 1.35 };
 
 function GroundCover() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
@@ -114,8 +122,9 @@ function GroundCover() {
         const worldZ = (cellZ + (randomB - 0.5) * 0.98) * COVER_CELL_SIZE;
         const road = getRoadInfluence(worldX, worldZ, state.roadNetwork).influence;
         const blocked = road > 0.14 || isPointNearAnyBuilding(worldX, worldZ, nearbyBuildings, 1.5);
-        const farmland = getFarmlandInfluence(worldX, worldZ, farmlands);
-        const tuftScale = blocked ? 0 : (0.7 + randomB * 0.55) * (1 - farmland * 0.38);
+        const farmland = getFarmlandCropInfluence(worldX, worldZ, farmlands);
+        const cropScale = farmland.crop ? 1 + (CROP_TUFT_SCALE[farmland.crop] - 1) * farmland.weight : 1;
+        const tuftScale = blocked ? 0 : (0.7 + randomB * 0.55) * cropScale;
 
         // Tufts sit on the rendered surface; the exact noise field is far costlier.
         position.set(worldX, blocked ? 0 : getTerrainMeshHeight(worldX, worldZ) + 0.008, worldZ);
@@ -125,7 +134,9 @@ function GroundCover() {
         matrix.compose(position, rotation, scale);
         mesh.setMatrixAt(index, matrix);
 
-        mesh.setColorAt(index, farmland > 0.25 ? TUFT_FARMLAND : randomA > 0.58 ? TUFT_LIGHT : TUFT_BASE);
+        mesh.setColorAt(index, farmland.weight > 0.25 && farmland.crop !== 'ploughed'
+          ? (farmland.crop === 'hay' ? TUFT_HAY : TUFT_STUBBLE)
+          : randomA > 0.58 ? TUFT_LIGHT : TUFT_BASE);
         index++;
       }
     }

@@ -1,5 +1,6 @@
 import type { RoadNetwork } from './roads';
-import type { BuildingInstance, FarmlandPlot } from './buildings';
+import { GAME_CONFIG } from './config';
+import { CROP_SOIL, type BuildingInstance, type FarmlandPlot } from './buildings';
 
 export type GroundSurfaceKind = 'grass' | 'mud' | 'road';
 
@@ -56,7 +57,7 @@ export function sampleGroundSurface(
 
   let soil = 0;
   for (const plot of farmlands) {
-    soil = Math.max(soil, soilPatch(x, z, plot.center[0], plot.center[2], plot.width, plot.depth, plot.rotation, 8, 0.85));
+    soil = Math.max(soil, soilPatch(x, z, plot.center[0], plot.center[2], plot.width, plot.depth, plot.rotation, GAME_CONFIG.farmland.edgeBlend, CROP_SOIL[plot.crop]));
   }
   for (const b of buildings) {
     soil = Math.max(soil, soilPatch(x, z, b.position[0], b.position[2], b.width + 3, b.depth + 3, b.rotation, 5, 1));

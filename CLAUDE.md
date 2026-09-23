@@ -53,7 +53,7 @@ The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.
 - `aiAccuracy.ts`, `spotting.ts` — AI gunnery accuracy and line-of-sight / detection
 
 **World**:
-- `Terrain.tsx` + `terrainHeight.ts` — procedural sine-wave terrain, flattened center
+- `Terrain.tsx` + `terrainHeight.ts` — layered-noise terrain with metre-high swells, sunken roads, flattened center
 - `roads.ts` — seeded road network (N-S / E-W crossroads), height blend, speed bonus
 - `trees.ts` + `TreeRenderer.tsx` — seeded woods, field-edge treelines, roadside avenues and lone trees; collision, HP, knockdown; instanced meshes. `treeIndex.ts` grids tree queries; `fieldBoundaries.ts` decides which field edges get trees, hedges or nothing
 - `rendering/WorldDressing.tsx` (hedges, telegraph lines) and `rendering/HorizonSkirt.tsx` (countryside beyond the map edge) — visual only, no collision or line-of-sight effect

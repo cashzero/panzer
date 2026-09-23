@@ -35,7 +35,7 @@ Completed roadmap items are documented here.
 
 ## World, Terrain, And Obstacles
 
-- Terrain is procedurally generated with a sine-wave height formula and a flattened center area.
+- Terrain is procedurally generated from layered noise with a flattened center area. The plains carry swells of about a metre (`GAME_CONFIG.world.microRelief`), and road beds sit `GAME_CONFIG.roads.sunkenDepth` below the surrounding ground. Physics, line of sight and rendering all read the same height field.
 - Road layout is generated from a seed per map size, with terrain blending and road-driven world coloring.
 - Trees are placed from the world seed as woods (copses and plantations), field-edge treelines, roadside avenues and lone trees, with collision, health, and knockdown state. Tree ray and proximity queries go through a uniform grid (`treeIndex.ts`).
 - Field boundaries are planned once per world (`fieldBoundaries.ts`): each edge gets a treeline, a hedge or stays open. Hedges are continuous lofted meshes, visual only, like the telegraph poles and wires along the longest roads (`rendering/WorldDressing.tsx`).
@@ -46,7 +46,8 @@ Completed roadmap items are documented here.
 - Projectiles damage trees for 50 HP per hit.
 - Rural building clusters spawn along road junctions and roadsides as indestructible battlefield obstacles.
 - Buildings block tank movement and receive projectile wall and roof impacts.
-- Farmland plots generate around rural buildings, tint surrounding terrain, and suppress nearby tree placement.
+- Farmland plots generate around rural buildings, tint surrounding terrain, and suppress nearby tree placement. Each plot is ploughed, stubble or hay: furrows ridged along the plot's long side, pale stubble in reaper swaths, or tall pale hay. Ground cover follows the crop, and ploughed plots count as mud for track effects.
+- Pasture colour varies between lush green and sun-dried straw over tens of metres, with worn bare patches, green verges beside the lanes and faint animal tracks. Past about 60 m, field-sized blotches keep the middle distance from settling into one tone. Grass tufts take the same pasture tint as the ground under them.
 
 ## UI, Map, And Presentation
 
@@ -73,7 +74,7 @@ Completed roadmap items are documented here.
 - The battlefield uses a shared analytic sky and sun direction, procedural clouds, baked sky reflections, and a camera-following 4096px directional shadow map stabilized in light space.
 - Half-resolution N8AO adds contact occlusion; restrained HDR bloom, ACES output and SMAA run before the HTML HUD. Tactical map mode bypasses these passes and ground cover.
 - Terrain uses locally vendored CC0 Poly Haven albedo, OpenGL normal and roughness maps, with biome tinting, two detail scales and anisotropic filtering.
-- Instanced ground cover uses tapered blades, root-to-tip colour, wind and distance fade; wind respects reduced-motion preferences.
+- Instanced ground cover uses tapered blades, root-to-tip colour, wind and distance fade; wind respects reduced-motion preferences. Blade normals point up on both faces, so no blade renders black from behind.
 - Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry.
 - Particle rendering is pooled into a fixed set of shared `Points` and `InstancedMesh` batches instead of one draw call per effect. Tracers and crater decals each render as a single instanced draw.

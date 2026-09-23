@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { getMeadowNoiseUniform, meadowNoise } from './meadowNoise';
 
 export const grassWind = { value: 0 };
 export const grassShader: THREE.MeshStandardMaterial['onBeforeCompile'] = (shader) => {
   shader.uniforms.grassTime = grassWind;
-  shader.vertexShader = 'uniform float grassTime;\n' + shader.vertexShader;
+  shader.uniforms.meadowNoiseMap = getMeadowNoiseUniform();
+  shader.vertexShader = 'uniform float grassTime;\n' + meadowNoise + shader.vertexShader;
   shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
     #include <begin_vertex>
     #ifdef USE_INSTANCING
@@ -16,6 +18,17 @@ export const grassShader: THREE.MeshStandardMaterial['onBeforeCompile'] = (shade
       transformed.x += breeze * position.y * position.y * 0.42;
       transformed.z += sin(grassTime * 1.1 + root.z * 0.42) * position.y * position.y * 0.25;
       transformed *= visibility;
+      #ifdef USE_COLOR
+        // Follow the pasture tint of the ground the tuft stands in.
+        vColor.rgb *= mix(vec3(0.86, 0.97, 0.76), vec3(1.1, 1.03, 0.84), smoothstep(0.25, 0.75, meadowDryness(root.xz)));
+      #endif
     #endif
+  `);
+  // Blades are double-sided with upward normals. Three.js flips the normal on
+  // back faces, which turned half the blades black; keep it pointing up.
+  shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_begin>', `
+    #include <normal_fragment_begin>
+    normal = normalize(vNormal);
+    nonPerturbedNormal = normal;
   `);
 };

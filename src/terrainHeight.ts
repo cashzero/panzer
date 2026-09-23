@@ -44,9 +44,15 @@ export function getRawTerrainHeight(x: number, z: number): number {
     * ruggedDetail;
   const naturalHeight = regionalRise + broadHills + rollingGround + shallowUndulation + softenedRidge;
 
+  // Even the plains swell and dip by a metre or so: enough to hide a hull at
+  // range and to break the horizon, never enough to stop a tank.
+  const swells = (terrainNoise(x * 0.0105 + 211, z * 0.0105 - 137) * 0.85
+    + terrainNoise(x * 0.027 - 91, z * 0.027 + 17) * 0.3) * GAME_CONFIG.world.microRelief;
+
   // Preserve a broad, gently blended deployment area around the world origin.
   const distFromCenter = Math.hypot(x, z);
-  return naturalHeight * smoothstep(32, 105, distFromCenter);
+  return naturalHeight * smoothstep(32, 105, distFromCenter)
+    + swells * (0.35 + 0.65 * smoothstep(20, 90, distFromCenter));
 }
 
 export function getTerrainHeightAt(
@@ -57,7 +63,8 @@ export function getTerrainHeightAt(
   const baseHeight = getRawTerrainHeight(x, z);
   if (roadInfluence.influence <= 0) return baseHeight;
 
-  const roadHeight = getRawTerrainHeight(roadInfluence.closestX, roadInfluence.closestZ);
+  // Old lanes sit a little below the fields either side, worn down by traffic.
+  const roadHeight = getRawTerrainHeight(roadInfluence.closestX, roadInfluence.closestZ) - GAME_CONFIG.roads.sunkenDepth;
   return baseHeight + (roadHeight - baseHeight) * roadInfluence.influence;
 }
 

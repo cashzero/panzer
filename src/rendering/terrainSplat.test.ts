@@ -33,8 +33,16 @@ test('crossings and zero-length segments produce finite continuous road coverage
 });
 test('rotated farmland changes only soil coverage and regeneration removes old features', () => {
   const empty = { ...network, segments: [] };
-  const map = createTerrainSplatData(empty, [{ id: 'plot', center: [0, 0, 0], rotation: Math.PI / 2, width: 30, depth: 4 }], [], 512);
+  const map = createTerrainSplatData(empty, [{ id: 'plot', center: [0, 0, 0], rotation: Math.PI / 2, width: 30, depth: 4, crop: 'ploughed' }], [], 512);
   assert.ok(sample(map, 0, 12, 1) > 0.8);
+  // Crop map: ploughed weight inside the plot, none well outside it.
+  const cropAt = (x: number, z: number, channel: number) => map.crops[(
+    Math.floor((z / map.size + 0.5) * map.cropResolution) * map.cropResolution
+    + Math.floor((x / map.size + 0.5) * map.cropResolution)) * 4 + channel] / 255;
+  assert.ok(cropAt(0, 12, 0) > 0.95);
+  assert.equal(cropAt(0, 12, 1), 0);
+  assert.equal(cropAt(30, 0, 0), 0);
+  assert.ok(Math.abs(cropAt(0, 12, 3) - 0.5) < 0.01);
   assert.equal(sample(map, 12, 0, 1), 0);
   assert.equal(sample(map, 0, 0), 1);
   const regenerated = createTerrainSplatData(empty, [], [], 512);

@@ -16,13 +16,20 @@ export interface BuildingInstance {
   roofHeight: number;
 }
 
+/** Late-summer field states: freshly ploughed, harvested stubble, or uncut hay. */
+export type FarmlandCrop = 'ploughed' | 'stubble' | 'hay';
+
 export interface FarmlandPlot {
   id: string;
   center: [number, number, number];
   rotation: number;
   width: number;
   depth: number;
+  crop: FarmlandCrop;
 }
+
+/** How much bare soil each crop shows; shared by the terrain splat and surface effects. */
+export const CROP_SOIL: Record<FarmlandCrop, number> = { ploughed: 0.95, stubble: 0.45, hay: 0.15 };
 
 interface BuildingShape {
   width: number;
@@ -311,8 +318,10 @@ export function isPointInsideFarmland(x: number, z: number, plot: FarmlandPlot, 
   return Math.abs(localX) <= plot.width * 0.5 + margin && Math.abs(localZ) <= plot.depth * 0.5 + margin;
 }
 
-export function getFarmlandInfluence(x: number, z: number, farmlands: FarmlandPlot[]): number {
+/** Strongest farmland influence at a point, with the plot's crop. */
+export function getFarmlandCropInfluence(x: number, z: number, farmlands: FarmlandPlot[]): { weight: number; crop: FarmlandCrop | null } {
   let best = 0;
+  let crop: FarmlandCrop | null = null;
   for (const plot of farmlands) {
     const dx = x - plot.center[0];
     const dz = z - plot.center[2];
@@ -325,9 +334,10 @@ export function getFarmlandInfluence(x: number, z: number, farmlands: FarmlandPl
     const dist = Math.hypot(edgeX, edgeZ);
     if (dist > GAME_CONFIG.farmland.edgeBlend) continue;
     const t = dist <= 0.001 ? 1 : 1 - dist / GAME_CONFIG.farmland.edgeBlend;
-    best = Math.max(best, t * t * (3 - 2 * t));
+    const weight = t * t * (3 - 2 * t);
+    if (weight > best) { best = weight; crop = plot.crop; }
   }
-  return best;
+  return { weight: best, crop };
 }
 
 export function generateFarmlands(
@@ -337,6 +347,8 @@ export function generateFarmlands(
   seed: number,
 ): FarmlandPlot[] {
   const rng = mulberry32(seed ^ 0x51f15e);
+  // A separate stream, so crops do not shift the plot layout of existing seeds.
+  const cropRng = mulberry32(seed ^ 0x2c9f1a);
   const farmlands: FarmlandPlot[] = [];
   const mapHalfSize = MAP_METERS_BY_SIZE[mapSize] * 0.5;
 
@@ -362,6 +374,7 @@ export function generateFarmlands(
         rotation: angle,
         width,
         depth,
+        crop: ((roll) => roll < 0.4 ? 'stubble' : roll < 0.72 ? 'ploughed' : 'hay')(cropRng()),
       });
     }
   }

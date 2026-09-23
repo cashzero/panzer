@@ -98,12 +98,14 @@ export const GAME_CONFIG = {
   roads: {
     halfWidth: 4,
     blendMargin: 2,
+    sunkenDepth: 0.3,     // m the road bed sits below the surrounding ground
     speedBonus: 1.15,
     color: 0x8b7355,
     grassColor: 0x556b2f,
   },
   world: {
     seed: 19440606,
+    microRelief: 1,       // scale of the metre-high swells across the plains (0 = flat)
   },
   buildings: {
     roadsideSpacing: 120,
@@ -122,7 +124,7 @@ export const GAME_CONFIG = {
   },
   farmland: {
     color: 0x6c6a2e,
-    edgeBlend: 8,
+    edgeBlend: 3,         // m over which a plot fades into the surrounding grass
     treeExclusionMargin: 6,
     villageTreeSuppressionRadius: 120,
     villageTreeSuppressionChance: 0.55,

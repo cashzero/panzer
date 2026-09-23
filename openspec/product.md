@@ -114,6 +114,8 @@ Tracks:
 
 - Battlefield layout should be procedurally generated from a seed so maps can vary while remaining readable and traversable.
 - Terrain should support open maneuvering, local cover, and elevation-driven sightlines.
+- Even open plains carry low swells about a metre high: enough to hide a hull at range and break up the horizon, never enough to stop a tank. Roads sit slightly below the fields either side, like worn lanes.
+- Farmland shows late-summer states: freshly ploughed earth, harvested stubble and uncut hay. Pasture varies from lush green in patches to sun-dried straw, with verges and animal tracks, so no stretch of ground reads as a uniform lawn.
 - Roads should function as navigational landmarks and movement aids.
 - Trees and buildings should shape lines of movement, cover, and projectile interruption.
 - Environmental generation should preserve battlefield clarity; clutter should support tactics, not obscure them.

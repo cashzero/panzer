@@ -28,10 +28,20 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
   Soil coverage follows rotated farmland and building yards. Ground and grass use
   roughness 1 and zero specular intensity. Normal detail fades from 45 to 180m.
   Explicit texture gradients are calculated before divergent material branches.
+  A half-resolution RGBA crop map carries ploughed, stubble and hay weights and the
+  row angle / pi; the angle reaches past each plot's weight falloff, so filtering
+  never blends a direction into visible rows. Periodic patterns (furrows, stubble
+  rows, animal tracks) fade out through `patternFade` before they alias.
+- `meadowNoise.ts`: pasture noise baked into a 256 px half-float RG texture (two
+  smooth value-noise channels, 32 features across) shared by the ground and grass
+  shaders. Hashing the same noise per pixel cost 6-12 FPS while driving on a
+  GTX 1050 Ti; the texture version benchmarks the same as the shader before it.
 - `surfaceWeathering.ts`: UV-independent color, roughness and fine cast-metal
   relief on armor; vertically stretched weathering on building surfaces.
 - Ground cover: 12321 instanced nine-blade tufts in a camera-centred grid; tapered
   geometry, per-instance variation, road/building exclusion, 32-43m distance fade.
+  The material is double-sided, so the grass shader restores the unflipped upward
+  normal on back faces; the default flip had rendered half the blades black.
   Animation reads reduced-motion preference; it does not affect collision.
 
 N8AO 2.0.1 inherits a no-op disposal method. The integration explicitly frees its
