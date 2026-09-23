@@ -1,5 +1,6 @@
 import type { ArmorPlate } from '../../armorModel';
 import type { TankAmmoSpec, TankDefinition, TankRenderer, TankResolvedSpec, TankSpec } from './types';
+import { resolveCamouflageSchemes } from './camouflage';
 
 function degreesToRadians(value: number) {
   return value * (Math.PI / 180);
@@ -32,6 +33,7 @@ export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
     trackHealth: spec.durability.trackHealth,
     armor: {...spec.durability.armorSummary},
     color: spec.appearance.baseColor,
+    camouflage: resolveCamouflageSchemes(spec.appearance.camouflage, spec.appearance.baseColor),
     turretOffset: [...spec.mounts.turretOffset],
     gunPivotOffset: [...spec.mounts.gunPivotOffset],
     muzzleDistance: spec.mounts.muzzleDistance,

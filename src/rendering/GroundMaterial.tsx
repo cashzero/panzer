@@ -38,7 +38,7 @@ export function GroundMaterial() {
       map: textures[0], normalMap: textures[1], normalScale: new THREE.Vector2(0.55, 0.55),
       roughness: 1, metalness: 0, specularIntensity: 0, dithering: true,
     });
-    ground.customProgramCacheKey = () => 'ground-splat-hex-v3';
+    ground.customProgramCacheKey = () => 'ground-splat-hex-v4';
     ground.onBeforeCompile = (shader) => {
       Object.assign(shader.uniforms, {
         macroAlbedo: { value: textures[6] },
@@ -81,7 +81,15 @@ export function GroundMaterial() {
           if (soilWeight > 0.01) groundColor = mix(groundColor, textureNoTileNeyret(soilAlbedo, soilUv, groundDx * 1.35, groundDy * 1.35).rgb, soilWeight);
           if (roadWeight > 0.005) groundColor = mix(groundColor, textureNoTileNeyret(roadAlbedo, roadUv, groundDx * 0.95, groundDy * 0.95).rgb, roadWeight);
         }
-        groundColor = mix(groundColor, groundColor * (0.55 + macroColor * 2.5), (1.0 - roadWeight) * (1.0 - soilWeight) * 0.65);
+        float grassWeight = (1.0 - roadWeight) * (1.0 - soilWeight);
+        groundColor = mix(groundColor, groundColor * (0.55 + macroColor * 2.5), grassWeight * 0.65);
+        // Late-summer pasture: pull the lush scan toward straw and olive; take
+        // the brick red out of the gravel so roads read as packed dirt.
+        float groundLuma = dot(groundColor, vec3(0.2126, 0.7152, 0.0722));
+        vec3 dryGrass = mix(vec3(groundLuma), groundColor, 0.8) * vec3(1.04, 0.98, 0.82);
+        vec3 dirtRoad = mix(vec3(groundLuma), groundColor, 0.4) * vec3(1.02, 0.98, 0.9);
+        groundColor = mix(groundColor, dryGrass, grassWeight);
+        groundColor = mix(groundColor, dirtRoad, roadWeight);
         diffuseColor.rgb *= groundColor * mix(0.78, 1.02, macroNoise);
       `);
       shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `

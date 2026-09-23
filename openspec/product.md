@@ -4,6 +4,10 @@
 
 This app is a WW2 tank battle simulator. All visual design - UI, HUD, color palette, typography, particle effects, terrain, and environmental art - should adopt a WW2 aesthetic (military olive drab, aged/weathered metal, period-appropriate gauges and instruments, wartime maps and iconography).
 
+- The battlefield reads as late-summer European countryside seen on period colour film: muted saturation, pale hazy sky, straw-olive pasture, dirt roads, and sun low enough to cast modelling shadows.
+- Vehicles wear the paint of their service year and nation: US Olive Drab No. 9, German Dunkelgrau RAL 7021 (1942 and earlier) or Dunkelgelb RAL 7028 (1943 onward), Soviet 4BO protective green. Grey armour must stay neutral grey rather than picking up a blue sky cast.
+- German tanks offer the camouflage schemes of their service life, chosen per vehicle on the tank select screen (player) and in the order of battle (every unit, including the player): Dunkelgrau, Grau/Braun two-tone (1937-40), winter whitewash, Dunkelgelb, three-tone Dunkelgelb/Olivgrün/Rotbraun (1943-45) and Hinterhalt ambush dots (1944-45). The pattern stays fixed to hull and turret, differs slightly between vehicles, and burns away when the tank is destroyed.
+
 ## Core Loop
 
 - The player selects a tank, enters the battlefield, maneuvers in real time, engages enemy armor, and survives through positioning, gunnery, and target selection.

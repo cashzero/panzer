@@ -10,7 +10,16 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
   follows the camera, snapped in light space. Outside this region, direct shadows
   are unavailable; atmospheric fog supplies distant depth cues.
 - `BattlefieldPostProcessing.tsx`: N8AO Medium at half resolution, high-threshold
-  bloom, OutputPass (ACES and sRGB exactly once), then SMAA. The HTML HUD stays sharp.
+  bloom, OutputPass (ACES and sRGB exactly once), the colour grade, then SMAA. The
+  HTML HUD stays sharp.
+- `colorGrade.ts`: display-referred grade after OutputPass: saturation 0.74, mild
+  contrast, olive-tinted lift, warm gain and a light vignette. Values live in
+  `BATTLEFIELD_GRADE`. Map mode bypasses it with the rest of the pipeline.
+- Look: sun about 35 degrees up, hazy Preetham sky (turbidity 10, Rayleigh 2.2), a
+  weak neutral hemisphere fill so grey armour does not turn blue, warm haze fog from
+  120 to 1400 m and exposure 1.15. The ground shader desaturates grass toward straw
+  and olive and takes the red out of gravel roads. `cloudCoverage` above about 0.55
+  turns the whole sky into one flat cloud deck.
   Map mode uses direct rendering and releases the post-processing resources.
 - `GroundMaterial.tsx`: separate grass, dry soil and gravel albedo/normal layers,
   world-space stochastic hex tiling and aerial vegetation macro modulation.
@@ -68,6 +77,13 @@ denser world dressing and distant shadows.
 - Far LOD: parts with a bounding radius under 0.12 m are dropped beyond 160 m
   (140 m to return), measured after normalising by the camera FOV so a zoomed
   gunner sight keeps full detail. The far LOD casts no shadow.
+- Camouflage: paint roles (the materials using `armorWeathering`) on a tank with a
+  patterned scheme get a material class per scheme built by
+  `createCamouflageWeathering`. The pattern (blotches, bands, ambush dots or worn
+  whitewash) is value-noise fbm in slot space, applied before weathering so wear
+  sits on the paint. A `camoSeed` vertex attribute offsets it per vehicle without
+  splitting materials. Only merged rendering draws camouflage; the select screen and
+  order-of-battle previews use the merged path for that reason.
 - Object-space armour weathering now samples slot space, so the mottling
   pattern differs from the unmerged editor preview while keeping the same scale.
 - `BuildingRenderer.tsx` bakes every building part into world space, one batch

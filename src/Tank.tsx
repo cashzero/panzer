@@ -7,6 +7,7 @@ import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
 import { sampleGroundSurface, type GroundSurfaceKind } from './groundSurface';
 import { estimateTrackFootprint } from './rendering/TrackMarks';
+import { camouflageSeed, getCamouflageScheme } from './tanks/core/camouflage';
 
 function createTrackTexture() {
   const canvas = document.createElement('canvas');
@@ -54,10 +55,14 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
   const leftTrackTexture = useMemo(() => createTrackTexture(), []);
   const rightTrackTexture = useMemo(() => createTrackTexture(), []);
 
-  const color = def.color;
   const destroyedColor = GAME_CONFIG.tank.colors.destroyed;
 
   const isPlayer = id === 'player';
+  const schemeId = useGameStore(state =>
+    isPlayer ? state.playerTank.camouflage : (state.enemies.find(e => e.id === id) ?? state.allies.find(a => a.id === id))?.camouflage);
+  const scheme = getCamouflageScheme(def.camouflage, schemeId);
+  const color = scheme.base;
+  const paintSeed = useMemo(() => camouflageSeed(id), [id]);
 
   // Subscribe to destroyed state and track destruction to trigger re-renders
   const destroyed = useGameStore(state =>
@@ -243,20 +248,23 @@ export function Tank({ id, tankType, visible = true }: TankProps) {
     }
   });
 
+  // Burnt-out hulls lose their paint scheme along with their colour.
+  const paint = destroyed ? undefined : scheme;
+
   return (
     <group ref={groupRef} name={`tank-${id}`} visible={visible}>
-      <HullComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
+      <HullComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged camouflage={paint} paintSeed={paintSeed} />
       <TracksComponent isLeft={true} trackMat={leftTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.left} merged />
       <TracksComponent isLeft={false} trackMat={rightTrackMat} destroyedColor={destroyedColor} destroyed={destroyed || trackDestroyed.right} merged />
 
       {/* Turret Group */}
       <group ref={turretRef} position={def.turretOffset}>
-        <TurretComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
+        <TurretComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged camouflage={paint} paintSeed={paintSeed} />
 
         {/* Gun Group */}
         <group ref={gunRef} position={def.gunPivotOffset}>
           <group ref={gunBarrelRef}>
-            <GunComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged />
+            <GunComponent color={color} destroyedColor={destroyedColor} destroyed={destroyed} merged camouflage={paint} paintSeed={paintSeed} />
           </group>
         </group>
       </group>

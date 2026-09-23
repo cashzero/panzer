@@ -5,6 +5,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { N8AOPass } from 'n8ao';
+import { createColorGradePass } from './colorGrade';
 import { Vector2 } from 'three';
 
 function disposeAO(pass: N8AOPass) {
@@ -44,10 +45,12 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     ao.setQualityMode('Medium');
     const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.08, 0.35, 12.0);
     const output = new OutputPass();
+    const grade = createColorGradePass();
     const antialias = new SMAAPass();
     composer.addPass(ao);
     composer.addPass(bloom);
     composer.addPass(output);
+    composer.addPass(grade);
     composer.addPass(antialias);
     composer.setSize(size.width, size.height);
     pipeline.current = composer;
@@ -56,6 +59,7 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
       disposeAO(ao);
       bloom.dispose();
       output.dispose();
+      grade.dispose();
       antialias.dispose();
       composer.dispose();
     };

@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type { ArmorPlate } from '../../armorModel';
+import type { CamouflageScheme } from './camouflage';
 
 export type Vec2 = [number, number];
 export type Vec3 = [number, number, number];
@@ -53,6 +54,10 @@ export interface TankGeometryProps {
   destroyed: boolean;
   /** Draw as merged per-material batches with LOD (battlefield). Loses the named part tree. */
   merged?: boolean;
+  /** Battlefield paint scheme (merged rendering only); omit for plain base colour. */
+  camouflage?: CamouflageScheme;
+  /** Per-vehicle offset of the camouflage pattern. */
+  paintSeed?: number;
 }
 
 export interface TankTrackProps {
@@ -70,6 +75,10 @@ export interface TankGunProps {
   destroyed: boolean;
   /** Draw as merged per-material batches with LOD (battlefield). Loses the named part tree. */
   merged?: boolean;
+  /** Battlefield paint scheme (merged rendering only); omit for plain base colour. */
+  camouflage?: CamouflageScheme;
+  /** Per-vehicle offset of the camouflage pattern. */
+  paintSeed?: number;
 }
 
 export interface TankAmmoSpec {
@@ -122,6 +131,8 @@ export interface TankSpec {
   };
   appearance: {
     baseColor: string;
+    /** Camouflage scheme ids from `camouflage.ts`; the first is the default. */
+    camouflage?: string[];
   };
   durability: {
     health: number;
@@ -275,6 +286,7 @@ export interface TankResolvedSpec {
   trackHealth: number;
   armor: TankArmorSummary;
   color: string;
+  camouflage: CamouflageScheme[];
   turretOffset: Vec3;
   gunPivotOffset: Vec3;
   muzzleDistance: number;

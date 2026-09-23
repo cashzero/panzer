@@ -245,7 +245,7 @@ export function createParametricRenderer(model: TankModelSpec): TankRenderer {
   const HullComponent: TankRenderer['HullComponent'] = (props) => {
     const slot = <SlotRenderer slot="hull" nodes={model.slots.hull} geoProps={props} />;
     return props.merged
-      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]} camouflage={props.camouflage} paintSeed={props.paintSeed}>{slot}</MergedSlot>
       : slot;
   };
 
@@ -259,14 +259,14 @@ export function createParametricRenderer(model: TankModelSpec): TankRenderer {
   const TurretComponent: TankRenderer['TurretComponent'] = (props) => {
     const slot = <SlotRenderer slot="turret" nodes={model.slots.turret} geoProps={props} />;
     return props.merged
-      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]} camouflage={props.camouflage} paintSeed={props.paintSeed}>{slot}</MergedSlot>
       : slot;
   };
 
   const GunComponent: TankRenderer['GunComponent'] = (props) => {
     const slot = <SlotRenderer slot="gun" nodes={model.slots.gun} gunProps={props} />;
     return props.merged
-      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]}>{slot}</MergedSlot>
+      ? <MergedSlot rebuildKey={[props.color, props.destroyedColor, props.destroyed]} camouflage={props.camouflage} paintSeed={props.paintSeed}>{slot}</MergedSlot>
       : slot;
   };
 

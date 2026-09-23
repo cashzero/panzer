@@ -12,7 +12,8 @@
     "year": 1936
   },
   "appearance": {
-    "baseColor": "#4d4f53"
+    "baseColor": "#3b3e3f",
+    "camouflage": ["dunkelgrau", "grau-braun", "wintertarnung"]
   },
   "durability": {
     "health": 150,

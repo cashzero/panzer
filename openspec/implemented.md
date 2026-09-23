@@ -76,6 +76,8 @@ Completed roadmap items are documented here.
 - Battlefield tanks draw each slot (hull, both tracks, turret, gun) as one merged mesh per material class, with paint variation baked into vertex colours and materials shared across every tank. Parts under 0.12 m drop out beyond an FOV-normalised 160 m, so zoomed sights keep full detail. The tank select screen, editor and calibration pages still render the named part tree.
 - Buildings are baked into one world-space batch per material.
 - Line-of-sight spotting runs every `GAME_CONFIG.ai.spottingIntervalMs` (100 ms) against a cached copy of the rendered terrain mesh, which the terrain mesh and ground cover also read.
+- The battlefield uses a period colour-film look: a display-space colour grade, hazy sky, weak neutral fill light, straw-olive grass, desaturated dirt roads, and historical paint per vehicle (Olive Drab, Dunkelgrau, Dunkelgelb, 4BO green).
+- German tanks have selectable historical camouflage (`src/tanks/core/camouflage.ts`, listed per tank in `appearance.camouflage`), picked on the tank select screen and per unit in the order of battle and shown in both previews. Patterns are procedural in slot space with a per-vehicle seed and cost one extra material class per scheme in use.
 - `docs/perf/bench.mjs` measures battlefield FPS, p95 frame time, draw calls and triangles across fixed scenarios; `docs/perf/merge-qa.html` diffs merged against authored tanks.
 
 ### Layered terrain surfaces

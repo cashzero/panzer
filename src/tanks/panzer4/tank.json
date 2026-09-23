@@ -12,7 +12,8 @@
     "year": 1943
   },
   "appearance": {
-    "baseColor": "#7a7754"
+    "baseColor": "#857853",
+    "camouflage": ["dunkelgelb", "dreifarben", "hinterhalt", "dunkelgrau", "wintertarnung"]
   },
   "durability": {
     "health": 250,

@@ -125,6 +125,7 @@ Notes:
 - `id` must be unique and match the folder name.
 - `renderMode` should be `"parametric"` for the new structure.
 - `catalog.sortOrder` controls selection-screen ordering.
+- `appearance.camouflage` (optional) lists scheme ids from `src/tanks/core/camouflage.ts`; the first is the default and should match `baseColor`. Offer only schemes the vehicle wore in service. Without it the tank wears `baseColor` alone.
 - `mobility.acceleration` is stored directly now; it is not derived automatically in the JSON pipeline.
 - `traverse.maxElevationDeg` and `traverse.maxDepressionDeg` define the historical gun arc in degrees.
 - `weapons.ammo.AP` is required. `APC` and `HE` are optional.

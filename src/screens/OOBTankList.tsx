@@ -1,6 +1,7 @@
 import { getAllTankDefs, getTankDef } from '../tanks/registry';
 import { useGameStore, isAxisNationality, type OOBUnit } from '../store';
 import { Plus, X } from 'lucide-react';
+import { getCamouflageScheme } from '../tanks/core/camouflage';
 
 const allTanks = getAllTankDefs();
 const axisTanks = allTanks.filter((t) => isAxisNationality(t.nationality));
@@ -8,7 +9,26 @@ const alliedTanks = allTanks.filter((t) => !isAxisNationality(t.nationality));
 
 interface OOBTankListProps {
   side: 'enemy' | 'ally';
-  onHoverTank: (tankType: string | null) => void;
+  onHoverTank: (tank: { tankType: string; camouflage?: string } | null) => void;
+}
+
+/** Paint scheme picker; only shown for tanks with more than one scheme. */
+function SchemeSelect({ tankType, value, onChange }: { tankType: string; value: string | undefined; onChange: (id: string) => void }) {
+  const schemes = getTankDef(tankType).camouflage;
+  if (schemes.length < 2) return null;
+  return (
+    <select
+      className="w-full bg-transparent text-[10px] text-gray-500 border-none outline-none cursor-pointer"
+      value={getCamouflageScheme(schemes, value).id}
+      onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }}
+      onClick={(e) => e.stopPropagation()}
+      title="Paint scheme"
+    >
+      {schemes.map((scheme) => (
+        <option key={scheme.id} value={scheme.id} className="bg-gray-900">Paint: {scheme.shortName}</option>
+      ))}
+    </select>
+  );
 }
 
 export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
@@ -22,7 +42,9 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
 
   // Player tank (only for ally side)
   const oobPlayerTankType = useGameStore((s) => s.oobPlayerTankType);
+  const oobPlayerCamouflage = useGameStore((s) => s.oobPlayerCamouflage);
   const setOobPlayerTankType = useGameStore((s) => s.setOobPlayerTankType);
+  const setOobPlayerCamouflage = useGameStore((s) => s.setOobPlayerCamouflage);
 
   const tankOptions = side === 'enemy' ? axisTanks : alliedTanks;
   const sideColor = side === 'enemy' ? '#ff3333' : '#3399ff';
@@ -56,12 +78,13 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
           <div
             className={`oob-unit-row ${isPlayerSelected ? 'is-selected' : ''}`}
             onClick={() => setOobSelectedUnit(isPlayerSelected ? null : 'player')}
-            onMouseEnter={() => onHoverTank(oobPlayerTankType)}
+            onMouseEnter={() => onHoverTank({ tankType: oobPlayerTankType, camouflage: oobPlayerCamouflage ?? undefined })}
             onMouseLeave={() => onHoverTank(null)}
           >
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#00ff00' }} />
+            <div className="flex-1 min-w-0 flex flex-col">
             <select
-              className="flex-1 bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
+              className="w-full bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
               value={oobPlayerTankType}
               onChange={(e) => {
                 e.stopPropagation();
@@ -73,6 +96,8 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
                 <option key={t.id} value={t.id} className="bg-gray-900">{t.displayName}</option>
               ))}
             </select>
+            <SchemeSelect tankType={oobPlayerTankType} value={oobPlayerCamouflage ?? undefined} onChange={setOobPlayerCamouflage} />
+            </div>
             <span className="text-[9px] text-green-500 font-bold px-1">YOU</span>
           </div>
         )}
@@ -84,16 +109,18 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
               key={unit.id}
               className={`oob-unit-row ${isSelected ? 'is-selected' : ''}`}
               onClick={() => setOobSelectedUnit(isSelected ? null : unit.id)}
-              onMouseEnter={() => onHoverTank(unit.tankType)}
+              onMouseEnter={() => onHoverTank({ tankType: unit.tankType, camouflage: unit.camouflage })}
               onMouseLeave={() => onHoverTank(null)}
             >
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sideColor }} />
+              <div className="flex-1 min-w-0 flex flex-col">
               <select
-                className="flex-1 bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
+                className="w-full bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
                 value={unit.tankType}
                 onChange={(e) => {
                   e.stopPropagation();
-                  updateOobUnit(unit.id, { tankType: e.target.value });
+                  // A new tank type starts from its own default scheme.
+                  updateOobUnit(unit.id, { tankType: e.target.value, camouflage: undefined });
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
@@ -101,6 +128,9 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
                   <option key={t.id} value={t.id} className="bg-gray-900">{t.displayName}</option>
                 ))}
               </select>
+              <SchemeSelect tankType={unit.tankType} value={unit.camouflage}
+                onChange={(id) => updateOobUnit(unit.id, { camouflage: id })} />
+              </div>
               <button
                 className="oob-remove-unit"
                 onClick={(e) => { e.stopPropagation(); removeOobUnit(unit.id); }}

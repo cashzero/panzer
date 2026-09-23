@@ -7,6 +7,7 @@ import { getAllTankDefs } from '../tanks/registry';
 import type { TankDefinition } from '../tanks/types';
 import type { ArmorPlate } from '../armorModel';
 import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
+import { camouflageSeed, getCamouflageScheme, type CamouflageScheme } from '../tanks/core/camouflage';
 import { Play } from 'lucide-react';
 
 const allTanks = getAllTankDefs();
@@ -132,11 +133,13 @@ export function TankPreview({
   paused,
   onPlateHover,
   autoRotate = true,
+  camouflage,
 }: {
   def: TankDefinition;
   paused: boolean;
   onPlateHover: (info: PlateHoverInfo | null, e?: ThreeEvent<PointerEvent>) => void;
   autoRotate?: boolean;
+  camouflage?: CamouflageScheme;
 }) {
   const groupRef = useRef<THREE.Group>(null!);
 
@@ -147,8 +150,11 @@ export function TankPreview({
   });
 
   const { HullComponent, TracksComponent, TurretComponent, GunComponent } = def;
-  const geoProps = { color: def.color, destroyedColor: '#555', destroyed: false };
-  const gunProps = { color: def.color, destroyedColor: '#555', destroyed: false };
+  // Same merged path as the battlefield, so the preview shows the paint scheme.
+  const scheme = camouflage ?? def.camouflage[0];
+  const paint = { camouflage: scheme, paintSeed: camouflageSeed(def.id), merged: true };
+  const geoProps = { color: scheme.base, destroyedColor: '#555', destroyed: false, ...paint };
+  const gunProps = { color: scheme.base, destroyedColor: '#555', destroyed: false, ...paint };
   const trackMat = useRef(new THREE.MeshStandardMaterial({ color: '#4b4d46', roughness: 0.84, metalness: 0.42 })).current;
   const trackProps = { trackMat, destroyedColor: '#555', destroyed: false };
 
@@ -206,14 +212,22 @@ export function TankSelect() {
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
   const setOobPlayerTankType = useGameStore((s) => s.setOobPlayerTankType);
+  const setOobPlayerCamouflage = useGameStore((s) => s.setOobPlayerCamouflage);
+  const oobPlayerTankType = useGameStore((s) => s.oobPlayerTankType);
+  const oobPlayerCamouflage = useGameStore((s) => s.oobPlayerCamouflage);
   const setGameScreen = useGameStore((s) => s.setGameScreen);
   const mapSize = useGameStore((s) => s.mapSize);
   const setMapSize = useGameStore((s) => s.setMapSize);
   const def = filteredTanks[safeIdx];
+  // Picked scheme per tank on this screen; falls back to the deployed choice, then the default.
+  const [schemeByTank, setSchemeByTank] = useState<Record<string, string>>({});
+  const scheme = getCamouflageScheme(def.camouflage,
+    schemeByTank[def.id] ?? (def.id === oobPlayerTankType ? oobPlayerCamouflage ?? undefined : undefined));
   const displayPenetration = Math.round(getAmmoDisplayPenetration(def.weapons.AP, 'AP', def.caliber));
 
   const handleConfirm = () => {
     setOobPlayerTankType(def.id);
+    setOobPlayerCamouflage(scheme.id);
     setGameScreen('oob-editor');
   };
 
@@ -270,6 +284,7 @@ export function TankSelect() {
                 paused={hoveredPlate !== null}
                 onPlateHover={handlePlateHover}
                 autoRotate={false}
+                camouflage={scheme}
               />
             </Suspense>
             <OrbitControls
@@ -348,6 +363,36 @@ export function TankSelect() {
             <span>Rear {def.armor.rear}mm</span>
             <span>Turret {def.armor.turret}mm</span>
           </div>
+
+          {/* Paint scheme selector */}
+          {def.camouflage.length > 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-800">
+              <div className="text-xs text-gray-400 uppercase tracking-widest mb-2">Paint Scheme</div>
+              <div className="grid grid-cols-3 gap-2">
+                {def.camouflage.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setSchemeByTank((current) => ({ ...current, [def.id]: option.id }))}
+                    className={`px-2 py-2 border text-left text-xs transition-all cursor-pointer ${
+                      scheme.id === option.id
+                        ? 'border-yellow-600 text-yellow-400 bg-yellow-900/20'
+                        : 'border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex h-2.5 w-4 flex-shrink-0 border border-black/40">
+                        {[option.base, ...option.colors].map((swatch) => (
+                          <span key={swatch} className="flex-1" style={{ backgroundColor: swatch }} />
+                        ))}
+                      </span>
+                      <span className="truncate">{option.name}</span>
+                    </div>
+                    <div className="text-[10px] mt-0.5 opacity-60">{option.period}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Map size selector */}
           <div className="mt-4 pt-4 border-t border-gray-800">

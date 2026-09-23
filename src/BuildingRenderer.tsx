@@ -6,9 +6,9 @@ import { useGameStore } from './store';
 import type { BuildingInstance } from './buildings';
 
 const MATERIALS = {
-  farmhouseWall: new THREE.MeshStandardMaterial({ color: '#b8aa8d', roughness: 0.96 }),
+  farmhouseWall: new THREE.MeshStandardMaterial({ color: '#a69a80', roughness: 0.96 }),
   barnWall: new THREE.MeshStandardMaterial({ color: '#76513a', roughness: 1 }),
-  warehouseWall: new THREE.MeshStandardMaterial({ color: '#8b8a80', roughness: 0.94 }),
+  warehouseWall: new THREE.MeshStandardMaterial({ color: '#7c7a70', roughness: 0.94 }),
   tileRoof: new THREE.MeshStandardMaterial({ color: '#6f4031', roughness: 0.92 }),
   slateRoof: new THREE.MeshStandardMaterial({ color: '#41484a', roughness: 0.9 }),
   timber: new THREE.MeshStandardMaterial({ color: '#3f2c21', roughness: 1 }),

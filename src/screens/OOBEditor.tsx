@@ -7,6 +7,7 @@ import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
 import { TankPreview, StatBar, maxHP, maxArmor, maxSpeed, maxPen, maxReload, minReload, penetrationStatLabel } from './TankSelect';
 import { OOBTankList } from './OOBTankList';
 import { OOBMiniMap } from './OOBMiniMap';
+import { getCamouflageScheme } from '../tanks/core/camouflage';
 import type { ThreeEvent } from '@react-three/fiber';
 import { ArrowLeft, Dices, Play, RefreshCw } from 'lucide-react';
 
@@ -21,6 +22,7 @@ interface PlateHoverInfo {
 
 export function OOBEditor() {
   const oobPlayerTankType = useGameStore((s) => s.oobPlayerTankType);
+  const oobPlayerCamouflage = useGameStore((s) => s.oobPlayerCamouflage);
   const mapSize = useGameStore((s) => s.mapSize);
   const worldSeed = useGameStore((s) => s.worldSeed);
   const setMapSize = useGameStore((s) => s.setMapSize);
@@ -30,7 +32,7 @@ export function OOBEditor() {
   const setGameScreen = useGameStore((s) => s.setGameScreen);
 
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
-  const [hoveredListTank, setHoveredListTank] = useState<string | null>(null);
+  const [hoveredListTank, setHoveredListTank] = useState<{ tankType: string; camouflage?: string } | null>(null);
   const [seedInput, setSeedInput] = useState(String(worldSeed));
   const canvasContainerRef = useRef<HTMLDivElement>(null!);
 
@@ -39,8 +41,10 @@ export function OOBEditor() {
   }, [worldSeed]);
 
   // The preview shows the hovered list tank, or the player's selected tank
-  const previewTankType = hoveredListTank ?? oobPlayerTankType;
+  const previewTankType = hoveredListTank?.tankType ?? oobPlayerTankType;
   const previewDef = getTankDef(previewTankType);
+  const previewScheme = getCamouflageScheme(previewDef.camouflage,
+    hoveredListTank ? hoveredListTank.camouflage : oobPlayerCamouflage ?? undefined);
   const reloadScore = maxReload - previewDef.reloadTime + minReload;
   const previewPenetration = Math.round(getAmmoDisplayPenetration(previewDef.weapons.AP, 'AP', previewDef.caliber));
 
@@ -150,6 +154,7 @@ export function OOBEditor() {
                 def={previewDef}
                 paused={hoveredPlate !== null}
                 onPlateHover={handlePlateHover}
+                camouflage={previewScheme}
               />
             </Suspense>
             <OrbitControls enablePan={false} enableZoom={false} autoRotate={false}

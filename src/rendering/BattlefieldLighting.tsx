@@ -4,9 +4,12 @@ import { Sky as SkyMesh } from 'three/addons/objects/Sky.js';
 import * as THREE from 'three';
 
 // One direction drives the visible sun, reflections and direct shadows.
-const SUN = new THREE.Vector3(-0.62, 0.62, -0.48).normalize();
+// About 35 degrees up: long enough shadows to model hulls and terrain relief.
+const SUN = new THREE.Vector3(-0.62, 0.52, -0.48).normalize();
 const SHADOW_SPAN = 100;
 const SHADOW_SIZE = 4096;
+// Pale, slightly warm summer haze shared by the background and distance fog.
+const HAZE = '#b8bab0';
 
 export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
   const { gl, scene, camera } = useThree();
@@ -17,9 +20,9 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
     mesh.scale.setScalar(50000);
     const uniforms = mesh.material.uniforms;
     uniforms.sunPosition.value.copy(SUN);
-    uniforms.turbidity.value = 5.5;
-    uniforms.rayleigh.value = 1.5;
-    uniforms.mieCoefficient.value = 0.006;
+    uniforms.turbidity.value = 10;
+    uniforms.rayleigh.value = 2.2;
+    uniforms.mieCoefficient.value = 0.01;
     uniforms.mieDirectionalG.value = 0.8;
     uniforms.cloudCoverage.value = 0.48;
     uniforms.cloudDensity.value = 0.7;
@@ -43,7 +46,7 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
     const previous = scene.environment;
     const previousIntensity = scene.environmentIntensity;
     scene.environment = environment.texture;
-    scene.environmentIntensity = 0.12;
+    scene.environmentIntensity = 0.1;
     generator.dispose();
     return () => {
       scene.environment = previous;
@@ -75,13 +78,14 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
   });
 
   return <>
-    <color attach="background" args={['#b5c1c5']} />
-    <fog attach="fog" args={['#b5c1c5', mapMode ? 1800 : 180, mapMode ? 4800 : 1700]} />
+    <color attach="background" args={[HAZE]} />
+    <fog attach="fog" args={[HAZE, mapMode ? 1800 : 120, mapMode ? 4800 : 1400]} />
     <primitive object={sky} />
-    <hemisphereLight args={['#d8e6f0', '#55513a', 1.05]} />
+    {/* Weak, neutral fill keeps shade readable without tinting grey armour blue. */}
+    <hemisphereLight args={['#c7cbc6', '#4a4632', 0.7]} />
     <primitive object={target} />
     <directionalLight ref={light} target={target} position={[-143, 143, -110]}
-      castShadow={!mapMode} color="#fff0d7" intensity={3.1}
+      castShadow={!mapMode} color="#ffe2bd" intensity={3.3}
       shadow-mapSize={[SHADOW_SIZE, SHADOW_SIZE]}
       shadow-bias={-0.00008} shadow-normalBias={0.035}
       shadow-camera-near={1} shadow-camera-far={520}

@@ -2,6 +2,8 @@ import { useFrame } from '@react-three/fiber';
 import { useLayoutEffect, useRef, type DependencyList, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { isVisibleUnder, mergeStaticEntries, type MergeEntry } from '../../rendering/staticMerge';
+import { armorWeathering, createCamouflageWeathering } from '../../rendering/surfaceWeathering';
+import type { CamouflageScheme } from './camouflage';
 
 // Parts smaller than this (bounding-sphere radius, metres) are dropped from the far LOD.
 const FAR_LOD_MIN_PART_RADIUS = 0.12;
@@ -19,19 +21,25 @@ interface MaterialClass {
   key: string;
   material: THREE.Material;
   bakeColor: boolean;
+  /** Painted armour carrying a camouflage pattern: needs the `camoSeed` attribute. */
+  camouflaged: boolean;
 }
 
-function classifyMaterial(material: THREE.Material): MaterialClass {
+function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme | undefined): MaterialClass {
   const standard = material as THREE.MeshStandardMaterial;
   // Textured materials carry per-tank animated state (track scrolling) and
   // untyped materials have no known colour: keep the original instance.
   if (!standard.isMeshStandardMaterial || standard.map) {
-    return { key: material.uuid, material, bakeColor: false };
+    return { key: material.uuid, material, bakeColor: false, camouflaged: false };
   }
+  // Only the weathered paint roles (hull, mantlet, barrel) carry the scheme.
+  const pattern = camouflage && camouflage.pattern !== 'solid' && standard.onBeforeCompile === armorWeathering
+    ? camouflage.pattern : null;
   const key = [
     standard.type, standard.roughness, standard.metalness, standard.envMapIntensity,
     standard.emissive.getHexString(), standard.emissiveIntensity, standard.wireframe,
     standard.side, standard.transparent, standard.opacity, standard.customProgramCacheKey(),
+    pattern ? `camo:${camouflage!.id}` : '',
   ].join('|');
   let shared = sharedMaterials.get(key);
   if (!shared) {
@@ -48,11 +56,17 @@ function classifyMaterial(material: THREE.Material): MaterialClass {
       transparent: standard.transparent,
       opacity: standard.opacity,
     });
-    shared.onBeforeCompile = standard.onBeforeCompile;
-    shared.customProgramCacheKey = standard.customProgramCacheKey;
+    if (pattern) {
+      const [colorA = camouflage!.base, colorB = colorA] = camouflage!.colors;
+      shared.onBeforeCompile = createCamouflageWeathering(pattern, new THREE.Color(colorA), new THREE.Color(colorB));
+      shared.customProgramCacheKey = () => `armor-camo-${pattern}-v2`;
+    } else {
+      shared.onBeforeCompile = standard.onBeforeCompile;
+      shared.customProgramCacheKey = standard.customProgramCacheKey;
+    }
     sharedMaterials.set(key, shared);
   }
-  return { key, material: shared, bakeColor: true };
+  return { key, material: shared, bakeColor: true, camouflaged: pattern !== null };
 }
 
 interface Bucket extends MaterialClass {
@@ -73,7 +87,7 @@ function partRadius(geometry: THREE.BufferGeometry, matrix: THREE.Matrix4) {
   return (geometry.boundingSphere?.radius ?? 0) * matrix.getMaxScaleOnAxis();
 }
 
-function buildMergedSlot(source: THREE.Object3D): BuiltSlot {
+function buildMergedSlot(source: THREE.Object3D, camouflage: CamouflageScheme | undefined, paintSeed: number): BuiltSlot {
   source.updateMatrixWorld(true);
   const toSlot = source.matrixWorld.clone().invert();
   const buckets = new Map<string, Bucket>();
@@ -82,7 +96,7 @@ function buildMergedSlot(source: THREE.Object3D): BuiltSlot {
   source.traverse((object) => {
     const mesh = object as THREE.Mesh;
     if (!mesh.isMesh || Array.isArray(mesh.material) || !isVisibleUnder(mesh, source)) return;
-    const materialClass = classifyMaterial(mesh.material);
+    const materialClass = classifyMaterial(mesh.material, camouflage);
     let bucket = buckets.get(materialClass.key);
     if (!bucket) {
       bucket = { ...materialClass, near: [], far: [], castShadow: false, receiveShadow: false };
@@ -116,6 +130,10 @@ function buildMergedSlot(source: THREE.Object3D): BuiltSlot {
     for (const [target, entries, castShadow] of [[near, bucket.near, bucket.castShadow], [far, bucket.far, false]] as const) {
       const geometry = mergeStaticEntries(entries, bucket.bakeColor);
       if (!geometry) continue;
+      if (bucket.camouflaged) {
+        const seeds = new Float32Array(geometry.attributes.position.count).fill(paintSeed);
+        geometry.setAttribute('camoSeed', new THREE.BufferAttribute(seeds, 1));
+      }
       geometries.push(geometry);
       const mesh = new THREE.Mesh(geometry, bucket.material);
       mesh.castShadow = castShadow;
@@ -139,7 +157,12 @@ function buildMergedSlot(source: THREE.Object3D): BuiltSlot {
  * them as one mesh per material class with a small-part-free far LOD.
  * Battlefield only: editors and calibration pages need the named part tree.
  */
-export function MergedSlot({ children, rebuildKey }: { children: ReactNode; rebuildKey: DependencyList }) {
+export function MergedSlot({ children, rebuildKey, camouflage, paintSeed = 0 }: {
+  children: ReactNode;
+  rebuildKey: DependencyList;
+  camouflage?: CamouflageScheme;
+  paintSeed?: number;
+}) {
   const source = useRef<THREE.Group>(null);
   const holder = useRef<THREE.Group>(null);
   const built = useRef<BuiltSlot | null>(null);
@@ -151,7 +174,7 @@ export function MergedSlot({ children, rebuildKey }: { children: ReactNode; rebu
     // Children have committed (and run their layout effects) by now. Keeping the
     // source out of the scene also skips its matrix updates every frame.
     source.current.removeFromParent();
-    const slot = buildMergedSlot(source.current);
+    const slot = buildMergedSlot(source.current, camouflage, paintSeed);
     slot.near.visible = !useFar.current;
     slot.far.visible = useFar.current;
     holder.current.add(slot.near, slot.far);
@@ -160,7 +183,7 @@ export function MergedSlot({ children, rebuildKey }: { children: ReactNode; rebu
       slot.dispose();
       built.current = null;
     };
-  }, rebuildKey);
+  }, [...rebuildKey, camouflage, paintSeed]);
 
   useFrame(({ camera }) => {
     const slot = built.current;

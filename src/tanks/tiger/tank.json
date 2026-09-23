@@ -12,7 +12,8 @@
     "year": 1942
   },
   "appearance": {
-    "baseColor": "#4d4f53"
+    "baseColor": "#3b3e3f",
+    "camouflage": ["dunkelgrau", "wintertarnung", "dunkelgelb", "dreifarben", "hinterhalt"]
   },
   "durability": {
     "health": 350,

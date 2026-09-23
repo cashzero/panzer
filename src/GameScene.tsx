@@ -411,7 +411,7 @@ export function GameScene() {
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.05;
+          gl.toneMappingExposure = 1.15;
           gl.shadowMap.type = THREE.PCFShadowMap;
         }}
       >

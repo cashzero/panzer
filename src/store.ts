@@ -6,6 +6,7 @@ import { GAME_CONFIG } from './config';
 import { audioManager, toAudioVec3, type AudioSource } from './audio';
 import type { ArmorPlateHitInfo } from './armorModel';
 import { getTankDef, getAllTankDefs } from './tanks/registry';
+import { getCamouflageScheme } from './tanks/core/camouflage';
 import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
 import { generateTrees } from './trees';
@@ -85,6 +86,7 @@ export interface TankData {
     turret: number;
   };
   isPlayer: boolean;
+  camouflage: string; // scheme id from the tank's camouflage list
   destroyed: boolean;
   destroyedAt: number; // timestamp when tank was destroyed (0 if alive)
   lastFireTime: number;
@@ -117,6 +119,8 @@ export const MAP_SIZE_VALUES: Record<MapSize, number> = { small: 1000, medium: 2
 export interface OOBUnit {
   id: string;
   tankType: string;
+  /** Camouflage scheme id; the tank's default scheme when unset. */
+  camouflage?: string;
   position: [number, number]; // XZ world coords (pre-mapScale)
   rotation: number;
 }
@@ -226,6 +230,7 @@ interface GameState {
 
   // OOB Editor state
   oobPlayerTankType: string;
+  oobPlayerCamouflage: string | null;
   oobPlayerPosition: [number, number];
   oobEnemies: OOBUnit[];
   oobAllies: OOBUnit[];
@@ -236,6 +241,7 @@ interface GameState {
 
   // OOB Editor actions
   setOobPlayerTankType: (tankType: string) => void;
+  setOobPlayerCamouflage: (schemeId: string | null) => void;
   setOobPlayerPosition: (pos: [number, number]) => void;
   addOobUnit: (side: 'enemy' | 'ally', tankType: string, position: [number, number]) => void;
   removeOobUnit: (id: string) => void;
@@ -302,7 +308,7 @@ function generateWorld(mapSize: MapSize, seed: number) {
 
 const initialWorld = generateWorld('medium', GAME_CONFIG.world.seed);
 
-function createTankData(tankType: string, isPlayer: boolean): TankData {
+function createTankData(tankType: string, isPlayer: boolean, camouflage?: string | null): TankData {
   const def = getTankDef(tankType);
   return {
     id: isPlayer ? 'player' : uuidv4(),
@@ -324,6 +330,7 @@ function createTankData(tankType: string, isPlayer: boolean): TankData {
     maxHealth: def.health,
     armor: { ...def.armor },
     isPlayer,
+    camouflage: getCamouflageScheme(def.camouflage, camouflage ?? undefined).id,
     destroyed: false,
     destroyedAt: 0,
     lastFireTime: 0,
@@ -532,6 +539,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // OOB Editor initial state
   oobPlayerTankType: 'sherman',
+  oobPlayerCamouflage: null,
   oobPlayerPosition: [0, 0] as [number, number],
   oobEnemies: [
     { id: uuidv4(), tankType: 'tiger', position: [80, 300] as [number, number], rotation: Math.PI },
@@ -549,7 +557,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   oobPlacementMode: null,
 
   // OOB Editor actions
-  setOobPlayerTankType: (tankType) => set({ oobPlayerTankType: tankType }),
+  // A different tank keeps the chosen scheme only if it can wear it.
+  setOobPlayerTankType: (tankType) => set((state) => ({
+    oobPlayerTankType: tankType,
+    oobPlayerCamouflage: getTankDef(tankType).camouflage.some((scheme) => scheme.id === state.oobPlayerCamouflage)
+      ? state.oobPlayerCamouflage : null,
+  })),
+  setOobPlayerCamouflage: (schemeId) => set({ oobPlayerCamouflage: schemeId }),
   setOobPlayerPosition: (pos) => set({ oobPlayerPosition: pos }),
   addOobUnit: (side, tankType, position) => {
     const unit: OOBUnit = { id: uuidv4(), tankType, position, rotation: side === 'enemy' ? Math.PI : 0 };
@@ -591,14 +605,14 @@ export const useGameStore = create<GameState>((set, get) => ({
     const mapScale = MAP_SIZE_VALUES[state.mapSize] / 1000;
 
     // Create player tank
-    const player = createTankData(state.oobPlayerTankType, true);
+    const player = createTankData(state.oobPlayerTankType, true, state.oobPlayerCamouflage);
     const px = state.oobPlayerPosition[0] * mapScale;
     const pz = state.oobPlayerPosition[1] * mapScale;
     player.position = new Vector3(px, 0, pz);
 
     // Create enemies
     const enemies: TankData[] = state.oobEnemies.map((u) => {
-      const t = createTankData(u.tankType, false);
+      const t = createTankData(u.tankType, false, u.camouflage);
       const ex = u.position[0] * mapScale;
       const ez = u.position[1] * mapScale;
       t.position = new Vector3(ex, 0, ez);
@@ -608,7 +622,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Create allies
     const allies: TankData[] = state.oobAllies.map((u) => {
-      const t = createTankData(u.tankType, false);
+      const t = createTankData(u.tankType, false, u.camouflage);
       const ax = u.position[0] * mapScale;
       const az = u.position[1] * mapScale;
       t.position = new Vector3(ax, 0, az);

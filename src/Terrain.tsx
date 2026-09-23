@@ -25,8 +25,8 @@ function hash2D(x: number, y: number): number {
 function createGrassTuftGeometry() {
   const positions: number[] = [];
   const colors: number[] = [];
-  const root = new THREE.Color('#747746');
-  const tip = new THREE.Color('#b0b775');
+  const root = new THREE.Color('#6b6943');
+  const tip = new THREE.Color('#aaa572');
   const tint = new THREE.Color();
   for (let blade = 0; blade < 9; blade++) {
     const angle = hash2D(blade, 2) * Math.PI * 2;
@@ -66,8 +66,8 @@ const grassTuftMaterial = new THREE.MeshPhysicalMaterial({
 });
 grassTuftMaterial.onBeforeCompile = grassShader;
 const TUFT_FARMLAND = new THREE.Color('#d4c590');
-const TUFT_LIGHT = new THREE.Color('#c4c89b');
-const TUFT_BASE = new THREE.Color('#aebc88');
+const TUFT_LIGHT = new THREE.Color('#cac39a');
+const TUFT_BASE = new THREE.Color('#b4b289');
 
 function GroundCover() {
   const meshRef = useRef<THREE.InstancedMesh>(null);
