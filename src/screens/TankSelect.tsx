@@ -8,6 +8,7 @@ import type { TankDefinition } from '../tanks/types';
 import type { ArmorPlate } from '../armorModel';
 import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
 import { camouflageSeed, getCamouflageScheme, type CamouflageScheme } from '../tanks/core/camouflage';
+import { PreviewStudio } from './PreviewStudio';
 import { Play } from 'lucide-react';
 
 const allTanks = getAllTankDefs();
@@ -268,15 +269,11 @@ export function TankSelect() {
             onCreated={({ gl }) => {
               gl.outputColorSpace = THREE.SRGBColorSpace;
               gl.toneMapping = THREE.ACESFilmicToneMapping;
-              gl.toneMappingExposure = 1.12;
+              gl.toneMappingExposure = 0.9;
               gl.shadowMap.type = THREE.PCFSoftShadowMap;
             }}
           >
-            <color attach="background" args={['#18201b']} />
-            <fog attach="fog" args={['#18201b', 18, 34]} />
-            <hemisphereLight args={['#d7ded5', '#24291e', 0.75]} />
-            <directionalLight castShadow position={[9, 12, 7]} color="#ffe0ac" intensity={2.4} shadow-mapSize-width={1024} shadow-mapSize-height={1024} />
-            <directionalLight position={[-7, 4, -5]} color="#7890a0" intensity={0.55} />
+            <PreviewStudio />
             <Suspense fallback={null}>
               <TankPreview
                 key={def.id}
@@ -294,11 +291,6 @@ export function TankSelect() {
               minPolarAngle={Math.PI / 6}
               maxPolarAngle={Math.PI / 2.5}
             />
-            {/* Ground plane */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.1, 0]} receiveShadow>
-              <planeGeometry args={[30, 30]} />
-              <meshStandardMaterial color="#2a2a20" roughness={1} />
-            </mesh>
           </Canvas>
 
           {/* Armor plate tooltip */}

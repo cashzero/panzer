@@ -7,6 +7,8 @@ import { useGameStore, type MapSize, MAP_SIZE_VALUES } from '../store';
 import { TankPreview, StatBar, maxHP, maxArmor, maxSpeed, maxPen, maxReload, minReload, penetrationStatLabel } from './TankSelect';
 import { OOBTankList } from './OOBTankList';
 import { OOBMiniMap } from './OOBMiniMap';
+import { PreviewStudio } from './PreviewStudio';
+import * as THREE from 'three';
 import { getCamouflageScheme } from '../tanks/core/camouflage';
 import type { ThreeEvent } from '@react-three/fiber';
 import { ArrowLeft, Dices, Play, RefreshCw } from 'lucide-react';
@@ -144,10 +146,9 @@ export function OOBEditor() {
       <footer className="oob-inspector">
         {/* 3D Preview */}
         <div className="oob-tank-preview" ref={canvasContainerRef}>
-          <Canvas camera={{ position: [8, 5, 8], fov: 40 }} gl={{ antialias: true }}>
-            <ambientLight intensity={0.4} />
-            <directionalLight position={[10, 10, 5]} intensity={1.2} />
-            <directionalLight position={[-5, 3, -5]} intensity={0.3} />
+          <Canvas camera={{ position: [8, 5, 8], fov: 40 }} gl={{ antialias: true }} shadows
+            onCreated={({ gl }) => { gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.0; }}>
+            <PreviewStudio />
             <Suspense fallback={null}>
               <TankPreview
                 key={previewDef.id}
