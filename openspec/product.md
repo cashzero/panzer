@@ -162,6 +162,7 @@ Toggle with `M`. Provides a top-down tactical view of the battlefield.
 - Effects should make ballistic outcomes readable: penetration, ricochet, ground strike, explosion, and movement state must feel visually distinct.
 - Every shell in flight shows a tracer so its trajectory and impact direction can be read, including shots fired by other tanks.
 - Ground strikes leave temporary craters. Flashes from firing and impacts briefly light the surroundings.
+- Effects keep physical scale: an armour hit flashes about the size of the plate it strikes and never shines through the hull, thrown earth lands as clods, and a destroyed tank goes up in a rolling fireball that turns into a column of black smoke. Distant hits stay readable as points of light rather than growing into blobs.
 - Track effects match the ground: dust on roads, torn turf on grass, and mud clods on soil. Moving tanks leave temporary track marks.
 - Camera shake, particles, smoke, and dust should enhance impact without hiding core combat information.
 - Visual feedback should stay consistent between third-person, gunner view, and map-driven command flow.

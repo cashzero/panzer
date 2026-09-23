@@ -124,6 +124,16 @@ denser world dressing and distant shadows.
   `burning_smoke` (plume density) and `wreck_fire` (flames) on the schedule in
   `GAME_CONFIG.particles.burning_smoke`. Sprites do not sample scene depth, so
   large puffs still clip hard where they cross the ground.
+  Point pools take an optional `minSize` in pixels (impact flashes 5, impact
+  sparks 2): small, physically sized sprites keep a floor on screen and dim in
+  proportion as they are enlarged. Impact pools are depth-tested; they used to
+  ignore depth, which showed a 17 m non-penetration flash straight through the
+  hull. A sub whose `createdAt` lies in the future waits unseen, which is how the
+  explosion staggers its fireball, smoke and plume column. `blastFire` subs share
+  the fire pool and write HDR colour that cools with age. Debris is an
+  `InstancedMesh` of jittered icosahedra with `MeshStandardMaterial` and
+  `flatShading`; clods stop at `getTerrainMeshHeight` and shrink instead of fading,
+  because translucent chips over the sky read as glass.
 - Object-space armour weathering now samples slot space, so the mottling
   pattern differs from the unmerged editor preview while keeping the same scale.
 - `BuildingRenderer.tsx` bakes every building part into world space, one batch

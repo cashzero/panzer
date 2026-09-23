@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { useGameStore, Particle } from './store';
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
-import { getTerrainHeight } from './Terrain';
+import { getTerrainHeight, getTerrainMeshHeight } from './Terrain';
 import { queueFlashLight } from './rendering/FlashLights';
 import { queueImpactDecal } from './rendering/ImpactDecals';
 import { SUN_DIRECTION } from './rendering/BattlefieldLighting';
@@ -164,6 +164,8 @@ const spriteUniforms = {
   uFogFar: { value: 1400 },
 };
 const WIND = { x: 0.9, z: 0.35 }; // m/s drift for smoke plumes
+const SMOKE_DILUTE = new THREE.Color('#77706a');
+const DIRT_DILUTE = new THREE.Color('#9c8a6c');
 
 // --- Pool sizes ---
 const MAX_ADDITIVE = 384; // world-space flash + fireball
@@ -180,7 +182,7 @@ const MAX_DEBRIS = 1024;
 // --- Sub-particle state ---
 interface SubState {
   particleId: string;
-  type: 'flash' | 'smoke' | 'dirt' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark' | 'ember' | 'plume' | 'wreckFire';
+  type: 'flash' | 'smoke' | 'dirt' | 'fireball' | 'debris' | 'spark' | 'shockwave' | 'muzzleFlash' | 'muzzleFireball' | 'muzzleSmoke' | 'impactFlash' | 'impactSpark' | 'ember' | 'plume' | 'wreckFire' | 'blastFire';
   px: number; py: number; pz: number;
   vx: number; vy: number; vz: number;
   baseScale: number;
@@ -194,6 +196,8 @@ interface SubState {
   variant: number;
   /** Colour a plume dilutes toward as it rises. */
   r2: number; g2: number; b2: number;
+  /** Age in ms when a clod came to rest on the ground. */
+  landedAt?: number;
 }
 
 // --- Shaders for Points ---
@@ -203,6 +207,7 @@ attribute float aOpacity;
 attribute float aRotation;
 attribute float aVariant;
 attribute vec3 aColor;
+uniform float uMinSize;
 varying float vOpacity;
 varying float vRotation;
 varying float vVariant;
@@ -217,7 +222,11 @@ void main() {
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   vFogDepth = -mvPosition.z;
   gl_PointSize = aSize * (520.0 / -mvPosition.z);
-  gl_PointSize = clamp(gl_PointSize, 0.0, 512.0);
+  // A floor in pixels keeps distant hits visible; the sprite dims as it is
+  // enlarged, so a far flash stays a point of light instead of a blob.
+  float naturalSize = gl_PointSize;
+  gl_PointSize = clamp(max(gl_PointSize, uMinSize), 0.0, 512.0);
+  if (naturalSize > 0.0) vOpacity *= min(1.0, naturalSize / gl_PointSize + 0.35);
   gl_Position = projectionMatrix * mvPosition;
 }
 `;
@@ -257,36 +266,28 @@ void main() {
 }
 `;
 
-// --- Debris shaders ---
-const debrisVertexShader = /* glsl */ `
-attribute vec3 aColor;
-attribute float aOpacity;
-varying vec3 vColor;
-varying float vOpacity;
-
-void main() {
-  vColor = aColor;
-  vOpacity = aOpacity;
-  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+// --- Debris: lit, opaque clods and fragments ---
+/** A lumpy, flat-shaded clod. Shared corners move together, so it stays closed. */
+function createClodGeometry() {
+  const geometry = new THREE.IcosahedronGeometry(0.5, 0);
+  const position = geometry.attributes.position;
+  const corner = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    corner.fromBufferAttribute(position, i);
+    const h = Math.sin(corner.x * 12.9898 + corner.y * 78.233 + corner.z * 37.719) * 43758.5453;
+    const jitter = 0.65 + 0.6 * (h - Math.floor(h));
+    position.setXYZ(i, corner.x * jitter, corner.y * jitter, corner.z * jitter);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
 }
-`;
-
-const debrisFragmentShader = /* glsl */ `
-varying vec3 vColor;
-varying float vOpacity;
-
-void main() {
-  if (vOpacity < 0.001) discard;
-  gl_FragColor = vec4(vColor, vOpacity);
-}
-`;
 
 // --- Pool creation helpers ---
 function createPointPool(
   maxCount: number,
   texture: THREE.Texture,
   blending: THREE.Blending,
-  options?: { depthTest?: boolean; atlas?: boolean; lit?: boolean }
+  options?: { depthTest?: boolean; atlas?: boolean; lit?: boolean; minSize?: number }
 ) {
   const positionAttr = new THREE.BufferAttribute(new Float32Array(maxCount * 3), 3);
   const sizeAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
@@ -311,6 +312,7 @@ function createPointPool(
       uAtlas: { value: options?.atlas ? 1 : 0 },
       uLit: { value: options?.lit ? 1 : 0 },
       uAdditive: { value: blending === THREE.AdditiveBlending ? 1 : 0 },
+      uMinSize: { value: options?.minSize ?? 0 },
     },
     vertexShader: spriteVertexShader,
     fragmentShader: spriteFragmentShader,
@@ -416,7 +418,6 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
   const config = getConfig(type);
   const lifetime = config.lifetime;
   const s = effectScale;
-  const cs = config.size ?? 1;
   const sc = (count: number) => Math.max(1, Math.floor(count * s));
   const sv = Math.sqrt(s);
 
@@ -495,18 +496,18 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     for (let i = 0; i < sc(3); i++) cone('smoke', 1.2, (0.6 + Math.random() * 1.0) * sv, (2.0 + Math.random() * 1.2) * s, '#6f6250', 1.4 + Math.random() * 0.6, (Math.random() - 0.5) * 0.8);
     ring('dirt', 9, 3, 6, 1.2, 1.6, 2.6, ['#8a7650', '#75623f'], 0.55, 0.8);
     for (let i = 0; i < sc(5); i++) cone('smoke', 1.0, (1.5 + Math.random() * 2.5) * sv, (1.8 + Math.random() * 1.6) * s, '#7a6848', 0.85 + Math.random() * 0.15, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(18); i++) cone('debris', 0.8, (9 + Math.random() * 9) * sv, (0.12 + Math.random() * 0.2) * s, i % 2 ? '#3d2e15' : '#2a2012', 0.7, 0);
+    for (let i = 0; i < sc(18); i++) cone('debris', 0.8, (7 + Math.random() * 8) * sv, (0.1 + Math.random() * 0.18) * s, i % 2 ? '#4a3920' : '#33271a', 1.3 + Math.random() * 0.4, 0);
   } else if (type === 'hit_penetrate') {
     const ox = n.x * 0.18 * s;
     const oy = n.y * 0.18 * s;
     const oz = n.z * 0.18 * s;
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.0 * s, '#fffaf0', 0.05, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.0 * s, '#ffc46b', 0.08, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 2.6 * s, '#fffaf0', 0.05, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 1.8 * s, '#ffc46b', 0.08, 0);
     // Short tongue of flame blown back out of the breach.
     for (let i = 0; i < sc(3); i++) jet('fireball', 0.3 * s, 0.35, (3 + Math.random() * 3) * sv, (1.2 + Math.random() * 0.8) * s, i === 0 ? '#ffd08a' : '#ff6a1a', 0.08 + Math.random() * 0.05, (Math.random() - 0.5) * 2);
     // Molten spall and burning fragments thrown back out of the breach.
     for (let i = 0; i < sc(26); i++) {
-      cone('impactSpark', 1.3, (10 + Math.random() * 16) * sv, (0.4 + Math.random() * 0.22) * s, i < 8 ? '#fff4c8' : (i < 18 ? '#ffc04a' : '#ff7a14'), 0.12 + Math.random() * 0.18, 0);
+      cone('impactSpark', 1.3, (10 + Math.random() * 16) * sv, (0.26 + Math.random() * 0.16) * s, i < 8 ? '#fff4c8' : (i < 18 ? '#ffc04a' : '#ff7a14'), 0.12 + Math.random() * 0.18, 0);
     }
     for (let i = 0; i < sc(10); i++) cone('spark', 0.9, (5 + Math.random() * 6) * sv, 0.34 * s, '#ff9a2a', 0.3 + Math.random() * 0.25, 0);
     // Glowing hole that cools from yellow to dull red.
@@ -517,8 +518,8 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     const ox = n.x * 0.28 * s;
     const oy = n.y * 0.28 * s;
     const oz = n.z * 0.28 * s;
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.8 * s, '#fffaf0', 0.12, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 3.3 * s, '#ffd27a', 0.18, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 2.2 * s, '#fffaf0', 0.12, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 1.5 * s, '#ffd27a', 0.18, 0);
     for (let i = 0; i < sc(28); i++) {
       const v = randomConeVector(2.4);
       const tangential = v.clone().sub(n.clone().multiplyScalar(v.dot(n))).normalize();
@@ -531,7 +532,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         tangential.x * speed + n.x * (1.5 + Math.random() * 1.5) * sv,
         tangential.y * speed + n.y * (1.5 + Math.random() * 1.5) * sv,
         tangential.z * speed + n.z * (1.5 + Math.random() * 1.5) * sv,
-        (0.52 + Math.random() * 0.22) * s,
+        (0.3 + Math.random() * 0.14) * s,
         i < 10 ? '#fff2b8' : (i < 20 ? '#ffcc66' : '#ff8a00'),
         0.26 + Math.random() * 0.18,
         0,
@@ -547,7 +548,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         v.x * (9 + Math.random() * 8) * sv,
         v.y * (9 + Math.random() * 8) * sv,
         v.z * (9 + Math.random() * 8) * sv,
-        (0.36 + Math.random() * 0.16) * s,
+        (0.24 + Math.random() * 0.1) * s,
         i < 4 ? '#fff8de' : '#ffb347',
         0.16 + Math.random() * 0.12,
         0,
@@ -572,9 +573,9 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     const ox = n.x * 0.22 * s;
     const oy = n.y * 0.22 * s;
     const oz = n.z * 0.22 * s;
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 5.8 * s * cs, '#fffdf4', 0.12, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.2 * s * cs, '#ffe09a', 0.18, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 3.0 * s * cs, '#ffb347', 0.22, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 2.4 * s, '#fffdf4', 0.12, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 1.7 * s, '#ffe09a', 0.18, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 1.1 * s, '#ffb347', 0.22, 0);
     for (let i = 0; i < sc(36); i++) {
       const v = randomConeVector(2.1);
       const tangent = v.clone().sub(n.clone().multiplyScalar(v.dot(n))).normalize();
@@ -586,7 +587,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         tangent.x * (17 + Math.random() * 16) * sv + n.x * (1.4 + Math.random() * 1.6) * sv,
         tangent.y * (17 + Math.random() * 16) * sv + n.y * (1.4 + Math.random() * 1.6) * sv,
         tangent.z * (17 + Math.random() * 16) * sv + n.z * (1.4 + Math.random() * 1.6) * sv,
-        (0.66 + Math.random() * 0.24) * s * cs,
+        (0.3 + Math.random() * 0.14) * s,
         i < 24 ? '#fff7cf' : (i < 52 ? '#ffd87f' : '#ff9620'),
         0.2 + Math.random() * 0.16,
         0,
@@ -602,14 +603,14 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         v.x * (8 + Math.random() * 6) * sv,
         v.y * (8 + Math.random() * 6) * sv,
         v.z * (8 + Math.random() * 6) * sv,
-        (0.46 + Math.random() * 0.18) * s * cs,
+        (0.24 + Math.random() * 0.1) * s,
         i < 5 ? '#fffef2' : '#ffca68',
         0.12 + Math.random() * 0.08,
         0,
       );
     }
     for (let i = 0; i < sc(2); i++) {
-      cone('smoke', 0.7, (0.8 + Math.random() * 0.9) * sv, (0.75 + Math.random() * 0.25) * s * cs, i === 0 ? '#80776f' : '#5b554f', 0.3 + Math.random() * 0.12, (Math.random() - 0.5) * 1.2);
+      cone('smoke', 0.7, (0.8 + Math.random() * 0.9) * sv, (1.2 + Math.random() * 0.5) * s, i === 0 ? '#80776f' : '#5b554f', 0.5 + Math.random() * 0.2, (Math.random() - 0.5) * 1.2);
     }
     // Brief hot gouge where the shell struck.
     add('ember', ox * 0.3, oy * 0.3, oz * 0.3, 0, 0, 0, 0.7 * s, '#ffc870', 0.45, 0);
@@ -617,8 +618,8 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     const ox = n.x * 0.24 * s;
     const oy = n.y * 0.24 * s;
     const oz = n.z * 0.24 * s;
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.2 * s * cs, '#fff8dc', 0.11, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.4 * s * cs, '#ffc761', 0.16, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 2.6 * s, '#fff8dc', 0.11, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 1.8 * s, '#ffc761', 0.16, 0);
     for (let i = 0; i < sc(42); i++) {
       const v = randomConeVector(2.8);
       const tangent = v.clone().sub(n.clone().multiplyScalar(v.dot(n))).normalize();
@@ -631,7 +632,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
         tangent.x * (19 + Math.random() * 18) * sv + n.x * (1.3 + forwardBias * 1.2) * sv,
         tangent.y * (19 + Math.random() * 18) * sv + n.y * (1.3 + forwardBias * 1.2) * sv,
         tangent.z * (19 + Math.random() * 18) * sv + n.z * (1.3 + forwardBias * 1.2) * sv,
-        (0.7 + Math.random() * 0.26) * s * cs,
+        (0.32 + Math.random() * 0.14) * s,
         i < 28 ? '#fff8cf' : (i < 60 ? '#ffd97e' : '#ff8d1a'),
         0.16 + Math.random() * 0.12,
         0,
@@ -641,22 +642,22 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     // Detonation in soil: white-hot flash, short fireball, blast ring, tall dark earth column.
     add('flash', 0, 0, 0, 0, 0, 0, 6.5 * s, '#fff4e0', 0.06, 0);
     add('flash', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 4.2 * s, '#ffb060', 0.12, 0);
-    add('shockwave', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 3.6 * s, '#e9dcc6', 0.12, Math.random() * Math.PI * 2);
+    add('shockwave', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 3.2 * s, '#6e665a', 0.1, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(5); i++) cone('fireball', 0.9, (3 + Math.random() * 4) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#ffd08a' : '#ff6a1a', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(26); i++) cone('dirt', 0.38, (5 + Math.random() * 23) * sv, (2.2 + Math.random() * 1.8) * s, i < 9 ? '#2e2519' : DIRT[i % DIRT.length], 0.7 + Math.random() * 0.5, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(6); i++) cone('smoke', 1.4, (0.8 + Math.random() * 1.4) * sv, (3.0 + Math.random() * 2.0) * s, i % 2 ? '#6b5d45' : '#574b38', 1.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.8);
     ring('dirt', 12, 5, 9, 1.5, 2.0, 3.2, ['#6e5c3e', '#5a4a30'], 0.55, 0.85);
     for (let i = 0; i < sc(8); i++) cone('smoke', 1.2, (1.5 + Math.random() * 2) * sv, (2.6 + Math.random() * 2.4) * s, i < 4 ? '#3e3428' : '#5f4f36', 0.9 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(24); i++) cone('debris', 1.3, (10 + Math.random() * 9) * sv, (0.16 + Math.random() * 0.24) * s, i % 2 ? '#3d2e15' : '#241b10', 0.6, 0);
+    for (let i = 0; i < sc(24); i++) cone('debris', 1.3, (8 + Math.random() * 9) * sv, (0.14 + Math.random() * 0.22) * s, i % 2 ? '#4a3920' : '#2e2417', 1.0 + Math.random() * 0.35, 0);
   } else if (type === 'he_hit_penetrate') {
     const ox = n.x * 0.25 * s;
     const oy = n.y * 0.25 * s;
     const oz = n.z * 0.25 * s;
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 6.5 * s, '#fff4e0', 0.05, 0);
-    add('impactFlash', ox, oy, oz, 0, 0, 0, 4.5 * s, '#ffb060', 0.09, 0);
-    add('shockwave', ox, oy, oz, 0, 0, 0, 3.2 * s, '#e9dcc6', 0.11, Math.random() * Math.PI * 2);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 3.4 * s, '#fff4e0', 0.05, 0);
+    add('impactFlash', ox, oy, oz, 0, 0, 0, 2.4 * s, '#ffb060', 0.09, 0);
+    add('shockwave', ox, oy, oz, 0, 0, 0, 3.0 * s, '#6e665a', 0.1, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(4); i++) cone('fireball', 1.0, (2.5 + Math.random() * 3) * sv, (1.8 + Math.random() * 1.5) * s, i < 2 ? '#ffd08a' : '#ff5a14', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
-    for (let i = 0; i < sc(20); i++) cone('impactSpark', 1.5, (12 + Math.random() * 14) * sv, (0.42 + Math.random() * 0.2) * s, i < 8 ? '#fff0b8' : '#ffa030', 0.14 + Math.random() * 0.16, 0);
+    for (let i = 0; i < sc(20); i++) cone('impactSpark', 1.5, (12 + Math.random() * 14) * sv, (0.28 + Math.random() * 0.14) * s, i < 8 ? '#fff0b8' : '#ffa030', 0.14 + Math.random() * 0.16, 0);
     add('ember', n.x * 0.05 * s, n.y * 0.05 * s, n.z * 0.05 * s, 0, 0, 0, 1.4 * s, '#ff9a40', 0.5, 0);
     for (let i = 0; i < sc(8); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (2.0 + Math.random() * 2) * s, i < 4 ? '#221f1c' : '#3a3632', 0.7 + Math.random() * 0.3, (Math.random() - 0.5) * 2);
   } else if (type === 'tank_explosion') {
@@ -701,19 +702,38 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
       }
     };
 
-    add('flash', 0, 0, 0, 0, 0, 0, 22.0 * s, '#ffffff', 0.13, 0);
-    add('flash', 0, 0.22 * s, 0, 0, 0, 0, 16.0 * s, '#ffe6bf', 0.22, 0);
-    add('flash', 0, 0.4 * s, 0, 0, 0, 0, 10.5 * s, '#ffb870', 0.3, 0);
-    add('shockwave', 0, 0.14 * s, 0, 0, 0, 0, 11.0 * s, '#f5ead8', 0.2, Math.random() * Math.PI * 2);
-    add('shockwave', 0, 0.32 * s, 0, 0, 0, 0, 7.0 * s, '#ddd4c8', 0.26, Math.random() * Math.PI * 2);
-    add('shockwave', 0, 0.56 * s, 0, 0, 0, 0, 4.2 * s, '#b9b0a3', 0.32, Math.random() * Math.PI * 2);
-    add('fireball', 0, 0.55 * s, 0, 0, 5.5 * sv, 0, 8.0 * s, '#ffe5ac', 0.16, (Math.random() - 0.5) * 1.6);
-    add('fireball', 0, 0.92 * s, 0, 0, 4.2 * sv, 0, 6.0 * s, '#ff7426', 0.24, (Math.random() - 0.5) * 1.8);
-    radialBurst('fireball', 18, 1.6, 3.0, 6.5, 3.0, 8.0, 2.2, 4.2, '#ffe0b0', '#ff9f3c', 0.14, 0.3, 2.0);
-    radialBurst('smoke', 30, 1.8, 2.0, 4.5, 5.0, 10.0, 2.8, 4.8, '#141414', '#3b3026', 1.3, 1.9, 1.2);
-    radialBurst('smoke', 14, 2.6, 5.0, 8.0, 0.6, 1.8, 2.4, 3.6, '#2b2620', '#4a4034', 1.0, 1.4, 1.6);
-    radialBurst('spark', 34, 1.9, 13.0, 20.0, 0.8, 2.6, 0.28, 0.42, '#fff0b0', '#ff9f1c', 0.28, 0.46, 0);
-    radialBurst('debris', 10, 1.5, 10.0, 14.0, 0.4, 1.6, 0.05, 0.1, '#3b2d1f', '#111111', 0.65, 0.8, 0);
+    // Life multipliers are fractions of the 2200 ms lifetime.
+    const delayed = (ms: number) => { subs[subs.length - 1].createdAt += ms; };
+    add('flash', 0, 0.6 * s, 0, 0, 0, 0, 8.0 * s, '#ffffff', 0.07, 0);
+    add('flash', 0, 0.8 * s, 0, 0, 0, 0, 5.5 * s, '#ffe0b0', 0.13, 0);
+    add('shockwave', 0, 0.4 * s, 0, 0, 0, 0, 4.5 * s, '#7a7266', 0.12, Math.random() * Math.PI * 2);
+    // Rolling fireball: a knot of hot gas that billows up and outward over about a second.
+    for (let i = 0; i < sc(14); i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const out = 0.6 + Math.random() * 1.6;
+      add('blastFire', Math.cos(angle) * out * 0.5 * s, (0.4 + Math.random() * 1.2) * s, Math.sin(angle) * out * 0.5 * s,
+        Math.cos(angle) * out * 2.2 * sv, (3.5 + Math.random() * 4.5) * sv, Math.sin(angle) * out * 2.2 * sv,
+        (3.0 + Math.random() * 2.4) * s, i < 5 ? '#fff0c8' : '#ffb35a', 0.45 + Math.random() * 0.25, (Math.random() - 0.5) * 1.4);
+      delayed(Math.random() * 90);
+    }
+    radialBurst('fireball', 10, 1.4, 2.5, 5.5, 2.5, 6.5, 1.8, 3.2, '#ffe0b0', '#ff9f3c', 0.12, 0.24, 2.0);
+    // Black smoke boils out of the fire and climbs into a leaning column.
+    radialBurst('smoke', 22, 1.6, 1.5, 3.5, 4.0, 8.0, 2.8, 4.6, '#141414', '#2e2822', 1.4, 2.0, 1.2);
+    for (let i = subs.length - sc(22); i < subs.length; i++) subs[i].createdAt += 150 + Math.random() * 350;
+    // The column: dense puffs released in a stream, each rising and swelling.
+    for (let i = 0; i < sc(14); i++) {
+      add('plume', (Math.random() - 0.5) * 2.0 * s, (1.2 + Math.random()) * s, (Math.random() - 0.5) * 2.0 * s,
+        (Math.random() - 0.5) * 1.4, (5.5 + Math.random() * 3.5) * sv, (Math.random() - 0.5) * 1.4,
+        (3.6 + Math.random() * 2.2) * s, i % 2 ? '#141210' : '#201d1a', 2.8 + Math.random() * 1.2, (Math.random() - 0.5) * 0.5);
+      const plume = subs[subs.length - 1];
+      _tmpColor.set('#57534d');
+      plume.r2 = _tmpColor.r; plume.g2 = _tmpColor.g; plume.b2 = _tmpColor.b;
+      delayed(250 + i * 90);
+    }
+    radialBurst('smoke', 12, 2.6, 5.0, 8.0, 0.6, 1.8, 2.4, 3.6, '#2b2620', '#4a4034', 1.0, 1.4, 1.6);
+    radialBurst('spark', 30, 1.9, 13.0, 20.0, 0.8, 2.6, 0.24, 0.36, '#fff0b0', '#ff9f1c', 0.28, 0.46, 0);
+    // Torn metal and stowage, lit and heavy.
+    radialBurst('debris', 16, 1.5, 6.0, 12.0, 4.0, 11.0, 0.12, 0.32, '#2e2a26', '#141312', 1.1, 1.5, 0);
   } else if (type === 'fire') {
     // Life multipliers are fractions of the 1200 ms 'fire' lifetime: flash ~90 ms, smoke ~1 s.
     const nv = n.clone().multiplyScalar(6.5 * sv);
@@ -792,7 +812,7 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     }
   } else if (type === 'tree_hit') {
     add('flash', 0, 0, 0, 0, 0, 0, 2.0 * s, '#ffcc66', 0.15, 0);
-    for (let i = 0; i < sc(10); i++) cone('debris', 2.0, (6 + Math.random() * 6) * sv, (0.15 + Math.random() * 0.2) * s, i < 5 ? '#8b6914' : '#5c3a1e', 0.8, 0);
+    for (let i = 0; i < sc(10); i++) cone('debris', 2.0, (6 + Math.random() * 6) * sv, (0.12 + Math.random() * 0.16) * s, i < 5 ? '#8b6914' : '#5c3a1e', 1.8 + Math.random() * 0.6, 0);
     for (let i = 0; i < sc(4); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (1.5 + Math.random()) * s, '#2d5a1e', 0.8, (Math.random() - 0.5) * 2);
   } else if (type === 'dust') {
     add('smoke', 0, 0, 0,
@@ -839,25 +859,25 @@ function spawnSecondaryEffects(p: Particle) {
 
   switch (type) {
     case 'fire':
-      light(1.0 * s, '#ffb866', 90 * Math.pow(s, 1.5), 18 * sv, 90);
+      light(1.0 * s, '#ffb866', 60 * Math.pow(s, 1.5), 16 * sv, 90);
       break;
     case 'hit_penetrate':
-      light(0.6, '#ffd49a', 50 * s, 12 * sv, 110);
+      light(1.4, '#ffd49a', 18 * s, 9 * sv, 110);
       break;
     case 'non_pen_impact':
     case 'ricochet_impact':
     case 'hit_bounce':
-      light(0.6, '#ffc070', 35 * s, 10 * sv, 80);
+      light(1.2, '#ffc070', 12 * s, 8 * sv, 80);
       break;
     case 'he_hit_ground':
     case 'he_hit_penetrate':
-      light(0.8, '#ffa050', 160 * s, 22 * sv, 220);
+      light(1.5, '#ffa050', 80 * s, 18 * sv, 220);
       break;
     case 'tank_explosion':
-      light(1.5, '#ff9040', 900 * s, 45 * sv, 900, true);
+      light(3.0, '#ff9040', 450 * s, 40 * sv, 1300, true);
       break;
     case 'hit_ground':
-      light(0.5, '#ffc88a', 12 * s, 8 * sv, 60);
+      light(1.0, '#ffc88a', 8 * s, 7 * sv, 60);
       break;
     default:
       break;
@@ -879,7 +899,8 @@ const _debrisPos = new THREE.Vector3();
 const _debrisQuat = new THREE.Quaternion();
 const _debrisScale = new THREE.Vector3();
 const _debrisEuler = new THREE.Euler();
-const _debrisBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+const debrisGeometry = createClodGeometry();
+const debrisMaterial = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, metalness: 0, flatShading: true });
 const _viewForward = new THREE.Vector3();
 
 export function Particles() {
@@ -896,8 +917,10 @@ export function Particles() {
     () => createPointPool(MAX_FIRE, smokeAtlas, THREE.AdditiveBlending, { atlas: true }),
     []
   );
+  // Impact flashes sit just off the armour and respect depth, so they never
+  // shine through the hull. A pixel floor keeps hits readable at range.
   const impactAdditivePool = useMemo(
-    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending),
+    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending, { minSize: 5 }),
     []
   );
   const shockwavePool = useMemo(
@@ -906,7 +929,7 @@ export function Particles() {
   );
   const sparkPool = useMemo(() => createPointPool(MAX_SPARK, sparkTexture, THREE.AdditiveBlending), []);
   const impactSparkPool = useMemo(
-    () => createPointPool(MAX_IMPACT_SPARK, sparkTexture, THREE.AdditiveBlending),
+    () => createPointPool(MAX_IMPACT_SPARK, sparkTexture, THREE.AdditiveBlending, { minSize: 2 }),
     []
   );
   const smokePool = useMemo(
@@ -920,11 +943,6 @@ export function Particles() {
 
   // Debris InstancedMesh setup
   const debrisRef = useRef<THREE.InstancedMesh>(null);
-  const debrisAttrs = useMemo(() => {
-    const colors = new Float32Array(MAX_DEBRIS * 3);
-    const opacities = new Float32Array(MAX_DEBRIS);
-    return { colors, opacities };
-  }, []);
 
   // State refs
   const subsRef = useRef<SubState[]>([]);
@@ -1001,6 +1019,8 @@ export function Particles() {
     while (i-- > 0) {
       const sub = subs[i];
       const age = now - sub.createdAt;
+      // Delayed subs (a createdAt in the future) wait unseen.
+      if (age < 0) continue;
       const progress = Math.min(age / (sub.lifetime * sub.lifeMultiplier), 1);
 
       if (progress >= 1) {
@@ -1011,8 +1031,16 @@ export function Particles() {
       }
 
       // Physics
-      if (sub.type === 'debris' || sub.type === 'spark' || sub.type === 'impactSpark') {
+      if (sub.type === 'debris') {
+        if (sub.landedAt === undefined) sub.vy -= 25 * delta;
+      } else if (sub.type === 'spark' || sub.type === 'impactSpark') {
         sub.vy -= 25 * delta;
+      } else if (sub.type === 'blastFire') {
+        // Hot gas rolls upward fast, then slows and spreads as it cools.
+        const drag = 1 - 1.3 * delta;
+        sub.vx *= drag;
+        sub.vz *= drag;
+        sub.vy = sub.vy * drag + 5 * (1 - progress) * delta;
       } else if (sub.type === 'plume') {
         // Buoyancy fades as the puff cools; the wind takes over.
         const drag = 1 - 0.35 * delta;
@@ -1045,12 +1073,30 @@ export function Particles() {
       sub.py += sub.vy * delta;
       sub.pz += sub.vz * delta;
       sub.rotation += sub.rotSpeed * delta;
+      if (sub.type === 'debris' && sub.landedAt === undefined && sub.vy < 0) {
+        // Clods land on the rendered ground and stay there until they shrink away.
+        const rest = getTerrainMeshHeight(sub.px, sub.pz) + sub.baseScale * 0.2;
+        if (sub.py < rest) {
+          sub.py = rest;
+          sub.vx = sub.vy = sub.vz = 0;
+          sub.landedAt = age;
+        }
+      }
 
       // Populate appropriate buffer
       if (sub.type === 'flash') {
         if (addIdx < MAX_ADDITIVE) writeSprite(additivePool, addIdx++, sub, sub.baseScale * (1 + progress * 1.5), 1 - Math.pow(progress, 0.5));
       } else if (sub.type === 'fireball') {
         if (fireIdx < MAX_FIRE) writeSprite(firePool, fireIdx++, sub, sub.baseScale * (1 + progress * 2), 1 - Math.pow(progress, 1.5));
+      } else if (sub.type === 'blastFire') {
+        if (fireIdx < MAX_FIRE) {
+          // White-hot core cooling through orange to a dull red, then gone into its smoke.
+          const heat = Math.max(0, 1 - progress * 1.25);
+          const glow = 0.5 + 2.2 * heat;
+          writeSprite(firePool, fireIdx++, sub, sub.baseScale * (0.65 + progress * 1.5),
+            Math.min(1, progress * 12) * Math.pow(1 - progress, 1.2),
+            sub.r * glow, sub.g * glow * (0.35 + 0.65 * heat), sub.b * glow * heat * heat);
+        }
       } else if (sub.type === 'muzzleFireball') {
         if (fireIdx < MAX_FIRE) writeSprite(firePool, fireIdx++, sub, sub.baseScale * (1 + progress * 2.2), 1 - Math.pow(progress, 1.3));
       } else if (sub.type === 'wreckFire') {
@@ -1089,10 +1135,16 @@ export function Particles() {
           if (sub.type === 'smoke') {
             size = sub.baseScale * (1 + progress * 2);
             opacity = (1 - Math.pow(progress, 1.5)) * 0.6;
+            // Smoke thins toward a pale grey as it spreads. A thin veil that stays
+            // dark reads blue against the sky.
+            const dilute = Math.sqrt(progress) * 0.6;
+            r += (SMOKE_DILUTE.r - r) * dilute; g += (SMOKE_DILUTE.g - g) * dilute; b += (SMOKE_DILUTE.b - b) * dilute;
           } else if (sub.type === 'dirt') {
             size = sub.baseScale * (1 + progress * 1.6);
             // Thrown earth is opaque; thin dark puffs over the sky otherwise read blue.
             opacity = (1 - Math.pow(progress, 1.3)) * 0.98;
+            const dilute = Math.sqrt(progress) * 0.55;
+            r += (DIRT_DILUTE.r - r) * dilute; g += (DIRT_DILUTE.g - g) * dilute; b += (DIRT_DILUTE.b - b) * dilute;
           } else {
             // Swell from a tight dark knot into a broad grey drift.
             size = sub.baseScale * (1 + progress * 4);
@@ -1115,20 +1167,17 @@ export function Particles() {
         if (muzzleSmkIdx < MAX_MUZZLE_SMOKE) writeSprite(muzzleSmokePool, muzzleSmkIdx++, sub, sub.baseScale * (1 + progress * 2.3), (1 - Math.pow(progress, 1.25)) * 0.75);
       } else if (sub.type === 'debris') {
         if (debIdx < MAX_DEBRIS && debrisRef.current) {
-          const opacity = 1 - progress;
-          // Accumulate rotation from velocity
-          _debrisEuler.set(sub.vy * progress * 3, sub.vx * progress * 3, 0);
+          // Tumble in flight, lie still once landed; shrink away instead of fading,
+          // because a translucent clod reads as glass against the sky.
+          const spin = (sub.landedAt ?? age) * 0.001;
+          _debrisEuler.set(sub.rotation + spin * 9, sub.rotation * 1.7 + spin * 6, sub.variant * 0.8);
           _debrisQuat.setFromEuler(_debrisEuler);
           _debrisPos.set(sub.px, sub.py, sub.pz);
-          // Flattened chips read as clods and turf rather than cubes.
-          _debrisScale.set(sub.baseScale, sub.baseScale * 0.45, sub.baseScale * 0.8);
+          const shrink = progress > 0.75 ? (1 - progress) / 0.25 : 1;
+          _debrisScale.set(sub.baseScale, sub.baseScale * 0.6, sub.baseScale * 0.85).multiplyScalar(shrink);
           _debrisMat.compose(_debrisPos, _debrisQuat, _debrisScale);
           debrisRef.current.setMatrixAt(debIdx, _debrisMat);
-
-          debrisAttrs.colors[debIdx * 3] = sub.r;
-          debrisAttrs.colors[debIdx * 3 + 1] = sub.g;
-          debrisAttrs.colors[debIdx * 3 + 2] = sub.b;
-          debrisAttrs.opacities[debIdx] = opacity;
+          debrisRef.current.setColorAt(debIdx, _tmpColor.setRGB(sub.r, sub.g, sub.b));
           debIdx++;
         }
       }
@@ -1157,31 +1206,10 @@ export function Particles() {
       debrisRef.current.count = debIdx;
       if (debIdx > 0) {
         debrisRef.current.instanceMatrix.needsUpdate = true;
-        const colorAttr = debrisRef.current.geometry.getAttribute('aColor') as THREE.InstancedBufferAttribute;
-        const opacityAttr = debrisRef.current.geometry.getAttribute('aOpacity') as THREE.InstancedBufferAttribute;
-        if (colorAttr) {
-          colorAttr.needsUpdate = true;
-          opacityAttr.needsUpdate = true;
-        }
+        if (debrisRef.current.instanceColor) debrisRef.current.instanceColor.needsUpdate = true;
       }
     }
   });
-
-  // Debris material
-  const debrisMaterial = useMemo(() => new THREE.ShaderMaterial({
-    vertexShader: debrisVertexShader,
-    fragmentShader: debrisFragmentShader,
-    transparent: true,
-    depthWrite: false,
-  }), []);
-
-  // Attach instanced buffer attributes to debris geometry
-  const debrisGeo = useMemo(() => {
-    const geo = _debrisBoxGeo.clone();
-    geo.setAttribute('aColor', new THREE.InstancedBufferAttribute(debrisAttrs.colors, 3));
-    geo.setAttribute('aOpacity', new THREE.InstancedBufferAttribute(debrisAttrs.opacities, 1));
-    return geo;
-  }, [debrisAttrs]);
 
   return (
     <group>
@@ -1191,13 +1219,13 @@ export function Particles() {
       <points geometry={firePool.geometry} material={firePool.material} frustumCulled={false} renderOrder={6} />
       {/* Muzzle flash sprites ignore barrel depth */}
       <points geometry={muzzleAdditivePool.geometry} material={muzzleAdditivePool.material} frustumCulled={false} renderOrder={20} />
-      {/* Impact flashes temporarily ignore depth for visibility tuning */}
+      {/* Impact flashes draw after the hull they light */}
       <points geometry={impactAdditivePool.geometry} material={impactAdditivePool.material} frustumCulled={false} renderOrder={21} />
       {/* Expanding muzzle shockwave rings */}
       <points geometry={shockwavePool.geometry} material={shockwavePool.material} frustumCulled={false} renderOrder={19} />
       {/* Spark sprites */}
       <points geometry={sparkPool.geometry} material={sparkPool.material} frustumCulled={false} />
-      {/* Impact sparks temporarily ignore depth for visibility tuning */}
+      {/* Impact sparks */}
       <points geometry={impactSparkPool.geometry} material={impactSparkPool.material} frustumCulled={false} renderOrder={21} />
       {/* Smoke sprites (normal blending) */}
       <points geometry={smokePool.geometry} material={smokePool.material} frustumCulled={false} />
@@ -1206,8 +1234,9 @@ export function Particles() {
       {/* Debris boxes */}
       <instancedMesh
         ref={debrisRef}
-        args={[debrisGeo, debrisMaterial, MAX_DEBRIS]}
+        args={[debrisGeometry, debrisMaterial, MAX_DEBRIS]}
         frustumCulled={false}
+        castShadow
       />
     </group>
   );

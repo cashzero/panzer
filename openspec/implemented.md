@@ -65,8 +65,11 @@ Completed roadmap items are documented here.
 - Destroyed tanks turn sooted dark brown and burn: flickering flames over the engine deck for 90 s under a dense black plume that rises about 15 m, drifts downwind and dilutes to grey, then a thinner smoulder until 3 minutes.
 - The particle system supports effects including `fire`, `hit_penetrate`, `hit_bounce`, `hit_ground`, `he_hit_ground`, `he_hit_penetrate`, `tank_explosion`, `dust`, `dust_low`, `tree_hit`, `burning_smoke`, `non_pen_impact`, and `ricochet_impact`.
 - Shells in flight draw as HDR tracer streaks with a pixel-width floor so they stay readable at range. The streak collapses into the impact point after the shell stops, and ricochets flicker while tumbling. Length, color, width and fade time are set in `GAME_CONFIG.tracers`.
-- Muzzle flashes, armor impacts, HE bursts and tank explosions briefly light nearby hulls and ground through a fixed pool of four point lights, so no materials recompile.
-- Ground strikes throw a column of earth and a low dust skirt. HE adds a blast ring and fireball. Penetrations leave a cooling ember at the hole with smoke leaking out, and a muzzle blast lifts dust off the ground when the barrel is low.
+- Muzzle flashes, armor impacts, HE bursts and tank explosions briefly light nearby hulls and ground through a fixed pool of four point lights, so no materials recompile. The lights sit a metre or more off the struck surface at modest intensity, so a hit warms the hull instead of gilding it.
+- Ground strikes throw a column of earth and a low dust skirt. HE adds a faint blast ring and fireball. Penetrations leave a cooling ember at the hole with smoke leaking out, and a muzzle blast lifts dust off the ground when the barrel is low.
+- Debris is lit, opaque, flat-shaded clods and fragments that tumble, land on the terrain and shrink away. Thrown earth and smoke lighten toward sunlit dust and pale grey as they spread, so thin veils do not read blue against the sky.
+- Armour-hit flashes and sparks are physically sized and depth-tested; a minimum on-screen size keeps distant hits visible, dimmed as they are enlarged.
+- A tank explosion is a short detonation flash, a rolling fireball of hot gas that cools from white through orange to dull red over about a second, black smoke boiling out of it, and a column of plume puffs released in a stream that rise and drift downwind. Effects can schedule delayed sub-particles for such sequences.
 - Terrain impacts are resolved onto the surface with the local terrain normal. Each one leaves a crater decal that fades out (`GAME_CONFIG.impactDecals`): brown churned earth for AP, black scorch for HE.
 
 ## Performance And Rendering
