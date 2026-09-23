@@ -61,4 +61,14 @@ export const meadowNoise = /* glsl */ `
   float meadowDryness(vec2 xz) {
     return meadowValue(xz / 85.0) * 0.62 + meadowValueB(xz / 31.0 + 17.0) * 0.28 + meadowValue(xz / 9.0 - 5.0) * 0.1;
   }
+  // Late-summer pasture tone for a grass scan colour: lush olive through dry
+  // grass to straw. The ground and the grass blades share it, so blades stand
+  // in turf of their own colour.
+  vec3 pastureTone(vec3 color, float dryness) {
+    float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+    vec3 lush = mix(vec3(luma), color, 0.85) * vec3(0.9, 0.96, 0.68);
+    vec3 dry = mix(vec3(luma), color, 0.8) * vec3(1.04, 0.98, 0.82);
+    vec3 straw = vec3(luma) * vec3(1.34, 1.16, 0.72);
+    return mix(mix(lush, dry, smoothstep(0.1, 0.36, dryness)), straw, smoothstep(0.5, 0.74, dryness));
+  }
 `;

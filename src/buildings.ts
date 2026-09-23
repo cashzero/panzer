@@ -318,28 +318,6 @@ export function isPointInsideFarmland(x: number, z: number, plot: FarmlandPlot, 
   return Math.abs(localX) <= plot.width * 0.5 + margin && Math.abs(localZ) <= plot.depth * 0.5 + margin;
 }
 
-/** Strongest farmland influence at a point, with the plot's crop. */
-export function getFarmlandCropInfluence(x: number, z: number, farmlands: FarmlandPlot[]): { weight: number; crop: FarmlandCrop | null } {
-  let best = 0;
-  let crop: FarmlandCrop | null = null;
-  for (const plot of farmlands) {
-    const dx = x - plot.center[0];
-    const dz = z - plot.center[2];
-    const c = Math.cos(-plot.rotation);
-    const s = Math.sin(-plot.rotation);
-    const localX = dx * c - dz * s;
-    const localZ = dx * s + dz * c;
-    const edgeX = Math.max(0, Math.abs(localX) - plot.width * 0.5);
-    const edgeZ = Math.max(0, Math.abs(localZ) - plot.depth * 0.5);
-    const dist = Math.hypot(edgeX, edgeZ);
-    if (dist > GAME_CONFIG.farmland.edgeBlend) continue;
-    const t = dist <= 0.001 ? 1 : 1 - dist / GAME_CONFIG.farmland.edgeBlend;
-    const weight = t * t * (3 - 2 * t);
-    if (weight > best) { best = weight; crop = plot.crop; }
-  }
-  return { weight: best, crop };
-}
-
 export function generateFarmlands(
   buildings: BuildingInstance[],
   roadNetwork: RoadNetwork,

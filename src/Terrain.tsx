@@ -1,163 +1,11 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { useFrame, useThree } from '@react-three/fiber';
-import { grassShader, grassWind } from './rendering/terrainMaterial';
+import { useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import { getRoadInfluence, type RoadNetwork } from './roads';
 import { GroundMaterial } from './rendering/GroundMaterial';
 import { useGameStore, MAP_SIZE_VALUES } from './store';
-import { getFarmlandCropInfluence, isPointNearAnyBuilding, type BuildingInstance } from './buildings';
+import type { BuildingInstance } from './buildings';
 import { sampleTerrainHeight } from './terrainHeight';
-import { GAME_CONFIG } from './config';
-import { getWoodlandMask, sampleWoodlandMask } from './rendering/woodland';
-
-const COVER_GRID_RADIUS = 55;
-const COVER_GRID_WIDTH = COVER_GRID_RADIUS * 2 + 1;
-const COVER_COUNT = COVER_GRID_WIDTH * COVER_GRID_WIDTH;
-const COVER_CELL_SIZE = 0.8;
-
-function fract(value: number): number {
-  return value - Math.floor(value);
-}
-
-function hash2D(x: number, y: number): number {
-  return fract(Math.sin(x * 127.1 + y * 311.7) * 43758.5453123);
-}
-
-function createGrassTuftGeometry() {
-  const positions: number[] = [];
-  const normals: number[] = [];
-  const colors: number[] = [];
-  const root = new THREE.Color('#6b6943');
-  const tip = new THREE.Color('#aaa572');
-  const tint = new THREE.Color();
-  for (let blade = 0; blade < 9; blade++) {
-    const angle = hash2D(blade, 2) * Math.PI * 2;
-    const height = 0.12 + hash2D(blade, 5) * 0.23;
-    const width = 0.014 + hash2D(blade, 8) * 0.018;
-    const x = Math.cos(angle) * 0.16;
-    const z = Math.sin(angle) * 0.16;
-    // Mostly upward normals, leaning out with the blade: the tuft shades like a
-    // soft clump instead of a fan of lit and unlit cards.
-    const normal = new THREE.Vector3(Math.cos(angle) * 0.35, 1, Math.sin(angle) * 0.35).normalize();
-    const point = (t: number, side: number) => {
-      normals.push(normal.x, normal.y, normal.z);
-      const bend = t * t * 0.12;
-      positions.push(x + Math.cos(angle) * (side * width * (1 - t) + bend), height * t,
-        z + Math.sin(angle) * (side * width * (1 - t) + bend));
-      tint.copy(root).lerp(tip, t * 0.75);
-      colors.push(tint.r, tint.g, tint.b);
-    };
-    for (let segment = 0; segment < 2; segment++) {
-      const low = segment / 2;
-      const high = (segment + 1) / 2;
-      point(low, -1); point(low, 1); point(high, -1);
-      point(low, 1); point(high, 1); point(high, -1);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
-  return geometry;
-}
-
-const grassTuftGeometry = createGrassTuftGeometry();
-const grassTuftMaterial = new THREE.MeshPhysicalMaterial({
-  color: '#ffffff',
-  roughness: 1,
-  metalness: 0,
-  specularIntensity: 0,
-  side: THREE.DoubleSide,
-  vertexColors: true,
-});
-grassTuftMaterial.onBeforeCompile = grassShader;
-const TUFT_STUBBLE = new THREE.Color('#e0c98e');
-const TUFT_HAY = new THREE.Color('#d2cb96');
-const TUFT_LIGHT = new THREE.Color('#cac39a');
-const TUFT_BASE = new THREE.Color('#b4b289');
-/** Tuft size by crop: ploughed ground keeps only a few weeds, hay stands tall. */
-const CROP_TUFT_SCALE = { ploughed: 0.08, stubble: 0.55, hay: 1.35 };
-
-function GroundCover() {
-  const meshRef = useRef<THREE.InstancedMesh>(null);
-  const lastCellRef = useRef<[number, number]>([Number.NaN, Number.NaN]);
-  const { camera } = useThree();
-  const matrix = useMemo(() => new THREE.Matrix4(), []);
-  const position = useMemo(() => new THREE.Vector3(), []);
-  const rotation = useMemo(() => new THREE.Quaternion(), []);
-  const scale = useMemo(() => new THREE.Vector3(), []);
-  const euler = useMemo(() => new THREE.Euler(), []);
-
-  const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)'), []);
-  const roadNetwork = useGameStore((state) => state.roadNetwork);
-  const buildings = useGameStore((state) => state.buildings);
-  const farmlands = useGameStore((state) => state.farmlands);
-  const trees = useGameStore((state) => state.trees);
-  useEffect(() => { lastCellRef.current = [NaN, NaN]; }, [roadNetwork, buildings, farmlands, trees]);
-  useFrame(({ clock }) => {
-    grassWind.value = reducedMotion.matches ? 0 : clock.elapsedTime;
-    const mesh = meshRef.current;
-    if (!mesh) return;
-    const centerX = Math.floor(camera.position.x / COVER_CELL_SIZE);
-    const centerZ = Math.floor(camera.position.z / COVER_CELL_SIZE);
-    if (lastCellRef.current[0] === centerX && lastCellRef.current[1] === centerZ) return;
-    lastCellRef.current = [centerX, centerZ];
-
-    const state = useGameStore.getState();
-    // Only plots and buildings that can reach this grid affect it; filtering
-    // once keeps the per-tuft tests from scanning the whole map.
-    const reach = (COVER_GRID_RADIUS + 1) * COVER_CELL_SIZE;
-    const nearGrid = (x: number, z: number, radius: number) =>
-      Math.abs(x - camera.position.x) <= reach + radius && Math.abs(z - camera.position.z) <= reach + radius;
-    const farmlands = state.farmlands.filter((plot) => nearGrid(plot.center[0], plot.center[2],
-      Math.hypot(plot.width, plot.depth) * 0.5 + GAME_CONFIG.farmland.edgeBlend));
-    const nearbyBuildings = state.buildings.filter((building) => nearGrid(building.position[0], building.position[2],
-      Math.hypot(building.width, building.depth) * 0.5 + 1.5));
-    // Grass gives way to leaf litter under the woods.
-    const woodland = getWoodlandMask(state.trees, state.roadNetwork.terrainSize);
-    let index = 0;
-    for (let gz = -COVER_GRID_RADIUS; gz <= COVER_GRID_RADIUS; gz++) {
-      for (let gx = -COVER_GRID_RADIUS; gx <= COVER_GRID_RADIUS; gx++) {
-        const cellX = centerX + gx;
-        const cellZ = centerZ + gz;
-        const randomA = hash2D(cellX, cellZ);
-        const randomB = hash2D(cellZ + 91, cellX - 47);
-        const worldX = (cellX + (randomA - 0.5) * 0.98) * COVER_CELL_SIZE;
-        const worldZ = (cellZ + (randomB - 0.5) * 0.98) * COVER_CELL_SIZE;
-        const road = getRoadInfluence(worldX, worldZ, state.roadNetwork).influence;
-        const blocked = road > 0.14 || isPointNearAnyBuilding(worldX, worldZ, nearbyBuildings, 1.5);
-        const farmland = getFarmlandCropInfluence(worldX, worldZ, farmlands);
-        const cropScale = farmland.crop ? 1 + (CROP_TUFT_SCALE[farmland.crop] - 1) * farmland.weight : 1;
-        const woodFloor = sampleWoodlandMask(woodland, worldX, worldZ);
-        const tuftScale = blocked ? 0 : (0.7 + randomB * 0.55) * cropScale * (1 - Math.min(1, woodFloor * 1.4) * 0.92);
-
-        // Tufts sit on the rendered surface; the exact noise field is far costlier.
-        position.set(worldX, blocked ? 0 : getTerrainMeshHeight(worldX, worldZ) + 0.008, worldZ);
-        euler.set(0, randomA * Math.PI * 2, (randomB - 0.5) * 0.12);
-        rotation.setFromEuler(euler);
-        scale.set(tuftScale, tuftScale, tuftScale);
-        matrix.compose(position, rotation, scale);
-        mesh.setMatrixAt(index, matrix);
-
-        mesh.setColorAt(index, farmland.weight > 0.25 && farmland.crop !== 'ploughed'
-          ? (farmland.crop === 'hay' ? TUFT_HAY : TUFT_STUBBLE)
-          : randomA > 0.58 ? TUFT_LIGHT : TUFT_BASE);
-        index++;
-      }
-    }
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
-
-  return (
-    <instancedMesh
-      ref={meshRef}
-      args={[grassTuftGeometry, grassTuftMaterial, COVER_COUNT]}
-      frustumCulled={false}
-      receiveShadow
-    />
-  );
-}
+import { GrassField } from './rendering/GrassField';
 
 export function getTerrainHeight(x: number, z: number): number {
   const state = useGameStore.getState();
@@ -197,6 +45,36 @@ function getTerrainHeightField(): TerrainHeightField {
   }
   heightField = { roadNetwork: state.roadNetwork, buildings: state.buildings, size, segments, spacing, heights };
   return heightField;
+}
+
+export interface TerrainHeightTexture {
+  texture: THREE.DataTexture;
+  /** Map size (m), vertex spacing (m), segments per side, unused. */
+  info: THREE.Vector4;
+  minHeight: number;
+  maxHeight: number;
+}
+
+let heightTexture: { field: TerrainHeightField; value: TerrainHeightTexture } | null = null;
+
+/**
+ * The rendered terrain's vertex heights as a float texture, texel (ix, iz), so
+ * shaders can rebuild `getTerrainMeshHeight` exactly (see GrassField).
+ */
+export function getTerrainHeightTexture(): TerrainHeightTexture {
+  const field = getTerrainHeightField();
+  if (heightTexture?.field === field) return heightTexture.value;
+  heightTexture?.value.texture.dispose();
+  const row = field.segments + 1;
+  const texture = new THREE.DataTexture(field.heights, row, row, THREE.RedFormat, THREE.FloatType);
+  texture.minFilter = texture.magFilter = THREE.NearestFilter;
+  texture.generateMipmaps = false;
+  texture.needsUpdate = true;
+  let minHeight = Infinity, maxHeight = -Infinity;
+  for (const h of field.heights) { if (h < minHeight) minHeight = h; if (h > maxHeight) maxHeight = h; }
+  const value = { texture, info: new THREE.Vector4(field.size, field.spacing, field.segments, 0), minHeight, maxHeight };
+  heightTexture = { field, value };
+  return value;
 }
 
 /**
@@ -298,7 +176,7 @@ export function Terrain({ showGroundCover = true }: { showGroundCover?: boolean 
       <mesh geometry={geometry} receiveShadow>
         <GroundMaterial />
       </mesh>
-      {showGroundCover && <GroundCover />}
+      {showGroundCover && <GrassField />}
     </group>
   );
 }

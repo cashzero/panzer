@@ -75,19 +75,6 @@ function blur(data: Uint8Array, resolution: number, radius: number) {
   }
 }
 
-/** Bilinear mask lookup in [0, 1], matching the GPU's filtered sample. */
-export function sampleWoodlandMask(mask: WoodlandMask, x: number, z: number) {
-  const px = (x / mask.size + 0.5) * mask.resolution - 0.5;
-  const pz = (z / mask.size + 0.5) * mask.resolution - 0.5;
-  const ix = Math.floor(px), iz = Math.floor(pz);
-  if (ix < 0 || iz < 0 || ix >= mask.resolution - 1 || iz >= mask.resolution - 1) return 0;
-  const fx = px - ix, fz = pz - iz;
-  const at = (i: number, j: number) => mask.data[j * mask.resolution + i];
-  const top = at(ix, iz) + (at(ix + 1, iz) - at(ix, iz)) * fx;
-  const bottom = at(ix, iz + 1) + (at(ix + 1, iz + 1) - at(ix, iz + 1)) * fx;
-  return (top + (bottom - top) * fz) / 255;
-}
-
 export interface UnderstoryPlant {
   x: number;
   z: number;

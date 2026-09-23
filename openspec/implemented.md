@@ -41,13 +41,13 @@ Completed roadmap items are documented here.
 - Field boundaries are planned once per world (`fieldBoundaries.ts`): each edge gets a treeline, a hedge or stays open. Hedges are continuous lofted meshes, visual only, like the telegraph poles and wires along the longest roads (`rendering/WorldDressing.tsx`).
 - Beyond the map edge, a vertex-coloured skirt meets the terrain edge and rolls into low hills with distant woods (`rendering/HorizonSkirt.tsx`), all visual only.
 - Farm buildings use period details: the former warehouse is a limestone grange with planked double doors, pilasters and shuttered loft openings; farmhouses gain shutters, corner quoins and back windows.
-- Ground-cover tufts fade out at randomised distances (24-42 m), so the cover thins gradually instead of ending in a ring.
+- Grass is procedural blades after the Ghost of Tsushima technique, ported from SimonDev's Quick_Grass (MIT) in `rendering/GrassField.tsx`: about 30 blades/m² within 20 m and wider low-detail blades out to about 95 m, where they shrink into the ground. Blades sit exactly on the rendered terrain and take colour, height and density from the ground's pasture grading and its road, crop, yard and woodland masks. Clumps share a lean and height; gusts sweep the field; tanks flatten the grass around them.
 - Tank-tree collisions support slow pushing and high-speed knockdown.
 - Projectiles damage trees for 50 HP per hit.
 - Rural building clusters spawn along road junctions and roadsides as indestructible battlefield obstacles.
 - Buildings block tank movement and receive projectile wall and roof impacts.
-- Farmland plots generate around rural buildings, tint surrounding terrain, and suppress nearby tree placement. Each plot is ploughed, stubble or hay: furrows ridged along the plot's long side, pale stubble in reaper swaths, or tall pale hay. Ground cover follows the crop, and ploughed plots count as mud for track effects.
-- Pasture colour varies between lush green and sun-dried straw over tens of metres, with worn bare patches, green verges beside the lanes and faint animal tracks. Past about 60 m, field-sized blotches keep the middle distance from settling into one tone. Grass tufts take the same pasture tint as the ground under them.
+- Farmland plots generate around rural buildings, tint surrounding terrain, and suppress nearby tree placement. Each plot is ploughed, stubble or hay: furrows ridged along the plot's long side, pale stubble in reaper swaths, or tall pale hay. Grass follows the crop, and ploughed plots count as mud for track effects.
+- Pasture colour varies between lush green and sun-dried straw over tens of metres, with worn bare patches, green verges beside the lanes and faint animal tracks. Past about 60 m, field-sized blotches keep the middle distance from settling into one tone. Grass blades share the ground's pasture grading, and the soil between blades near the camera lies in their shade.
 
 ## UI, Map, And Presentation
 
@@ -75,9 +75,9 @@ Completed roadmap items are documented here.
 ## Performance And Rendering
 
 - The battlefield uses a shared analytic sky and sun direction, procedural clouds, baked sky reflections, and a camera-following 4096px directional shadow map stabilized in light space.
-- Half-resolution N8AO adds contact occlusion; restrained HDR bloom, ACES output and SMAA run before the HTML HUD. Tactical map mode bypasses these passes and ground cover.
+- Half-resolution N8AO adds contact occlusion; restrained HDR bloom, ACES output and SMAA run before the HTML HUD. Tactical map mode bypasses these passes and the grass.
 - Terrain uses locally vendored CC0 Poly Haven albedo, OpenGL normal and roughness maps, with biome tinting, two detail scales and anisotropic filtering.
-- Instanced ground cover uses tapered blades, root-to-tip colour, wind and distance fade; wind respects reduced-motion preferences. Blade normals point up on both faces, so no blade renders black from behind.
+- Grass wind respects reduced-motion preferences.
 - Procedural armor and masonry shading adds surface variation without requiring UV coordinates on parametric models. Tree foliage uses alpha clipping compatible with offscreen post-processing.
 - `TreeRenderer` uses `InstancedMesh` for trunks and canopy geometry. Crowns are clouds of small camera-facing leaf cards shaded with one enclosing crown shape (`rendering/foliageCards.ts`), so they read as solid, lit masses instead of crossed planes. Broadleaf crowns have offset lobes; spruce whorls stay upright. Crowns spread wider in woods and rows, where the canopy closes. Shadows use matching billboard depth materials.
 - Woods and tree rows carry scrub and young spruce (`Understory` in `TreeRenderer.tsx`, planned by `rendering/woodland.ts`), scenery only and below a commander's eye line. Under the woods the grass gives way to leaf litter and moss from a blurred woodland mask; rows and lone trees get a narrower strip and a small shaded patch.
@@ -85,7 +85,7 @@ Completed roadmap items are documented here.
 - Smoke, dust and thrown earth use a procedural four-variant puff atlas, are shaded as spheres against the sun direction, fade into the distance fog and draw back to front. Flames and fireballs use the same atlas additively; muzzle flashes use a rayed flash texture. Propellant smoke lingers for 2-3 s, HE throws a continuous earth fountain, and tank explosions rise as a fireball under a mushrooming column.
 - Battlefield tanks draw each slot (hull, both tracks, turret, gun) as one merged mesh per material class, with paint variation baked into vertex colours and materials shared across every tank. Parts under 0.12 m drop out beyond an FOV-normalised 160 m, so zoomed sights keep full detail. The tank select screen, editor and calibration pages still render the named part tree.
 - Buildings are baked into one world-space batch per material.
-- Line-of-sight spotting runs every `GAME_CONFIG.ai.spottingIntervalMs` (100 ms) against a cached copy of the rendered terrain mesh, which the terrain mesh and ground cover also read.
+- Line-of-sight spotting runs every `GAME_CONFIG.ai.spottingIntervalMs` (100 ms) against a cached copy of the rendered terrain mesh, which the terrain mesh and grass also read.
 - The battlefield uses a period colour-film look: a display-space colour grade, hazy sky, weak neutral fill light, straw-olive grass, desaturated dirt roads, and historical paint per vehicle (Olive Drab, Dunkelgrau, Dunkelgelb, 4BO green).
 - German tanks have selectable historical camouflage (`src/tanks/core/camouflage.ts`, listed per tank in `appearance.camouflage`), picked on the tank select screen and per unit in the order of battle and shown in both previews. Patterns are procedural in slot space with a per-vehicle seed and cost one extra material class per scheme in use.
 - `docs/perf/bench.mjs` measures battlefield FPS, p95 frame time, draw calls and triangles across fixed scenarios; `docs/perf/merge-qa.html` diffs merged against authored tanks.
@@ -93,5 +93,5 @@ Completed roadmap items are documented here.
 ### Layered terrain surfaces
 - Grass, dry soil and gravel use local CC0 albedo/normal maps and MIT stochastic hex tiling.
 - Signed road distance masks provide smooth diagonal edges independently of terrain vertex spacing; rotated farmland and building yards blend exposed soil.
-- Ground and grass are matte, with macro vegetation variation, distance-faded normals and 12,321 nine-blade grass instances around the camera.
+- The ground is matte, with macro vegetation variation and distance-faded normals.
 - Focused terrain mask tests cover diagonal edges, crossings, degenerate roads, rotated farmland and regeneration.

@@ -119,6 +119,7 @@ Tracks:
 - Roads should function as navigational landmarks and movement aids.
 - Trees and buildings should shape lines of movement, cover, and projectile interruption.
 - Environmental generation should preserve battlefield clarity; clutter should support tactics, not obscure them.
+- Grass is a continuous sward of blades, not scattered tufts: it stands in turf of its own colour, sways in gusts, stops at roads, thins to weeds on ploughed land, turns to stubble or hay in the fields, and lies flattened around tanks. It is scenery only and never hides a tank from sight checks.
 - Woods read as woods, not orchards: closed crowns, scrub and young trees in the understory, and leaf litter instead of pasture underfoot. Understory is scenery; it neither collides nor blocks sight.
 - Woodland follows the land rather than an even scatter: copses and conifer plantations, treelines on field edges, avenues along some roads and a few lone trees. Trees derive from the world seed, so the map seed changes them too.
 - Low field hedges, telegraph lines and the countryside beyond the map edge are scenery only: they neither collide nor block sight, so they add depth without changing combat. The map edge never ends in a visible cut-off.

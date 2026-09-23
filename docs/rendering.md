@@ -38,11 +38,20 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
   GTX 1050 Ti; the texture version benchmarks the same as the shader before it.
 - `surfaceWeathering.ts`: UV-independent color, roughness and fine cast-metal
   relief on armor; vertically stretched weathering on building surfaces.
-- Ground cover: 12321 instanced nine-blade tufts in a camera-centred grid; tapered
-  geometry, per-instance variation, road/building exclusion, 32-43m distance fade.
-  The material is double-sided, so the grass shader restores the unflipped upward
-  normal on back faces; the default flip had rendered half the blades black.
-  Animation reads reduced-motion preference; it does not affect collision.
+- Grass (`GrassField.tsx`): blade construction, rounded normals, view-space
+  thickening, noise wind and back-scatter are ported from SimonDev's Quick_Grass
+  (MIT; `vendor/quickGrass.glsl`, `vendor/quick-grass.LICENSE`). Two layers of
+  camera-snapped patches (4 m near with 4-segment blades to 20 m; 8 m far with
+  1-segment blades to 95 m) are frustum-culled on the CPU and drawn as one
+  instanced draw each, the instance being a patch origin; every blade is placed in
+  the vertex shader. Heights come from `getTerrainHeightTexture()`, the rendered
+  terrain's vertex heights rebuilt with PlaneGeometry's diagonal split, so blades
+  sit exactly on the mesh. Colour and masks read `groundShaderInputs`, the same
+  textures the ground shader uses, and `pastureTone` from `meadowNoise.ts`.
+  Geometry carries a zero `normal` attribute only because Three.js forces flat
+  shading (no `vNormal`) on standard materials without one. At 4K on a GTX
+  1050 Ti the grass costs about 1 ms per frame; at 1440p and below the frame stays
+  at the display cap. Grass is visual only and does not affect collision or sight.
 
 N8AO 2.0.1 inherits a no-op disposal method. The integration explicitly frees its
 owned targets, textures and materials on unmount. Its version is pinned because
@@ -139,7 +148,7 @@ denser world dressing and distant shadows.
 - `BuildingRenderer.tsx` bakes every building part into world space, one batch
   per material. `src/rendering/staticMerge.ts` holds the shared merge helper,
   including winding correction for mirrored parts.
-- Line of sight and ground cover read `getTerrainMeshHeight`: the cached vertex
+- Line of sight and grass read `getTerrainMeshHeight`: the cached vertex
   grid of the rendered terrain interpolated with PlaneGeometry's triangle split.
   Physics, projectiles and aiming keep the exact procedural height.
 

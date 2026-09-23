@@ -9,6 +9,21 @@ import { getMeadowNoiseUniform, meadowNoise } from './meadowNoise';
 import { getWoodlandMask } from './woodland';
 import { treeLayoutSignature } from '../treeIndex';
 
+/**
+ * Ground inputs other shaders read (the grass field). They are uniform
+ * objects, so every material holding them sees a regenerated world at once;
+ * values stay null until the ground has built them.
+ */
+export const groundShaderInputs = {
+  groundSplat: { value: null as THREE.Texture | null },
+  cropSplat: { value: null as THREE.Texture | null },
+  woodSplat: { value: null as THREE.Texture | null },
+  grassAlbedo: { value: null as THREE.Texture | null },
+  soilAlbedo: { value: null as THREE.Texture | null },
+  macroAlbedo: { value: null as THREE.Texture | null },
+  groundSize: { value: 1 },
+};
+
 const paths = ['grass004', 'brown_mud_dry', 'gravel_road'].flatMap(
   (name) => ['Diffuse', 'nor_gl'].map((map) => `/assets/terrain/${name}/${map}.jpg`),
 ).concat('/assets/terrain/aerial_grass_rock/Diffuse.jpg');
@@ -118,9 +133,7 @@ export function GroundMaterial() {
         // Pasture changes over tens of metres, from lush green to sun-dried straw.
         float dryness = meadowDryness(groundUv);
         vec3 lushGrass = mix(vec3(groundLuma), groundColor, 0.85) * vec3(0.9, 0.96, 0.68);
-        vec3 strawGrass = vec3(groundLuma) * vec3(1.34, 1.16, 0.72);
-        vec3 pasture = mix(lushGrass, dryGrass, smoothstep(0.1, 0.36, dryness));
-        pasture = mix(pasture, strawGrass, smoothstep(0.5, 0.74, dryness));
+        vec3 pasture = pastureTone(groundColor, dryness);
         // Verges and ditches beside the lanes stay damp and green.
         float verge = smoothstep(0.3, 1.2, roadDistance) * (1.0 - smoothstep(2.2, 3.8, roadDistance + edgeNoise * 1.5));
         pasture = mix(pasture, lushGrass * 0.82, verge * 0.7);
@@ -173,6 +186,9 @@ export function GroundMaterial() {
           vec3 floorColor = mix(litter, moss, 0.25 + smoothstep(0.4, 0.8, meadowValueB(groundUv / 9.0 - 13.0)) * 0.5) * 0.86;
           groundColor = mix(groundColor, floorColor, woodFloor);
         }
+        // Soil seen between the grass blades near the camera lies in their shade.
+        float swardShade = (1.0 - roadWeight) * (1.0 - soilWeight) * (1.0 - woodFloor);
+        groundColor *= mix(1.0, mix(0.7, 1.0, smoothstep(12.0, 90.0, length(vViewPosition))), swardShade);
         // Past the range where the scans still read, field-sized blotches keep
         // the middle distance from settling into one flat tone.
         float farBlend = smoothstep(60.0, 320.0, length(vViewPosition));
@@ -203,6 +219,15 @@ export function GroundMaterial() {
     };
     return ground;
   }, [textures, splat, woodland, roadNetwork.terrainSize]);
+  useEffect(() => {
+    groundShaderInputs.groundSplat.value = splat.ground;
+    groundShaderInputs.cropSplat.value = splat.crops;
+    groundShaderInputs.woodSplat.value = woodland;
+    groundShaderInputs.grassAlbedo.value = textures[0];
+    groundShaderInputs.soilAlbedo.value = textures[2];
+    groundShaderInputs.macroAlbedo.value = textures[6];
+    groundShaderInputs.groundSize.value = roadNetwork.terrainSize;
+  }, [splat, woodland, textures, roadNetwork.terrainSize]);
   useEffect(() => () => material.dispose(), [material]);
   useEffect(() => () => { splat.ground.dispose(); splat.crops.dispose(); }, [splat]);
   useEffect(() => () => woodland.dispose(), [woodland]);
