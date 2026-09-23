@@ -125,7 +125,11 @@ denser world dressing and distant shadows.
   rebuild it.
 - Hedges are lofted at 1.6 m stations with a 7-vertex profile: parcels now carry
   several hundred hedges per map, and the finer 0.8 m / 10-vertex loft added
-  about 1.5 M triangles on the medium map.
+  about 1.5 M triangles on the medium map. The loft is now a dark, slightly
+  shrunk core under a shell of leaf cards in the foliageCards layout (centre plus
+  `cardOffset`, arch normals, base occlusion in vertex colour) drawn with the
+  tree leaf texture and a billboard depth material for shadows. The cards add
+  about 160 k triangles on the medium map and no measurable GPU time at 4K.
 - `TreeRenderer` uploads instance matrices only when the store's tree array
   changes (a knockdown), then refreshes the instance bounding spheres used for
   frustum culling.
