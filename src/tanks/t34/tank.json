@@ -1456,16 +1456,16 @@
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.084057
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          -0.271796,
-          0.163932
+          0.246156,
+          0.083778
         ],
         "rotation": [
-          -0.321751,
+          -0.218166,
           0,
           -1.570796
         ],
@@ -1478,16 +1478,16 @@
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.084726
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          -0.196952,
-          0.27616
+          0.182659,
+          0.154285
         ],
         "rotation": [
-          -0.851966,
+          -3.097959,
           0,
           -1.570796
         ],
@@ -1495,21 +1495,21 @@
         "parent": "gunGroup"
       },
       {
-        "id": "mantlet",
-        "name": "Mantlet",
+        "id": "mantlet-arc-2",
+        "name": "Mantlet Arc 2",
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.087585
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          -0.071312,
-          0.341595
+          0.173009,
+          0.209009
         ],
         "rotation": [
-          -1.319944,
+          -2.83616,
           0,
           -1.570796
         ],
@@ -1522,16 +1522,16 @@
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.077277
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          0.061284,
-          0.344103
+          0.149525,
+          0.25937
         ],
         "rotation": [
-          -1.822486,
+          -2.574361,
           0,
           -1.570796
         ],
@@ -1539,21 +1539,21 @@
         "parent": "gunGroup"
       },
       {
-        "id": "mantlet-arc-4",
-        "name": "Mantlet Arc 4",
+        "id": "mantlet",
+        "name": "Mantlet",
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.065208
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          0.153841,
-          0.291747
+          0.113807,
+          0.301938
         ],
         "rotation": [
-          -2.41495,
+          -2.312561,
           0,
           -1.570796
         ],
@@ -1566,16 +1566,126 @@
         "zone": "gun",
         "halfExtents": [
           0.035,
-          0.605,
-          0.071708
+          0.575,
+          0.037632
         ],
         "position": [
           0,
-          0.200896,
-          0.19713
+          0.068288,
+          0.33381
         ],
         "rotation": [
-          -2.914794,
+          -2.050762,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-6",
+        "name": "Mantlet Arc 6",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.575,
+          0.037632
+        ],
+        "position": [
+          0,
+          0.016072,
+          0.352816
+        ],
+        "rotation": [
+          -1.788962,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-7",
+        "name": "Mantlet Arc 7",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.575,
+          0.037632
+        ],
+        "position": [
+          0,
+          -0.039285,
+          0.357659
+        ],
+        "rotation": [
+          -1.527163,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-8",
+        "name": "Mantlet Arc 8",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.575,
+          0.037632
+        ],
+        "position": [
+          0,
+          -0.094009,
+          0.348009
+        ],
+        "rotation": [
+          -1.265364,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-9",
+        "name": "Mantlet Arc 9",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.575,
+          0.037632
+        ],
+        "position": [
+          0,
+          -0.14437,
+          0.324525
+        ],
+        "rotation": [
+          -1.003564,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "mantlet-arc-10",
+        "name": "Mantlet Arc 10",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.575,
+          0.088379
+        ],
+        "position": [
+          0,
+          -0.225894,
+          0.253216
+        ],
+        "rotation": [
+          -0.797237,
           0,
           -1.570796
         ],
@@ -1587,19 +1697,41 @@
         "name": "Gun Sleeve",
         "zone": "gun",
         "halfExtents": [
-          0.305,
-          0.25,
-          0.2135
+          0.24,
+          0.105,
+          0.035
         ],
         "position": [
           0,
-          -0.09,
-          0.5505
+          -0.205,
+          0.723
         ],
         "rotation": [
           0,
           0,
           0
+        ],
+        "armorThickness": 65,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "gun-sleeve-chamfer",
+        "name": "Gun Sleeve Chamfer",
+        "zone": "gun",
+        "halfExtents": [
+          0.035,
+          0.245,
+          0.142467
+        ],
+        "position": [
+          0,
+          -0.007614,
+          0.650357
+        ],
+        "rotation": [
+          -2.183012,
+          0,
+          -1.570796
         ],
         "armorThickness": 65,
         "parent": "gunGroup"

@@ -103,8 +103,9 @@ test('frontal hits land on the glacis, nose, lower glacis and mantlet', () => {
   }
   for (const x of range(-0.8, 0.8, 0.1)) for (const y of range(0.8, 1.1, 0.06)) if (!fitting(x, y)) expectPlate(`nose ${x.toFixed(1)},${y.toFixed(2)}`, [x, y, 10], [0, 0, -1], 45, 'hull');
   for (const x of range(-0.8, 0.8, 0.1)) for (const y of range(0.45, 0.75, 0.06)) expectPlate(`lower glacis ${x.toFixed(1)},${y.toFixed(2)}`, [x, y, 10], [0, 0, -1], 45, 'hull');
-  for (const x of range(-0.55, 0.55, 0.1)) for (const y of range(1.82, 2.28, 0.06)) {
-    if (Math.abs(x) < 0.12 && Math.abs(y - 2.062) < 0.12) continue; // barrel
+  // The domed mantlet ends (|X| > 0.45) curve away from the flat chords.
+  for (const x of range(-0.4, 0.4, 0.1)) for (const y of range(1.82, 2.26, 0.06)) {
+    if (Math.abs(x) < 0.13 && Math.abs(y - 2.062) < 0.13) continue; // barrel and exit collar
     expectPlate(`mantlet ${x.toFixed(2)},${y.toFixed(2)}`, [x, y, 10], [0, 0, -1], 65, 'gun', 0, 0.1);
   }
 });

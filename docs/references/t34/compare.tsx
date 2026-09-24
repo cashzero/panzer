@@ -32,7 +32,11 @@ function Tank() {
 }
 // Orthographic panels registered to the Dyer drawing (see views.ts). The
 // "perspective" mode is an oblique orthographic camera, not a true perspective.
-const views = mode === 'perspective' ? [
+// "detail" zooms on the gun mount: ?mode=detail&view=side|front|quarter.
+const detail = query.get('view') ?? 'quarter';
+const views = mode === 'detail' ? [
+  {name: 'detail', left: 0, top: 0, width: 1200, height: 800, ppm: 420, origin: [600, 400], target: [0, 2.06, 1.9], position: detail === 'side' ? [-20, 2.06, 1.9] : detail === 'front' ? [0, 2.06, 20] : [-8, 7, 12], up: [0, 1, 0]},
+] : mode === 'perspective' ? [
   {name: 'perspective', left: 0, top: 0, width: 1200, height: 800, ppm: 140, origin: [600, 520], position: query.has('rear') ? [-8, 6, -10] : [8, 6, 10], up: [0, 1, 0]},
 ] : VIEWS;
 createRoot(document.getElementById('root')!).render(<>
@@ -40,7 +44,7 @@ createRoot(document.getElementById('root')!).render(<>
     <Canvas orthographic dpr={1} gl={{preserveDrawingBuffer: true, alpha: true, antialias: true}}
       onCreated={({camera, gl, scene}) => {
         const c = camera as THREE.OrthographicCamera;
-        c.position.fromArray(v.position); c.up.fromArray(v.up); c.lookAt(0, 0, 0);
+        c.position.fromArray(v.position); c.up.fromArray(v.up); c.lookAt(...((v as any).target ?? [0, 0, 0]) as [number, number, number]);
         c.left = -v.origin[0] / v.ppm; c.right = (v.width - v.origin[0]) / v.ppm;
         c.top = v.origin[1] / v.ppm; c.bottom = -(v.height - v.origin[1]) / v.ppm;
         c.near = .1; c.far = 100; c.updateProjectionMatrix(); gl.setClearColor(0xffffff, 0);

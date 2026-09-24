@@ -6,7 +6,7 @@ import path from 'node:path';
 import * as THREE from 'three';
 const [mp, tp, out, passArg] = process.argv.slice(2);
 if (!mp || !tp || !out) throw Error('Provide original model, original tank and output directory');
-const LAST_PASS = 2;
+const LAST_PASS = 3;
 const pass = Number(passArg ?? LAST_PASS);
 const m = JSON.parse(fs.readFileSync(mp)), t = JSON.parse(fs.readFileSync(tp));
 const r6 = v => Math.round(v * 1e6) / 1e6;
@@ -406,6 +406,54 @@ if (pass >= 2) {
     return quadPlate(i === 2 ? 'mantlet' : `mantlet-arc-${i}`, i === 2 ? 'Mantlet' : `Mantlet Arc ${i}`, [[-0.6, y0, z0], [0.6, y0, z0], [0.6, y1, z1], [-0.6, y1, z1]], T('mantlet'), 'gunGroup', [0, 0, 1], {zone: 'gun'}); });
   const keep = t.armorModel.plates.filter(p => p.parent === 'hull' || p.id === 'turret-roof');
   t.armorModel.plates = [...keep.filter(p => p.parent === 'hull'), ...turretFaces, plateOf('turret-roof'), ...mantletPlates, plateOf('gun-sleeve')].map(tidy);
+}
+
+if (pass >= 3) {
+  // F-34 gun mount, re-measured from the drawing's side/front views and photos
+  // of preserved vehicles (gun-local metres, gun axis at 0). The old mount was a
+  // 1.2 m slab with a 0.61 m box in front, which read as one big block.
+  const tidy = p => ({...p, halfExtents: v6(p.halfExtents), position: v6(p.position), rotation: v6(p.rotation)});
+  // Mantlet: a horizontal half-cylinder, R 0.25 about (Z 0.145, Y -0.03),
+  // sloping back into the turret face below Y -0.15, with domed ends (1.14 m
+  // overall in the front view).
+  // The mantlet stops at the casting's lower edge (local Y -0.342) instead of
+  // hanging over the turret-ring gap.
+  const R = 0.25, C = [0.145, -0.03], HALF = 0.5, BOTTOM = SHELL_BOTTOM + TURRET[1] - 2.062;
+  const arcAt = step => { const pts = []; for (let a = 110; a >= -40; a -= step) pts.push([C[0] + R * Math.cos(a * Math.PI / 180), C[1] + R * Math.sin(a * Math.PI / 180)]); return pts; };
+  const arc = arcAt(5);   // fine enough that the curve does not band
+  const profile = [...arc, [0.22, -0.31], [0.2, BOTTOM], [0.03, BOTTOM], [0.03, arc[0][1]]];   // [Z, Y]
+  Object.assign(node('gun', 'rounded-f34-mantlet'), {shape: {outline: profile.map(([z, y]) => v6([-z, y]))}, depth: 2 * HALF, position: [-HALF, 0, 0]});
+  const capIndex = m.slots.gun.findIndex(n => n.id === 'rounded-f34-mantlet') + 1;
+  m.slots.gun.splice(capIndex, 0, ...[-1, 1].map(k => ({id: `mantlet-end-cap-${k < 0 ? 'right' : 'left'}`, type: 'sphere', radius: 1, widthSegments: 24, heightSegments: 16, position: v6([k * HALF, C[1], C[0]]), scale: [0.07, R, R], materialRole: 'mantlet'})));   // shallow domes, not capsule ends
+  // Armoured sleeve over the recoil cradle: 0.44 m wide, barrel near its top,
+  // upper front chamfered down to the vertical lower face; bolted side flanges.
+  const sleeve = node('gun', 'recoil-housing');
+  for (const key of ['size']) delete sleeve[key];
+  Object.assign(sleeve, {type: 'extrude', shape: {outline: [[0.337, 0.125], [0.6, 0.125], [0.758, -0.1], [0.758, -0.31], [0.337, -0.31]].map(([z, y]) => v6([-z, y]))}, depth: 0.44, position: [-0.22, 0, 0], rotation: [0, r6(Math.PI / 2), 0]});
+  const fittings = [];
+  for (const [s, k] of [['right', -1], ['left', 1]]) {
+    fittings.push({id: `sleeve-flange-${s}`, type: 'box', size: [0.04, 0.3, 0.32], position: [k * 0.24, -0.16, 0.53], materialRole: 'mantlet'});
+    fittings.push({id: `sleeve-top-bolt-${s}`, type: 'cylinder', radiusTop: 0.018, radiusBottom: 0.018, height: 0.02, radialSegments: 12, position: v6([k * 0.12, 0.135, 0.45]), materialRole: 'steel'});
+    for (const y of [-0.13, -0.23]) for (const z of [0.42, 0.62]) fittings.push({id: `sleeve-bolt-${s}-${Math.round(-y * 100)}-${Math.round(z * 100)}`, type: 'cylinder', radiusTop: 0.018, radiusBottom: 0.018, height: 0.02, radialSegments: 12, position: v6([k * 0.27, y, z]), rotation: [0, 0, r6(Math.PI / 2)], materialRole: 'steel'});
+  }
+  m.slots.gun.splice(m.slots.gun.indexOf(sleeve) + 1, 0, ...fittings);
+  // Barrel: r 0.067 tapering to 0.051, exit collar where it leaves the sleeve's
+  // chamfer, muzzle band r 0.059 from Z 2.41 to the muzzle at 2.462.
+  const muzzle = t.mounts.muzzleDistance;
+  Object.assign(node('gun', 'barrel-root'), {id: 'barrel-exit-collar', radiusTop: 0.09, radiusBottom: 0.09, height: 0.08, position: [0, 0, 0.72]});
+  Object.assign(node('gun', 'f34-barrel'), {radiusTop: 0.051, radiusBottom: 0.067, height: r6(2.41 - 0.76), position: [0, 0, r6((2.41 + 0.76) / 2)]});
+  Object.assign(node('gun', 'plain-muzzle-ring'), {radiusTop: 0.059, radiusBottom: 0.059, height: r6(muzzle - 2.41), position: [0, 0, r6((muzzle + 2.41) / 2)]});
+  // Coaxial DT on the mantlet face to the right of the sleeve.
+  node('gun', 'coaxial-dt-opening').position = [-0.25, -0.04, 0.392];
+  // Armour: chords along the mantlet arc (domed ends included in the width) and
+  // a box for the sleeve.
+  const prof = [...arcAt(15), [0.22, -0.31]];
+  const mantletPlates = prof.slice(0, -1).flatMap(([z1, y1], i) => { const [z0, y0] = prof[i + 1];
+    return quadPlate(i === 4 ? 'mantlet' : `mantlet-arc-${i}`, i === 4 ? 'Mantlet' : `Mantlet Arc ${i}`, [[-0.57, y0, z0], [0.57, y0, z0], [0.57, y1, z1], [-0.57, y1, z1]], thick('mantlet'), 'gunGroup', [0, 0, 1], {zone: 'gun'}); });
+  // Sleeve: vertical lower front plus the chamfer the barrel exits through.
+  const sleevePlate = {...plateOf('gun-sleeve'), halfExtents: [0.24, 0.105, 0.035], position: [0, -0.205, 0.723]};   // thickness on Z: the front face takes the hits
+  const chamfer = quadPlate('gun-sleeve-chamfer', 'Gun Sleeve Chamfer', [[-0.24, -0.1, 0.758], [0.24, -0.1, 0.758], [0.24, 0.125, 0.6], [-0.24, 0.125, 0.6]], thick('gun-sleeve'), 'gunGroup', [0, 1, 1], {zone: 'gun'});
+  t.armorModel.plates = [...t.armorModel.plates.filter(p => p.parent !== 'gunGroup'), ...mantletPlates, sleevePlate, ...chamfer].map(tidy);
 }
 
 fs.writeFileSync(path.join(out, 'model.json'), serializeModel(m));

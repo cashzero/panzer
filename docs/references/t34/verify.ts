@@ -118,7 +118,7 @@ const landmarks: Landmark[] = [
   ['Front: turret width', 298, b => widthAt(shell(b)) * 152],
   ['Front: turret roof', 1177, b => fy(Math.max(...shell(b).map(p => p[1])))],
   ['Front: gun axis', 1227.5, b => fy(c(b, 'f34-barrel', 1))],
-  ['Front: mantlet width', 183, b => span(b, 'rounded-f34-mantlet', 0) * 152],
+  ['Front: mantlet width', 183, b => (b.bounds['mantlet-end-cap-left'] ? mx(b, 'mantlet-end-cap-left', 0) - mn(b, 'mantlet-end-cap-right', 0) : span(b, 'rounded-f34-mantlet', 0)) * 152],
   ['Front: mantlet height', 97, b => span(b, 'rounded-f34-mantlet', 1) * 152],
   ['Front: hull MG X', 216, b => fx(c(b, 'hull-mg-ball', 0))],
   ['Front: hull MG Y', 1360, b => fy(c(b, 'hull-mg-ball', 1))],

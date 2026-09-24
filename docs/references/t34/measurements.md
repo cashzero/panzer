@@ -16,8 +16,8 @@ Acceptance tolerance: 12 px (79 mm), for game-scale proportions.
 | Side: turret rear | 449 | 468.16 | 449.01 | 0.01 |
 | Side: turret roof front edge | 713 | 746.61 | 713.03 | 0.03 |
 | Side: turret casting front | 782 | 770.64 | 782.04 | 0.04 |
-| Side: mantlet front | 805 | 813.20 | 804.99 | 0.01 |
-| Side: gun sleeve front | 861 | 841.32 | 860.93 | 0.07 |
+| Side: mantlet front | 805 | 813.20 | 804.84 | 0.16 |
+| Side: gun sleeve front | 861 | 841.32 | 860.02 | 0.98 |
 | Side: gun axis | 197.5 | 182.68 | 197.58 | 0.08 |
 | Side: muzzle | 1119 | 1124.04 | 1119.02 | 0.02 |
 | Side: cupola centre | 617.5 | 583.68 | 615.60 | 1.90 |
@@ -74,8 +74,8 @@ Acceptance tolerance: 12 px (79 mm), for game-scale proportions.
 | Front: turret width | 298 | 310.08 | 292.14 | 5.86 |
 | Front: turret roof | 1177 | 1157.38 | 1178.20 | 1.20 |
 | Front: gun axis | 1227.5 | 1218.18 | 1233.08 | 5.58 |
-| Front: mantlet width | 183 | 174.80 | 182.40 | 0.60 |
-| Front: mantlet height | 97 | 88.16 | 88.16 | 8.84 |
+| Front: mantlet width | 183 | 174.80 | 173.28 | 9.72 |
+| Front: mantlet height | 97 | 88.16 | 85.42 | 11.58 |
 | Front: hull MG X | 216 | 392.80 | 215.72 | 0.28 |
 | Front: hull MG Y | 1360 | 1347.53 | 1360.00 | 0.00 |
 | Front: driver hatch X | 328 | 219.52 | 328.20 | 0.20 |
@@ -91,7 +91,7 @@ Acceptance tolerance: 12 px (79 mm), for game-scale proportions.
 | Rear: turret width | 297 | 310.08 | 292.14 | 4.86 |
 | Rear: turret roof | 1173 | 1155.88 | 1176.70 | 3.70 |
 
-85/85 pass. Mean error: 31.58 → 1.61 px. Maximum final error: 10.88 px.
+85/85 pass. Mean error: 31.58 → 1.76 px. Maximum final error: 11.58 px.
 
 Reported but not accepted (cross-view conflict in the drawing, see README):
 
