@@ -6,7 +6,9 @@ import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { N8AOPass } from 'n8ao';
 import { createColorGradePass } from './colorGrade';
+import { createShockwavePass, updateShockwavePass } from './shockwaves';
 import { Vector2 } from 'three';
+import type { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 function disposeAO(pass: N8AOPass) {
   // n8ao 2.0.1 inherits the no-op Pass.dispose(). Release its owned targets,
@@ -31,6 +33,8 @@ function disposeAO(pass: N8AOPass) {
 export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
   const { gl, scene, camera, size } = useThree();
   const pipeline = useRef<EffectComposer | null>(null);
+  const shockwaves = useRef<ShaderPass | null>(null);
+  const bufferSize = useRef(new Vector2());
   const sample = useRef({ seconds: 0, frames: 0 });
 
   useEffect(() => {
@@ -44,18 +48,24 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     ao.configuration.halfRes = true;
     ao.setQualityMode('Medium');
     const bloom = new UnrealBloomPass(new Vector2(1, 1), 0.08, 0.35, 12.0);
+    // Blast waves bend the lit HDR image, ahead of tone mapping and grading.
+    const shock = createShockwavePass();
     const output = new OutputPass();
     const grade = createColorGradePass();
     const antialias = new SMAAPass();
     composer.addPass(ao);
     composer.addPass(bloom);
+    composer.addPass(shock);
     composer.addPass(output);
     composer.addPass(grade);
     composer.addPass(antialias);
     composer.setSize(size.width, size.height);
     pipeline.current = composer;
+    shockwaves.current = shock;
     return () => {
       pipeline.current = null;
+      shockwaves.current = null;
+      shock.dispose();
       disposeAO(ao);
       bloom.dispose();
       output.dispose();
@@ -72,7 +82,13 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
   }, [gl, size]);
 
   useFrame((_, delta) => {
-    if (pipeline.current && !mapMode) pipeline.current.render(delta);
+    if (pipeline.current && !mapMode) {
+      if (shockwaves.current) {
+        gl.getDrawingBufferSize(bufferSize.current);
+        updateShockwavePass(shockwaves.current, camera, bufferSize.current.x, bufferSize.current.y);
+      }
+      pipeline.current.render(delta);
+    }
     else gl.render(scene, camera);
     if (import.meta.env.DEV && delta < 2) {
       sample.current.seconds += delta;

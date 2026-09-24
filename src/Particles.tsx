@@ -6,6 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getTerrainHeight, getTerrainMeshHeight } from './Terrain';
 import { queueFlashLight } from './rendering/FlashLights';
 import { queueImpactDecal } from './rendering/ImpactDecals';
+import { queueShockwave } from './rendering/shockwaves';
 import { SUN_DIRECTION } from './rendering/BattlefieldLighting';
 
 // --- Textures ---
@@ -760,8 +761,10 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     // The propellant gas burns on out of the bore as a forward tongue of flame.
     add('muzzleFlash', n.x * 2.7 * s, n.y * 2.7 * s, n.z * 2.7 * s, 0, 0, 0, 3.8 * s, '#ff7a1a', 0.055, 0);
     add('muzzleFlash', n.x * 3.6 * s, n.y * 3.6 * s, n.z * 3.6 * s, 0, 0, 0, 2.6 * s, '#ff5a10', 0.045, 0);
-    // Kept compact: a camera-facing ring this close to the lens otherwise balloons over the whole view.
-    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 2.6 * s, '#5e5850', 0.115, Math.random() * Math.PI * 2);
+    // Kept compact: a camera-facing ring this close to the lens otherwise
+    // balloons over the whole view. The blast wave itself is the refraction
+    // ring queued with the flash (rendering/shockwaves.ts).
+    add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 3.2 * s, '#5e5850', 0.12, Math.random() * Math.PI * 2);
     for (let i = 0; i < sc(7); i++) {
       jet('muzzleFireball', 0.9 * s + Math.random() * 2.2 * s, 0.26, (11 + Math.random() * 12) * sv, (2.4 + Math.random() * 1.9) * s, i < 3 ? '#fff0b0' : '#ff6a00', 0.09 + Math.random() * 0.04, (Math.random() - 0.5) * 1.8);
     }
@@ -782,20 +785,20 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     const blastZ = pos.z + n.z * 1.5 * s;
     const groundY = getTerrainHeight(blastX, blastZ);
     const clearance = pos.y + n.y * 1.5 * s - groundY;
-    const blastReach = 3.4 * sv;
+    const blastReach = 5.0 * sv;
     if (clearance < blastReach && clearance > -0.5) {
       const strength = 1 - Math.max(0, clearance) / blastReach;
       const horiz = Math.hypot(n.x, n.z) || 1;
       const fx = n.x / horiz;
       const fz = n.z / horiz;
-      const count = sc(Math.round(10 * strength) + 2);
+      const count = sc(Math.round(16 * strength) + 4);
       for (let i = 0; i < count; i++) {
         const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
         // Bias the ring forward along the line of fire.
         const rx = Math.cos(angle) + fx * 0.8;
         const rz = Math.sin(angle) + fz * 0.8;
         const rl = Math.hypot(rx, rz) || 1;
-        const speed = (5 + Math.random() * 6) * sv * (0.5 + strength * 0.5);
+        const speed = (7 + Math.random() * 8) * sv * (0.5 + strength * 0.5);
         add(
           'muzzleSmoke',
           blastX - pos.x + (rx / rl) * 0.5 * s, groundY - pos.y + 0.35 * s, blastZ - pos.z + (rz / rl) * 0.5 * s,
@@ -877,9 +880,16 @@ function spawnSecondaryEffects(p: Particle) {
       color, intensity, range, duration, flicker,
     });
 
+  const shock = (offset: number, radius: number, duration: number, strength: number) =>
+    queueShockwave({
+      position: new THREE.Vector3(pos.x + nx * offset, pos.y + ny * offset, pos.z + nz * offset),
+      radius, duration, strength,
+    });
+
   switch (type) {
     case 'fire':
       light(1.0 * s, '#ffb866', 60 * Math.pow(s, 1.5), 16 * sv, 90);
+      shock(1.2 * s, 14 * sv, 380, 16 * sv);
       break;
     case 'hit_penetrate':
       light(1.4, '#ffd49a', 18 * s, 9 * sv, 110);
@@ -892,9 +902,11 @@ function spawnSecondaryEffects(p: Particle) {
     case 'he_hit_ground':
     case 'he_hit_penetrate':
       light(1.5, '#ffa050', 80 * s, 18 * sv, 220);
+      shock(0.5, 16 * sv, 420, 14 * sv);
       break;
     case 'tank_explosion':
       light(3.0, '#ff9040', 450 * s, 40 * sv, 1300, true);
+      shock(1.2, 32 * sv, 650, 22 * sv);
       break;
     case 'hit_ground':
       light(1.0, '#ffc88a', 8 * s, 7 * sv, 60);
