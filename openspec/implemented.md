@@ -7,7 +7,8 @@ Completed roadmap items are documented here.
 - Gunner view toggles with `V` or mouse middle button.
 - Gunner view supports range calibration with `PageUp` and `PageDown`.
 - Gunner view supports multi-step zoom control.
-- Gunner sight zeroing keeps the center dot as the calibrated point of impact for the selected distance, with the current zero shown in the HUD.
+- Gunner sight zeroing keeps the reticle's aim point as the calibrated point of impact for the selected distance, with the current zero shown in the HUD.
+- The gunner's sight (`GunnerSight.tsx`) is a round eyepiece with the reticle of the player's nation, etched black over a pale halo so it reads on sky and foliage alike: German tanks get the Turmzielfernrohr's seven triangles under a range ring (Pzgr. or Sprgr., in hectometres) that turns until the set range stands under the pointer; American tanks the M70 cross with its 30-0-30 deflection scale; the T-34 an inverted-V aim mark with lead chevrons beside a range scale (БР or ОФ) whose pointer slides to the set range. Magnification, range set, round and velocity, and penetration at that range sit on a HUD plate beside the eyepiece.
 - The player tank update loop is split into focused modules for input, firing, turret aiming, aim point calculation, camera placement, and tank physics.
 - Third-person right-click resolves a designated target from the screen-center ray across tanks, buildings, trees, terrain, and a stable long-range fallback.
 - Player right-click target pursuit no longer stops short on a coarse deadzone; the turret and sight keep converging toward the designated target while still respecting traverse and elevation speed limits.

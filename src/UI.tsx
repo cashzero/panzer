@@ -1,11 +1,11 @@
-import { useGameStore, GUNNER_ZOOM_LABELS } from './store';
+import { useGameStore } from './store';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
-import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { getTankDef } from './tanks/registry';
 import type { AllyBaseMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 import { gridReference, mapView } from './MapMode';
 import { ArmourSymbol } from './screens/menuParts';
+import { GunnerSight } from './GunnerSight';
 
 
 
@@ -120,50 +120,6 @@ function PhysicsHUD() {
               style={{ height: `${Math.min(50, Math.abs(physics.rightTrack / 12) * 50)}%`, [physics.rightTrack >= 0 ? 'bottom' : 'top']: '50%' }} />
           </div>
         </div>
-      </div>
-    </div>
-  );
-}
-
-function GunnerSightOverlay() {
-  const calibrationDistance = useGameStore((state) => state.calibrationDistance);
-  const ammoType = useGameStore((state) => state.ammoType);
-  const gunnerZoom = useGameStore((state) => state.gunnerZoom);
-  const playerTankType = useGameStore((state) => state.playerTank.tankType);
-  const playerDef = getTankDef(playerTankType);
-  const ammo = playerDef.weapons[ammoType] ?? playerDef.weapons.AP;
-  const velocity = ammo.velocity;
-  const penetrationAtSightDistance = Math.round(
-    getAmmoPenetrationAtDistance(ammo, ammoType, playerDef.caliber, calibrationDistance),
-  );
-
-  return (
-    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-      {/* Black vignette/mask */}
-      <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_40%,black_70%)]" />
-
-      {/* The center dot is the active zero for the selected calibration distance. */}
-      <div className="relative w-full h-full flex items-center justify-center">
-        {/* Main horizontal line */}
-        <div className="absolute w-1/2 h-0.5 bg-red-500/80" />
-        {/* Main vertical line */}
-        <div className="absolute h-[200%] w-0.5 bg-red-500/80" />
-
-        {/* Center dot */}
-        <div className="absolute w-1 h-1 bg-red-500 rounded-full" />
-        <div className="absolute top-1/2 left-1/2 ml-3 mt-3 text-xs font-bold tracking-widest text-yellow-400/90">
-          ZERO {calibrationDistance}m
-        </div>
-      </div>
-
-      {/* Info panel */}
-      {/* Bottom right, clear of the battle messages on the left. */}
-      <div className="absolute bottom-10 right-10 text-right text-red-500 font-mono text-xl">
-        <div>ZOOM: {GUNNER_ZOOM_LABELS[gunnerZoom]}</div>
-        <div>DIST: {calibrationDistance}m</div>
-        <div>AMMO: {ammoType}</div>
-        <div className="text-sm opacity-80">VEL: {velocity}m/s</div>
-        <div className="text-sm opacity-80">PEN: {penetrationAtSightDistance}mm</div>
       </div>
     </div>
   );
@@ -469,7 +425,7 @@ export function UI() {
 
   return (
     <div className="battle-hud">
-      {viewMode === 'gunner' && !isMapMode && <GunnerSightOverlay />}
+      {viewMode === 'gunner' && !isMapMode && <GunnerSight />}
       {viewMode === 'gunner' && !isMapMode && <GunnerFireOverlay />}
 
       {!isMapMode && <DirectionIndicator />}

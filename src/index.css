@@ -1221,6 +1221,53 @@ select:focus-visible {
 .track-scale .is-forward { background: var(--chalk); }
 .track-scale .is-reverse { background: var(--pencil-red); }
 
+/* ---- Gunner's sight -------------------------------------------------- */
+
+.gunner-sight {
+  position: absolute;
+  inset: 0;
+}
+
+.gunner-sight svg {
+  position: absolute;
+  inset: 0;
+}
+
+.eyepiece-body { fill: #070806; }
+.eyepiece-rim { fill: none; stroke: #1b1d17; stroke-width: 3; }
+
+.reticle-ink { fill: none; stroke: #0c0e0a; stroke-linecap: square; }
+.reticle-ink--solid { fill: #0c0e0a; }
+.reticle-halo { fill: rgba(236, 230, 208, 0.32); stroke: rgba(236, 230, 208, 0.32); stroke-linecap: square; stroke-linejoin: round; }
+
+.reticle-text {
+  fill: #0c0e0a;
+  stroke: rgba(236, 230, 208, 0.38);
+  stroke-width: 3px;
+  paint-order: stroke;
+  font-family: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+  text-anchor: middle;
+}
+
+.reticle-text--small { font-size: 14px; }
+
+.reticle-ring,
+.reticle-slider { transition: transform 260ms ease-out; }
+
+.sight-data {
+  position: absolute;
+  z-index: 12;
+  right: 18px;
+  bottom: 16px;
+  display: grid;
+  width: min(240px, calc(100vw - 36px));
+  gap: 4px;
+  padding: 11px 14px 12px;
+  border-left: 3px solid var(--brass);
+}
+
 .commander-reticle {
   position: absolute;
   top: 50%;
@@ -1331,6 +1378,15 @@ select:focus-visible {
 
   .track-scale {
     height: 42px;
+  }
+
+  /* The driver's cluster spans the bottom on narrow screens. */
+  .sight-data {
+    top: 49px;
+    right: 8px;
+    bottom: auto;
+    width: 180px;
+    padding: 8px 10px;
   }
 
   .battle-messages {

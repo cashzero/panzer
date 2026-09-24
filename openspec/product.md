@@ -139,6 +139,7 @@ Tracks:
 
 - Third-person view is the default tactical driving camera.
 - Gunner view acts as the precision aiming mode with a stronger focus on sight alignment and ranging.
+- The gunner's sight follows the telescope of the player's nation: German Turmzielfernrohr triangles with a range ring turned to the set range, the American M70 cross with a 30-0-30 deflection scale, Soviet chevrons beside a sliding range scale. Whatever the pattern, its aim point is the calibrated point of impact at the selected zero.
 - Map mode provides high-level battlefield awareness and command support.
 - Camera transitions should preserve player orientation and avoid disorienting jumps.
 - The third-person camera never passes below the terrain, and suspension bounce should not shake the whole view.
