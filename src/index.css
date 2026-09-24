@@ -84,7 +84,8 @@ select:focus-visible {
 
 .depot,
 .orders,
-.map-orders {
+.map-orders,
+.battle-hud {
   --steel: #2c312a;
   --steel-raised: #383e34;
   --steel-edge: #4a5144;
@@ -862,9 +863,11 @@ select:focus-visible {
   align-items: center;
   gap: 10px;
   font-size: 14px;
+  white-space: nowrap;
 }
 
 .map-orders__scale i {
+  flex: none;
   height: 7px;
   border: 2px solid var(--chalk);
   border-top: 0;
@@ -966,30 +969,31 @@ select:focus-visible {
 
 /* Grid square references on the tactical map, in the north-west corner. */
 .battle-map-ref {
-  padding: 3px 0 0 5px;
-  color: rgba(22, 26, 18, 0.8);
+  color: #ece6d2;
   font-family: "Big Shoulders Stencil", Bahnschrift, sans-serif;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 800;
+  text-shadow: 0 0 2px rgba(20, 22, 16, 0.95), 0 0 6px rgba(20, 22, 16, 0.7);
   white-space: nowrap;
   pointer-events: none;
   user-select: none;
 }
 
-/* In-battle optical and driver displays */
+/* ---- In-battle displays ------------------------------------------------
+   The same painted steel, chalk and brass as the pre-battle screens, laid
+   over the view as small plates. */
 .battle-hud {
   position: absolute;
   inset: 0;
   z-index: 10;
   overflow: hidden;
-  color: #e5e5dc;
-  font-family: Consolas, "Courier New", monospace;
+  background: none;
   pointer-events: none;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.85);
 }
 
-.battle-hud * {
-  letter-spacing: 0;
+.hud-plate {
+  background: rgba(44, 49, 42, 0.88);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
 .vehicle-status {
@@ -997,106 +1001,94 @@ select:focus-visible {
   z-index: 12;
   top: 58px;
   left: 18px;
-  width: min(250px, calc(100vw - 36px));
-  border-left: 3px solid #89995c;
-  padding: 11px 13px 12px;
-  background: linear-gradient(90deg, rgba(8, 11, 9, 0.82), rgba(8, 11, 9, 0.48) 78%, transparent);
+  display: grid;
+  width: min(236px, calc(100vw - 36px));
+  gap: 8px;
+  padding: 12px 14px 13px;
+  border-left: 3px solid var(--brass);
 }
 
-.vehicle-status-heading {
+.vehicle-status h2 {
+  margin: 0;
+  font-family: var(--stencil);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.hud-row {
   display: flex;
-  flex-direction: column;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(164, 174, 158, 0.25);
-}
-
-.vehicle-status-heading span,
-.hull-integrity-label span,
-.ammo-status > span,
-.driver-readout > span {
-  color: #9aa59f;
-  font-size: 8px;
-}
-
-.vehicle-status-heading strong {
-  color: #e7d590;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-  font-size: 17px;
-  line-height: 1.15;
-}
-
-.hull-integrity {
-  margin-top: 9px;
-}
-
-.hull-integrity-label {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 4px;
+  gap: 10px;
+  color: var(--chalk-dim);
+  font-size: 14px;
 }
 
-.hull-integrity-label strong {
-  color: #d8ddd5;
-  font-size: 10px;
+.hud-row strong {
+  color: var(--chalk);
+  font-size: 15px;
+  font-weight: 600;
 }
 
+/* Engraved in tenths, like the scales on the data plate. */
 .hull-integrity-track {
-  height: 7px;
-  border: 1px solid rgba(145, 158, 149, 0.48);
-  background: rgba(17, 23, 19, 0.86);
+  height: 6px;
+  margin-top: 4px;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(44, 49, 42, 0.9) calc(10% - 1px) 10%),
+    #1c201a;
 }
 
 .hull-integrity-fill {
   height: 100%;
-  background: linear-gradient(90deg, #70834a, #a9b96c);
-  box-shadow: 0 0 8px rgba(161, 181, 97, 0.3);
+  background-color: var(--chalk);
   transition: width 240ms ease;
 }
 
-.ammo-status {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 9px;
-}
+.hull-integrity-fill.is-critical { background-color: var(--pencil-red); }
 
-.ammo-status strong {
-  min-width: 38px;
+.ammo-round {
+  min-width: 42px;
+  padding: 1px 7px;
   border: 1px solid currentColor;
-  padding: 2px 6px;
-  font-size: 12px;
   text-align: center;
 }
 
-.ammo-status strong.is-ap { color: #e1cf7c; }
-.ammo-status strong.is-apc { color: #d89a5e; }
-.ammo-status strong.is-he { color: #d9685f; }
+.hud-row .ammo-round.is-ap { color: var(--chalk); }
+.hud-row .ammo-round.is-apc { color: var(--brass-light); }
+.hud-row .ammo-round.is-he { color: #e0766a; }
 
 .reload-status {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-top: 7px;
-  color: #b6beb8;
-  font-size: 10px;
-  font-weight: 700;
+  gap: 8px;
+  color: var(--brass-light);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .reload-status i {
-  width: 7px;
-  height: 7px;
-  border: 1px solid currentColor;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: currentColor;
 }
 
-.reload-status.is-ready { color: #a9c56f; }
-.reload-status.is-cycling { color: #d0a45e; }
+.reload-status.is-ready { color: #a9bf78; }
 .reload-status.is-cycling i { animation: reload-pulse 800ms steps(2, end) infinite; }
 
 @keyframes reload-pulse {
   50% { opacity: 0.25; }
+}
+
+.track-damage {
+  margin: 0;
+  color: #e0766a;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .bearing-strip {
@@ -1110,28 +1102,47 @@ select:focus-visible {
 
 .bearing-track {
   position: relative;
-  height: 42px;
+  height: 40px;
   overflow: visible;
-  border-top: 2px solid #8d9d63;
-  border-bottom: 1px solid rgba(143, 157, 147, 0.28);
-  background: linear-gradient(180deg, rgba(6, 9, 7, 0.78), rgba(6, 9, 7, 0.26));
+  border-bottom: 2px solid var(--brass);
+  background: linear-gradient(180deg, rgba(44, 49, 42, 0.86), rgba(44, 49, 42, 0.4));
 }
 
 .bearing-center-line {
   position: absolute;
   top: 0;
   left: 50%;
+  width: 2px;
+  height: 100%;
+  background: var(--brass-light);
+  transform: translateX(-50%);
+}
+
+.bearing-quarter {
+  position: absolute;
+  top: 0;
   width: 1px;
   height: 100%;
-  background: #d9c878;
+  background: rgba(214, 209, 191, 0.25);
 }
 
 .bearing-forward {
   position: absolute;
+  bottom: 2px;
+  left: calc(50% + 6px);
+  color: var(--brass-light);
+  font-size: 12px;
+}
+
+.bearing-marker {
+  position: absolute;
   top: 3px;
-  left: 50%;
-  color: #d9c878;
-  font-size: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.1;
   transform: translateX(-50%);
 }
 
@@ -1141,49 +1152,40 @@ select:focus-visible {
   bottom: 16px;
   left: 50%;
   display: grid;
-  width: min(510px, calc(100vw - 36px));
-  height: 82px;
-  grid-template-columns: 1.15fr 0.7fr 1.15fr 84px;
-  border-top: 2px solid #82905d;
-  border-right: 1px solid rgba(110, 124, 115, 0.4);
-  border-bottom: 1px solid rgba(110, 124, 115, 0.4);
-  border-left: 1px solid rgba(110, 124, 115, 0.4);
-  background: rgba(8, 11, 9, 0.8);
+  width: min(500px, calc(100vw - 36px));
+  height: 80px;
+  grid-template-columns: 1.2fr 0.7fr 1.2fr 76px;
+  border-top: 3px solid var(--brass);
   transform: translateX(-50%);
-  backdrop-filter: blur(2px);
 }
 
 .driver-readout {
-  position: relative;
   display: flex;
   min-width: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  border-right: 1px solid rgba(112, 125, 117, 0.28);
+  gap: 1px;
+  border-right: 1px solid rgba(214, 209, 191, 0.14);
+}
+
+.driver-readout > span,
+.driver-readout small {
+  color: var(--chalk-dim);
+  font-size: 13px;
+  line-height: 1.1;
 }
 
 .driver-readout strong {
-  color: #e4e5d9;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 600;
-  line-height: 0.95;
+  line-height: 1;
 }
 
 .driver-readout--gear strong {
-  color: #e1c96f;
-  font-size: 31px;
-}
-
-.driver-readout--rpm strong {
-  color: #d0a165;
-}
-
-.driver-readout small {
-  margin-top: 2px;
-  color: #77827c;
-  font-size: 7px;
+  color: var(--brass-light);
+  font-family: var(--stencil);
+  font-weight: 800;
 }
 
 .track-readouts {
@@ -1196,20 +1198,19 @@ select:focus-visible {
 .track-readout {
   display: flex;
   align-items: center;
-  gap: 3px;
-  color: #89938d;
-  font-size: 8px;
+  gap: 4px;
+  color: var(--chalk-dim);
+  font-size: 13px;
 }
 
 .track-scale {
   position: relative;
   width: 7px;
-  height: 53px;
+  height: 52px;
   overflow: hidden;
-  border: 1px solid #424d47;
   background:
-    linear-gradient(180deg, transparent 49%, #657069 49%, #657069 51%, transparent 51%),
-    #141915;
+    linear-gradient(180deg, transparent calc(50% - 1px), var(--chalk-dim) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
+    #1c201a;
 }
 
 .track-scale > div {
@@ -1217,8 +1218,8 @@ select:focus-visible {
   width: 100%;
 }
 
-.track-scale .is-forward { background: #8ca65d; }
-.track-scale .is-reverse { background: #b65a50; }
+.track-scale .is-forward { background: var(--chalk); }
+.track-scale .is-reverse { background: var(--pencil-red); }
 
 .commander-reticle {
   position: absolute;
@@ -1303,27 +1304,29 @@ select:focus-visible {
   .vehicle-status {
     top: 49px;
     left: 8px;
-    width: 190px;
-    padding: 8px 9px;
+    width: 196px;
+    gap: 5px;
+    padding: 9px 10px;
   }
 
-  .vehicle-status-heading strong {
-    font-size: 14px;
+  .vehicle-status h2 {
+    font-size: 20px;
   }
 
   .driver-cluster {
     bottom: 8px;
     width: calc(100vw - 16px);
-    height: 68px;
+    height: 66px;
     grid-template-columns: 1fr 0.62fr 1fr 62px;
   }
 
   .driver-readout strong {
-    font-size: 21px;
+    font-size: 24px;
   }
 
-  .driver-readout--gear strong {
-    font-size: 24px;
+  .driver-readout > span,
+  .driver-readout small {
+    font-size: 11px;
   }
 
   .track-scale {

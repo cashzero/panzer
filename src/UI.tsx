@@ -45,14 +45,14 @@ function ReloadIndicator() {
   const isReloadingMagazine = isAutomatic && magazineRounds === 0 && secondsLeft > 0;
   const isReady = secondsLeft === 0 && !isBursting && !isReloadingMagazine;
   const label = isBursting
-    ? `FIRING (${burstRemaining})`
+    ? `Firing, ${burstRemaining} left`
     : isReloadingMagazine
-      ? `RELOAD ${secondsLeft.toFixed(1)}s`
+      ? `Reloading ${secondsLeft.toFixed(1)} s`
       : isAutomatic
-        ? `READY ${magazineRounds}/${magazineSize}`
+        ? `Ready, ${magazineRounds} of ${magazineSize}`
         : isReady
-          ? 'READY'
-          : `RELOAD ${secondsLeft.toFixed(1)}s`;
+          ? 'Ready to fire'
+          : `Reloading ${secondsLeft.toFixed(1)} s`;
 
   return (
     <div className={`reload-status ${isReady ? 'is-ready' : 'is-cycling'}`}>
@@ -90,20 +90,20 @@ function PhysicsHUD() {
   const gearStr = physics.gear === 0 ? 'N' : physics.gear < 0 ? 'R' : `D${physics.gear}`;
 
   return (
-    <div className="driver-cluster">
-      <div className="driver-readout driver-readout--speed">
-        <span>ROAD SPEED</span>
+    <div className="driver-cluster hud-plate">
+      <div className="driver-readout">
+        <span>Speed</span>
         <strong>{speedKmh}</strong>
-        <small>KM/H</small>
+        <small>km/h</small>
       </div>
       <div className="driver-readout driver-readout--gear">
-        <span>GEAR</span>
+        <span>Gear</span>
         <strong>{gearStr}</strong>
       </div>
-      <div className="driver-readout driver-readout--rpm">
-        <span>ENGINE</span>
+      <div className="driver-readout">
+        <span>Engine</span>
         <strong>{rpm}</strong>
-        <small>RPM / {hp} HP</small>
+        <small>rpm, {hp} hp</small>
       </div>
       <div className="track-readouts" aria-label="Track drive output">
         <div className="track-readout">
@@ -157,7 +157,8 @@ function GunnerSightOverlay() {
       </div>
 
       {/* Info panel */}
-      <div className="absolute bottom-10 left-10 text-red-500 font-mono text-xl">
+      {/* Bottom right, clear of the battle messages on the left. */}
+      <div className="absolute bottom-10 right-10 text-right text-red-500 font-mono text-xl">
         <div>ZOOM: {GUNNER_ZOOM_LABELS[gunnerZoom]}</div>
         <div>DIST: {calibrationDistance}m</div>
         <div>AMMO: {ammoType}</div>
@@ -176,23 +177,19 @@ function TrackDamageStatus() {
   const statuses: string[] = [];
 
   if (trackDestroyed.left) {
-    statuses.push(trackRepairActive.left ? 'Left track damaged - repairing' : trackRepairProgress.left > 0 ? 'Left track damaged - repair paused' : 'Left track damaged');
+    statuses.push(trackRepairActive.left ? 'Left track broken, crew repairing' : trackRepairProgress.left > 0 ? 'Left track broken, repair paused' : 'Left track broken');
   }
 
   if (trackDestroyed.right) {
-    statuses.push(trackRepairActive.right ? 'Right track damaged - repairing' : trackRepairProgress.right > 0 ? 'Right track damaged - repair paused' : 'Right track damaged');
+    statuses.push(trackRepairActive.right ? 'Right track broken, crew repairing' : trackRepairProgress.right > 0 ? 'Right track broken, repair paused' : 'Right track broken');
   }
 
   if (statuses.length === 0) return null;
 
   return (
-    <div className="mt-2 flex flex-col gap-1">
-      {statuses.map((status) => (
-        <div key={status} className="text-sm font-bold text-red-400">
-          {status}
-        </div>
-      ))}
-    </div>
+    <>
+      {statuses.map((status) => <p key={status} className="track-damage">{status}</p>)}
+    </>
   );
 }
 
@@ -230,12 +227,12 @@ function DirectionIndicator() {
   const markers: DirectionMarker[] = [];
   enemies.forEach((e, i) => {
     if (!e.destroyed && playerSideSpotting[e.id]?.spotted) {
-      markers.push(toMarker(e, '#ef4444', `E${i + 1}`));
+      markers.push(toMarker(e, '#e0766a', `E${i + 1}`));
     }
   });
   allies.forEach((a, i) => {
     if (!a.destroyed) {
-      markers.push(toMarker(a, '#3b82f6', `A${i + 1}`));
+      markers.push(toMarker(a, '#8fb0dc', `A${i + 1}`));
     }
   });
 
@@ -251,21 +248,17 @@ function DirectionIndicator() {
       <div className="bearing-track">
         {/* Center tick (forward direction) */}
         <div className="bearing-center-line" />
-        <div className="bearing-forward">FWD</div>
+        <div className="bearing-forward">Ahead</div>
         {/* 90° ticks */}
-        <div className="absolute top-0 h-full w-px bg-gray-700" style={{ left: '25%' }} />
-        <div className="absolute top-0 h-full w-px bg-gray-700" style={{ left: '75%' }} />
+        <div className="bearing-quarter" style={{ left: '25%' }} />
+        <div className="bearing-quarter" style={{ left: '75%' }} />
 
         {/* Markers */}
         {markers.map((m, i) => {
           const pct = angleToPercent(m.angle);
           const distHm = Math.round(m.distance / 100); // in 100m units
           return (
-            <div
-              key={i}
-              className="absolute top-1 flex flex-col items-center -translate-x-1/2"
-              style={{ left: `${pct}%` }}
-            >
+            <div key={i} className="bearing-marker" style={{ left: `${pct}%`, color: m.color }}>
               {/* Triangle marker */}
               <div style={{
                 width: 0, height: 0,
@@ -273,9 +266,7 @@ function DirectionIndicator() {
                 borderRight: '5px solid transparent',
                 borderTop: `8px solid ${m.color}`,
               }} />
-              <div className="text-[10px] font-bold leading-tight whitespace-nowrap" style={{ color: m.color }}>
-                {distHm}
-              </div>
+              <span>{distHm}</span>
             </div>
           );
         })}
@@ -293,8 +284,9 @@ function MapScaleBar() {
   const [bar, setBar] = useState({ metres: 100, pixels: 100 });
   useEffect(() => {
     const timer = window.setInterval(() => {
-      const target = mapView.metresPerPixel * 140;
-      const metres = [25, 50, 100, 200, 250, 500, 1000, 2000].reduce((best, step) => (Math.abs(step - target) < Math.abs(best - target) ? step : best));
+      // The longest round distance that still fits the panel beside its label.
+      const steps = [5, 10, 25, 50, 100, 200, 250, 500, 1000, 2000];
+      const metres = steps.filter((step) => step / mapView.metresPerPixel <= 170).pop() ?? steps[0];
       setBar((current) => {
         const pixels = Math.round(metres / mapView.metresPerPixel);
         return current.metres === metres && current.pixels === pixels ? current : { metres, pixels };
@@ -483,29 +475,26 @@ export function UI() {
       {!isMapMode && <DirectionIndicator />}
 
       {/* Top Left: Status */}
-      <div className="vehicle-status">
-        <div className="vehicle-status-heading">
-          <span>PLAYER VEHICLE</span>
-          <strong>{playerName}</strong>
-        </div>
-        <div className="hull-integrity">
-          <div className="hull-integrity-label">
-            <span>HULL INTEGRITY</span><strong>{Math.max(0, Math.round(health))} / {maxHealth}</strong>
+      <section className="vehicle-status hud-plate" aria-label="Your tank">
+        <h2>{playerName}</h2>
+        <div>
+          <div className="hud-row">
+            <span>Hull</span><strong>{Math.max(0, Math.round(health))} / {maxHealth}</strong>
           </div>
           <div className="hull-integrity-track">
-            <div 
-              className="hull-integrity-fill"
+            <div
+              className={`hull-integrity-fill${health / maxHealth < 0.35 ? ' is-critical' : ''}`}
               style={{ width: `${Math.max(0, (health / maxHealth) * 100)}%` }}
             />
           </div>
         </div>
         {viewMode !== 'gunner' && <TrackDamageStatus />}
-        <div className="ammo-status">
-          <span>LOADED ROUND</span>
-          <strong className={ammoType === 'AP' ? 'is-ap' : ammoType === 'APC' ? 'is-apc' : 'is-he'}>{ammoType}</strong>
+        <div className="hud-row">
+          <span>Loaded</span>
+          <strong className={`ammo-round ${ammoType === 'AP' ? 'is-ap' : ammoType === 'APC' ? 'is-apc' : 'is-he'}`}>{ammoType}</strong>
         </div>
         <ReloadIndicator />
-      </div>
+      </section>
       {isMapMode && <MapModeHUD />}
 
       {/* Crosshair - only in third person */}

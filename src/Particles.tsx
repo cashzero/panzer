@@ -162,6 +162,8 @@ const spriteUniforms = {
   uFogColor: { value: new THREE.Color(0.7, 0.7, 0.66) },
   uFogNear: { value: 120 },
   uFogFar: { value: 1400 },
+  /** Drawing-buffer height in pixels, for sprite sizes. */
+  uViewHeight: { value: 900 },
 };
 const WIND = { x: 0.9, z: 0.35 }; // m/s drift for smoke plumes
 const SMOKE_DILUTE = new THREE.Color('#77706a');
@@ -208,6 +210,8 @@ attribute float aRotation;
 attribute float aVariant;
 attribute vec3 aColor;
 uniform float uMinSize;
+uniform float uReadability;
+uniform float uViewHeight;
 varying float vOpacity;
 varying float vRotation;
 varying float vVariant;
@@ -221,12 +225,23 @@ void main() {
   vColor = aColor;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   vFogDepth = -mvPosition.z;
-  gl_PointSize = aSize * (520.0 / -mvPosition.z);
+  // Pixels per metre at this depth from the real projection, so sprites keep
+  // their size relative to the scene at gunner zoom and at any resolution
+  // (the factor matches the old fixed 520 at 60 degrees and 900 px).
+  float pixelScale = 0.667 * projectionMatrix[1][1] * 0.5 * uViewHeight;
+  float naturalSize = aSize * pixelScale / -mvPosition.z;
+  // Fire and flashes a few hundred metres out cover only a handful of pixels
+  // and vanish against the landscape. Sprites a few pixels across are drawn
+  // up to 3.5 times larger; the gain falls away as they grow (monotonic, so
+  // puffs keep their order), leaving near effects at their true size. The
+  // enlarged flash dims a little.
+  float sizeRatio = naturalSize / 12.0;
+  float readable = naturalSize * (1.0 + uReadability * 2.5 / (1.0 + sizeRatio * sizeRatio));
+  if (readable > 0.0) vOpacity *= min(1.0, naturalSize / readable + 0.6);
   // A floor in pixels keeps distant hits visible; the sprite dims as it is
   // enlarged, so a far flash stays a point of light instead of a blob.
-  float naturalSize = gl_PointSize;
-  gl_PointSize = clamp(max(gl_PointSize, uMinSize), 0.0, 512.0);
-  if (naturalSize > 0.0) vOpacity *= min(1.0, naturalSize / gl_PointSize + 0.35);
+  gl_PointSize = clamp(max(readable, uMinSize), 0.0, 512.0);
+  if (readable > 0.0) vOpacity *= min(1.0, readable / gl_PointSize + 0.35);
   gl_Position = projectionMatrix * mvPosition;
 }
 `;
@@ -287,7 +302,7 @@ function createPointPool(
   maxCount: number,
   texture: THREE.Texture,
   blending: THREE.Blending,
-  options?: { depthTest?: boolean; atlas?: boolean; lit?: boolean; minSize?: number }
+  options?: { depthTest?: boolean; atlas?: boolean; lit?: boolean; minSize?: number; readable?: boolean }
 ) {
   const positionAttr = new THREE.BufferAttribute(new Float32Array(maxCount * 3), 3);
   const sizeAttr = new THREE.BufferAttribute(new Float32Array(maxCount), 1);
@@ -313,6 +328,7 @@ function createPointPool(
       uLit: { value: options?.lit ? 1 : 0 },
       uAdditive: { value: blending === THREE.AdditiveBlending ? 1 : 0 },
       uMinSize: { value: options?.minSize ?? 0 },
+      uReadability: { value: options?.readable ? 1 : 0 },
     },
     vertexShader: spriteVertexShader,
     fragmentShader: spriteFragmentShader,
@@ -640,10 +656,10 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     }
   } else if (type === 'he_hit_ground') {
     // Detonation in soil: white-hot flash, short fireball, blast ring, tall dark earth column.
-    add('flash', 0, 0, 0, 0, 0, 0, 6.5 * s, '#fff4e0', 0.06, 0);
-    add('flash', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 4.2 * s, '#ffb060', 0.12, 0);
+    add('flash', 0, 0, 0, 0, 0, 0, 8.0 * s, '#fff4e0', 0.07, 0);
+    add('flash', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 5.2 * s, '#ffb060', 0.13, 0);
     add('shockwave', n.x * 0.3 * s, n.y * 0.3 * s, n.z * 0.3 * s, 0, 0, 0, 3.2 * s, '#6e665a', 0.1, Math.random() * Math.PI * 2);
-    for (let i = 0; i < sc(5); i++) cone('fireball', 0.9, (3 + Math.random() * 4) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#ffd08a' : '#ff6a1a', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
+    for (let i = 0; i < sc(5); i++) cone('fireball', 0.9, (3 + Math.random() * 4) * sv, (2.6 + Math.random() * 2.0) * s, i < 2 ? '#ffd08a' : '#ff6a1a', 0.14 + Math.random() * 0.1, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(26); i++) cone('dirt', 0.38, (5 + Math.random() * 23) * sv, (2.2 + Math.random() * 1.8) * s, i < 9 ? '#2e2519' : DIRT[i % DIRT.length], 0.7 + Math.random() * 0.5, (Math.random() - 0.5) * 2);
     for (let i = 0; i < sc(6); i++) cone('smoke', 1.4, (0.8 + Math.random() * 1.4) * sv, (3.0 + Math.random() * 2.0) * s, i % 2 ? '#6b5d45' : '#574b38', 1.6 + Math.random() * 0.8, (Math.random() - 0.5) * 0.8);
     ring('dirt', 12, 5, 9, 1.5, 2.0, 3.2, ['#6e5c3e', '#5a4a30'], 0.55, 0.85);
@@ -704,19 +720,20 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
 
     // Life multipliers are fractions of the 2200 ms lifetime.
     const delayed = (ms: number) => { subs[subs.length - 1].createdAt += ms; };
-    add('flash', 0, 0.6 * s, 0, 0, 0, 0, 8.0 * s, '#ffffff', 0.07, 0);
-    add('flash', 0, 0.8 * s, 0, 0, 0, 0, 5.5 * s, '#ffe0b0', 0.13, 0);
+    add('flash', 0, 0.6 * s, 0, 0, 0, 0, 11.0 * s, '#ffffff', 0.07, 0);
+    add('flash', 0, 0.8 * s, 0, 0, 0, 0, 7.5 * s, '#ffe0b0', 0.13, 0);
     add('shockwave', 0, 0.4 * s, 0, 0, 0, 0, 4.5 * s, '#7a7266', 0.12, Math.random() * Math.PI * 2);
-    // Rolling fireball: a knot of hot gas that billows up and outward over about a second.
+    // Rolling fireball: a knot of hot gas that billows up and outward over
+    // about a second, ten metres and more across as the ammunition goes up.
     for (let i = 0; i < sc(14); i++) {
       const angle = Math.random() * Math.PI * 2;
       const out = 0.6 + Math.random() * 1.6;
       add('blastFire', Math.cos(angle) * out * 0.5 * s, (0.4 + Math.random() * 1.2) * s, Math.sin(angle) * out * 0.5 * s,
         Math.cos(angle) * out * 2.2 * sv, (3.5 + Math.random() * 4.5) * sv, Math.sin(angle) * out * 2.2 * sv,
-        (3.0 + Math.random() * 2.4) * s, i < 5 ? '#fff0c8' : '#ffb35a', 0.45 + Math.random() * 0.25, (Math.random() - 0.5) * 1.4);
+        (4.2 + Math.random() * 3.4) * s, i < 5 ? '#fff0c8' : '#ffb35a', 0.45 + Math.random() * 0.25, (Math.random() - 0.5) * 1.4);
       delayed(Math.random() * 90);
     }
-    radialBurst('fireball', 10, 1.4, 2.5, 5.5, 2.5, 6.5, 1.8, 3.2, '#ffe0b0', '#ff9f3c', 0.12, 0.24, 2.0);
+    radialBurst('fireball', 10, 1.4, 2.5, 5.5, 2.5, 6.5, 2.6, 4.4, '#ffe0b0', '#ff9f3c', 0.12, 0.24, 2.0);
     // Black smoke boils out of the fire and climbs into a leaning column.
     radialBurst('smoke', 22, 1.6, 1.5, 3.5, 4.0, 8.0, 2.8, 4.6, '#141414', '#2e2822', 1.4, 2.0, 1.2);
     for (let i = subs.length - sc(22); i < subs.length; i++) subs[i].createdAt += 150 + Math.random() * 350;
@@ -737,13 +754,16 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
   } else if (type === 'fire') {
     // Life multipliers are fractions of the 1200 ms 'fire' lifetime: flash ~90 ms, smoke ~1 s.
     const nv = n.clone().multiplyScalar(6.5 * sv);
-    add('muzzleFlash', n.x * 0.55 * s, n.y * 0.55 * s, n.z * 0.55 * s, 0, 0, 0, 7.5 * s, '#fff8eb', 0.08, 0);
-    add('muzzleFlash', n.x * 1.0 * s, n.y * 1.0 * s, n.z * 1.0 * s, 0, 0, 0, 5.2 * s, '#ffd08a', 0.07, 0);
-    add('muzzleFlash', n.x * 1.5 * s, n.y * 1.5 * s, n.z * 1.5 * s, 0, 0, 0, 3.6 * s, '#ff7a1a', 0.06, 0);
+    add('muzzleFlash', n.x * 0.55 * s, n.y * 0.55 * s, n.z * 0.55 * s, 0, 0, 0, 9.0 * s, '#fff8eb', 0.085, 0);
+    add('muzzleFlash', n.x * 1.1 * s, n.y * 1.1 * s, n.z * 1.1 * s, 0, 0, 0, 6.6 * s, '#ffd08a', 0.075, 0);
+    add('muzzleFlash', n.x * 1.8 * s, n.y * 1.8 * s, n.z * 1.8 * s, 0, 0, 0, 5.0 * s, '#ff9a3a', 0.065, 0);
+    // The propellant gas burns on out of the bore as a forward tongue of flame.
+    add('muzzleFlash', n.x * 2.7 * s, n.y * 2.7 * s, n.z * 2.7 * s, 0, 0, 0, 3.8 * s, '#ff7a1a', 0.055, 0);
+    add('muzzleFlash', n.x * 3.6 * s, n.y * 3.6 * s, n.z * 3.6 * s, 0, 0, 0, 2.6 * s, '#ff5a10', 0.045, 0);
     // Kept compact: a camera-facing ring this close to the lens otherwise balloons over the whole view.
     add('shockwave', n.x * 1.15 * s, n.y * 1.15 * s, n.z * 1.15 * s, 0, 0, 0, 2.6 * s, '#5e5850', 0.115, Math.random() * Math.PI * 2);
-    for (let i = 0; i < sc(5); i++) {
-      jet('muzzleFireball', 0.9 * s + Math.random() * 1.7 * s, 0.24, (11 + Math.random() * 10) * sv, (2.0 + Math.random() * 1.6) * s, i < 2 ? '#fff0b0' : '#ff6a00', 0.085 + Math.random() * 0.035, (Math.random() - 0.5) * 1.8);
+    for (let i = 0; i < sc(7); i++) {
+      jet('muzzleFireball', 0.9 * s + Math.random() * 2.2 * s, 0.26, (11 + Math.random() * 12) * sv, (2.4 + Math.random() * 1.9) * s, i < 3 ? '#fff0b0' : '#ff6a00', 0.09 + Math.random() * 0.04, (Math.random() - 0.5) * 1.8);
     }
     for (let i = 0; i < sc(7); i++) {
       jet('muzzleSmoke', 0.8 * s + Math.random() * 1.6 * s, 0.42, (4.5 + Math.random() * 5.5) * sv, (1.8 + Math.random() * 1.5) * s, i < 4 ? '#c9c4bb' : '#98928a', 0.55 + Math.random() * 0.35, (Math.random() - 0.5) * 2);
@@ -907,20 +927,21 @@ export function Particles() {
   const removeParticle = useGameStore((state) => state.removeParticle);
 
   // Pools (created once)
-  const additivePool = useMemo(() => createPointPool(MAX_ADDITIVE, dustTexture, THREE.AdditiveBlending), []);
+  // Flashes and flame are drawn readable at range (see the sprite shader).
+  const additivePool = useMemo(() => createPointPool(MAX_ADDITIVE, dustTexture, THREE.AdditiveBlending, { readable: true }), []);
   const muzzleAdditivePool = useMemo(
-    () => createPointPool(MAX_MUZZLE_ADDITIVE, flashTexture, THREE.AdditiveBlending),
+    () => createPointPool(MAX_MUZZLE_ADDITIVE, flashTexture, THREE.AdditiveBlending, { readable: true }),
     []
   );
   // Billowing flame (fireballs, muzzle fire, burning wrecks) uses the lumpy atlas.
   const firePool = useMemo(
-    () => createPointPool(MAX_FIRE, smokeAtlas, THREE.AdditiveBlending, { atlas: true }),
+    () => createPointPool(MAX_FIRE, smokeAtlas, THREE.AdditiveBlending, { atlas: true, readable: true }),
     []
   );
   // Impact flashes sit just off the armour and respect depth, so they never
   // shine through the hull. A pixel floor keeps hits readable at range.
   const impactAdditivePool = useMemo(
-    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending, { minSize: 5 }),
+    () => createPointPool(MAX_IMPACT_ADDITIVE, dustTexture, THREE.AdditiveBlending, { minSize: 5, readable: true }),
     []
   );
   const shockwavePool = useMemo(
@@ -957,7 +978,8 @@ export function Particles() {
     subs: new Array<SubState | undefined>(MAX_SMOKE),
   });
 
-  useFrame(({ camera, scene }, delta) => {
+  useFrame(({ camera, scene, gl, size }, delta) => {
+    spriteUniforms.uViewHeight.value = size.height * gl.getPixelRatio();
     const state = useGameStore.getState();
     const now = Date.now();
     const subs = subsRef.current;

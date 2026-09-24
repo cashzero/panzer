@@ -27,7 +27,17 @@ export function gridReference(x: number, z: number, terrainSize: number) {
   return `${String.fromCharCode(65 + column)}${row + 1}`;
 }
 
-/** The battlefield's map grid, with each square's reference in its north-west corner. */
+/** Height of the map overlay (grid, edge mask, labels) above the terrain datum. */
+const OVERLAY_Y = 40;
+/** Gap between the view edge and the grid letters and numbers, in screen pixels. */
+const LABEL_INSET_PX = 16;
+
+/**
+ * The battlefield's map grid. Column letters run along the top of the view and
+ * row numbers down its left side, like the margins of a map sheet; they follow
+ * the view so a zoomed-in map still shows where it is. Ground beyond the
+ * battlefield is dimmed so the edge of the playable map reads at a glance.
+ */
 export function BattleMapGrid() {
   const size = useGameStore((state) => state.roadNetwork.terrainSize);
   const half = size / 2;
@@ -36,27 +46,62 @@ export function BattleMapGrid() {
     const points: number[] = [];
     for (let i = 0; i <= MAP_GRID_DIVISIONS; i++) {
       const c = -half + i * cell;
-      points.push(c, 40, -half, c, 40, half, -half, 40, c, half, 40, c);
+      points.push(c, OVERLAY_Y, -half, c, OVERLAY_Y, half, -half, OVERLAY_Y, c, half, OVERLAY_Y, c);
     }
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
     return geometry;
   }, [half, cell]);
-  useEffect(() => () => lines.dispose(), [lines]);
+  const outside = useMemo(() => {
+    const far = half * 30;
+    const shape = new THREE.Shape([new THREE.Vector2(-far, -far), new THREE.Vector2(far, -far), new THREE.Vector2(far, far), new THREE.Vector2(-far, far)]);
+    shape.holes.push(new THREE.Path([new THREE.Vector2(-half, -half), new THREE.Vector2(-half, half), new THREE.Vector2(half, half), new THREE.Vector2(half, -half)]));
+    return new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2).translate(0, OVERLAY_Y, 0);
+  }, [half]);
+  useEffect(() => () => { lines.dispose(); outside.dispose(); }, [lines, outside]);
+
+  const columnRefs = useRef<(THREE.Group | null)[]>([]);
+  const rowRefs = useRef<(THREE.Group | null)[]>([]);
+  useFrame(({ camera, size: viewport }) => {
+    const perspective = camera as THREE.PerspectiveCamera;
+    const halfZ = (camera.position.y - OVERLAY_Y) * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
+    const halfX = halfZ * (viewport.width / Math.max(1, viewport.height));
+    const inset = (LABEL_INSET_PX * 2 * halfZ) / Math.max(1, viewport.height);
+    // Pinned to the view's top and left edges, but never beyond the map's own edges.
+    const top = Math.max(-half, camera.position.z - halfZ) + inset;
+    const left = Math.max(-half, camera.position.x - halfX) + inset;
+    columnRefs.current.forEach((group, index) => {
+      if (!group) return;
+      const x = -half + (index + 0.5) * cell;
+      group.position.set(x, OVERLAY_Y, top);
+      group.visible = top < half && Math.abs(x - camera.position.x) < halfX;
+    });
+    rowRefs.current.forEach((group, index) => {
+      if (!group) return;
+      const z = -half + (index + 0.5) * cell;
+      group.position.set(left, OVERLAY_Y, z);
+      group.visible = left < half && Math.abs(z - camera.position.z) < halfZ;
+    });
+  });
+
   const labels = [];
-  for (let column = 0; column < MAP_GRID_DIVISIONS; column++) {
-    for (let row = 0; row < MAP_GRID_DIVISIONS; row++) {
-      labels.push(
-        <Html key={`${column}-${row}`} position={[-half + column * cell, 40, -half + row * cell]} className="battle-map-ref" zIndexRange={[5, 0]}>
-          {String.fromCharCode(65 + column)}{row + 1}
-        </Html>,
-      );
-    }
+  for (let i = 0; i < MAP_GRID_DIVISIONS; i++) {
+    labels.push(
+      <group key={`c${i}`} ref={(group) => { columnRefs.current[i] = group; }}>
+        <Html center className="battle-map-ref" zIndexRange={[5, 0]}>{String.fromCharCode(65 + i)}</Html>
+      </group>,
+      <group key={`r${i}`} ref={(group) => { rowRefs.current[i] = group; }}>
+        <Html center className="battle-map-ref" zIndexRange={[5, 0]}>{i + 1}</Html>
+      </group>,
+    );
   }
   return (
     <>
+      <mesh geometry={outside} renderOrder={7}>
+        <meshBasicMaterial color="#12150f" transparent opacity={0.62} depthTest={false} depthWrite={false} fog={false} />
+      </mesh>
       <lineSegments geometry={lines} renderOrder={8}>
-        <lineBasicMaterial color="#1d2319" transparent opacity={0.6} depthTest={false} />
+        <lineBasicMaterial color="#1d2319" transparent opacity={0.6} depthTest={false} fog={false} />
       </lineSegments>
       {labels}
     </>

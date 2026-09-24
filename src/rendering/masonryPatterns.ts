@@ -7,9 +7,11 @@ import { masonryWeathering } from './surfaceWeathering';
  *
  * The frame comes from the world-space surface: u runs horizontally along the
  * surface, v up the wall or up the roof slope, so coursing stays level on
- * walls and runs across the slope on roofs. Each pattern fades to its average
- * colour before its courses shrink below a few pixels, so it never shimmers
- * at range.
+ * walls and runs across the slope on roofs. Mortar joints are box-filtered
+ * over the pixel footprint, so a thin joint greys into its average share of
+ * the wall instead of beating against the pixel grid (the concentric arcs a
+ * point-sampled brick wall shows at 20-60 m). Each pattern still fades to its
+ * average colour once its courses shrink to a few pixels.
  */
 
 export type MasonryPattern = 'brick' | 'ashlar' | 'rubble' | 'tile' | 'slate' | 'thatch';
@@ -25,14 +27,35 @@ const patternGlsl = /* glsl */ `
     float footprint = length(vec2(dFdx(coordinate), dFdy(coordinate)));
     return 1.0 - smoothstep(0.18, 0.45, footprint / period);
   }
-  /** Mortar joint weight for a running-bond cell grid of size (w, h), rows offset by half. */
-  float bondJoint(vec2 uv, vec2 size, float joint, out vec2 cell) {
+  /** World-space size of one pixel along each pattern axis. */
+  vec2 patternFootprint(vec2 uv) {
+    return vec2(length(vec2(dFdx(uv.x), dFdy(uv.x))), length(vec2(dFdx(uv.y), dFdy(uv.y))));
+  }
+  /**
+   * Mortar joint coverage for a running-bond cell grid of size (w, h), rows
+   * offset by half. Joints of width \`joint\` sit on the cell edges; their
+   * coverage is integrated over the pixel footprint \`fp\` (the box-filtered
+   * pulse train from Inigo Quilez's filtered grid). cellDetail drops to 0 as
+   * rows approach two pixels, where the per-row offset and per-cell tones can
+   * no longer be resolved; head joints then settle to their average share.
+   */
+  float bondJoint(vec2 uv, vec2 size, float joint, vec2 fp, out vec2 cell, out float cellDetail) {
     float row = floor(uv.y / size.y);
     float shifted = uv.x / size.x + mod(row, 2.0) * 0.5;
     cell = vec2(floor(shifted), row);
-    vec2 f = vec2(fract(shifted), fract(uv.y / size.y));
-    float edge = min(min(f.x, 1.0 - f.x) * size.x, min(f.y, 1.0 - f.y) * size.y);
-    return 1.0 - smoothstep(joint * 0.5, joint, edge);
+    vec2 n = size / joint;
+    vec2 w = max(fp / size, vec2(1e-4));
+    vec2 p = vec2(shifted, uv.y / size.y) + 0.5 / n;
+    vec2 a = p + 0.5 * w, b = p - 0.5 * w;
+    vec2 cover = (floor(a) + min(fract(a) * n, 1.0) - floor(b) - min(fract(b) * n, 1.0)) / (n * w);
+    cellDetail = 1.0 - smoothstep(0.2, 0.5, w.y);
+    float head = mix(1.0 / n.x, cover.x, cellDetail);
+    return 1.0 - (1.0 - cover.y) * (1.0 - head);
+  }
+  /** Average joint share of a bond, the colour a wall settles to at range. */
+  float bondShare(vec2 size, float joint) {
+    vec2 f = joint / size;
+    return 1.0 - (1.0 - f.x) * (1.0 - f.y);
   }
 `;
 
@@ -43,23 +66,26 @@ const patternFragment = /* glsl */ `
     vec3 pb = cross(pn, pt);
     vec2 puv = vec2(dot(vSurfacePosition, pt), dot(vSurfacePosition, pb));
     vec2 cell;
+    float cellDetail;
+    vec2 fp = patternFootprint(puv);
     vec3 base = diffuseColor.rgb;
     #if MASONRY_PATTERN == 1
       // Picard brick: 22 x 6.5 cm bricks, pale lime mortar, the odd overburnt brick.
       float detail = patternDetail(puv.y, 0.12);
-      float joint = bondJoint(puv, vec2(0.235, 0.075), 0.012, cell);
-      float tone = patternHash(cell);
+      float joint = bondJoint(puv, vec2(0.235, 0.075), 0.016, fp, cell, cellDetail);
+      float tone = mix(0.5, patternHash(cell), cellDetail);
       // Firing varies across a wall in patches, which still reads where single bricks do not.
       float batch = surfaceNoise(vec3(puv * vec2(0.9, 2.2), 5.1));
       vec3 wallTone = base * mix(vec3(0.86, 0.9, 0.92), vec3(1.08, 1.0, 0.94), batch);
-      vec3 brick = wallTone * (0.84 + tone * 0.3) * mix(vec3(1.0), vec3(0.62, 0.55, 0.55), step(0.9, tone));
+      vec3 brick = wallTone * (0.84 + tone * 0.3) * mix(vec3(1.0), vec3(0.62, 0.55, 0.55), step(0.9, tone) * cellDetail);
       vec3 mortar = vec3(0.4, 0.36, 0.31);
-      diffuseColor.rgb = mix(mix(wallTone, mortar, 0.06), mix(brick, mortar, joint), detail);
+      vec3 distant = mix(wallTone * 0.99, mortar, bondShare(vec2(0.235, 0.075), 0.016));
+      diffuseColor.rgb = mix(distant, mix(brick, mortar, joint), detail);
     #elif MASONRY_PATTERN == 2
       // Dressed limestone ashlar in 32 cm courses with fine joints.
       float detail = patternDetail(puv.y, 0.32);
-      float joint = bondJoint(puv, vec2(0.62, 0.32), 0.014, cell);
-      float tone = patternHash(cell);
+      float joint = bondJoint(puv, vec2(0.62, 0.32), 0.018, fp, cell, cellDetail);
+      float tone = mix(0.5, patternHash(cell), cellDetail);
       diffuseColor.rgb = mix(base, mix(base * (0.9 + tone * 0.18), base * 0.72, joint), detail);
     #elif MASONRY_PATTERN == 3
       // Random rubble: irregular stones in a Voronoi cell pattern, darker mortar.
@@ -81,18 +107,18 @@ const patternFragment = /* glsl */ `
     #elif MASONRY_PATTERN == 4
       // Flat clay tiles in 24 cm courses: each course throws a shadow line on the one below.
       float detail = patternDetail(puv.y, 0.24);
-      float joint = bondJoint(puv, vec2(0.19, 0.24), 0.01, cell);
+      float joint = bondJoint(puv, vec2(0.19, 0.24), 0.013, fp, cell, cellDetail);
       float course = fract(puv.y / 0.24);
-      float tone = patternHash(cell);
+      float tone = mix(0.5, patternHash(cell), cellDetail);
       vec3 tile = base * (0.82 + tone * 0.32) * mix(vec3(1.0), vec3(0.8, 0.86, 0.7), step(0.88, tone));
       tile *= mix(0.62, 1.0, smoothstep(0.0, 0.22, course));
       diffuseColor.rgb = mix(base * 0.9, mix(tile, tile * 0.7, joint), detail);
     #elif MASONRY_PATTERN == 5
       // Welsh slate in 20 cm courses, staggered, with a sheen varying slate to slate.
       float detail = patternDetail(puv.y, 0.2);
-      float joint = bondJoint(puv, vec2(0.3, 0.2), 0.008, cell);
+      float joint = bondJoint(puv, vec2(0.3, 0.2), 0.011, fp, cell, cellDetail);
       float course = fract(puv.y / 0.2);
-      float tone = patternHash(cell);
+      float tone = mix(0.5, patternHash(cell), cellDetail);
       vec3 slate = base * (0.86 + tone * 0.26) * mix(0.7, 1.0, smoothstep(0.0, 0.16, course));
       diffuseColor.rgb = mix(base * 0.92, mix(slate, slate * 0.6, joint), detail);
     #elif MASONRY_PATTERN == 6

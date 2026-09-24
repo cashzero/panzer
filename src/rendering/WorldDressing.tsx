@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { useGameStore } from '../store';
@@ -144,7 +145,27 @@ const hedgeLeafMaterial = new THREE.MeshStandardMaterial({
 patchFoliageMaterial(hedgeLeafMaterial, false);
 const hedgeLeafDepthMaterial = foliageDepthMaterial(false);
 const poleMaterial = new THREE.MeshStandardMaterial({ color: '#4a3f33', roughness: 0.95 });
-const wireMaterial = new THREE.LineBasicMaterial({ color: '#2a2825' });
+/**
+ * Telegraph wire. GL lines are always one pixel wide, so at range a 4 mm wire
+ * drew as a hard dark stroke across the horizon of nearly every view. Each
+ * vertex works out how many pixels a (slightly exaggerated) wire would really
+ * cover at its depth and uses that as coverage: crisp alongside the road,
+ * fading to nothing a couple of hundred metres out.
+ */
+const WIRE_WIDTH = 0.018; // m
+const wireViewport = { value: 900 };
+const wireMaterial = new THREE.LineBasicMaterial({ color: '#2a2825', transparent: true, depthWrite: false });
+wireMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.wireViewport = wireViewport;
+  shader.vertexShader = shader.vertexShader
+    .replace('void main() {', 'uniform float wireViewport;\nvarying float vWireCoverage;\nvoid main() {')
+    .replace('#include <project_vertex>', `#include <project_vertex>
+      float wirePixels = ${WIRE_WIDTH} * projectionMatrix[1][1] * 0.5 * wireViewport / max(-mvPosition.z, 0.1);
+      vWireCoverage = clamp(wirePixels, 0.0, 1.0);`);
+  shader.fragmentShader = shader.fragmentShader
+    .replace('void main() {', 'varying float vWireCoverage;\nvoid main() {')
+    .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.a *= vWireCoverage * 0.9;');
+};
 
 const WIRE_ARMS = [-0.75, 0.75, 0.45];
 const WIRE_HEIGHTS = [7.6, 7.6, 7.05];
@@ -264,6 +285,7 @@ export function WorldDressing() {
   }, [dressing]);
 
   useEffect(() => () => { poles.dispose(); }, [poles]);
+  useFrame(({ gl, size }) => { wireViewport.value = size.height * gl.getPixelRatio(); });
   useEffect(() => () => {
     dressing.wires.dispose();
     dressing.hedgeGeometry.dispose();

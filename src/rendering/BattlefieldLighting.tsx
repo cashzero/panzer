@@ -25,15 +25,19 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
     // as the sun and still blooms, without washing out the scene around it.
     mesh.material.fragmentShader = mesh.material.fragmentShader
       .replace('vSunE * 19000.0 * Fex', 'vSunE * 1500.0 * Fex')
-      // The Mie glow around the sun also runs well above the bloom threshold
-      // over a wide patch of sky, which bloomed into a veil over everything
-      // seen toward the sun. Compress the sky (not the disc) to stay under it.
+      // The Mie glow around the sun runs to several times the brightness of
+      // the open sky over a wide patch. Tone mapped, all of it clipped to flat
+      // white, so the whole view toward the sun (and the gunner sight looking
+      // that way) read as a blank sheet. Compress the sky, not the disc, onto
+      // a soft shoulder that tops out below white: the glow keeps its warm
+      // gradient and the haze its tint, and nothing reaches the bloom pass.
       .replace('gl_FragColor = vec4( texColor, 1.0 );', `
         float skyLuma = dot( texColor, vec3( 0.2126, 0.7152, 0.0722 ) );
-        float skyKnee = 6.0;
+        float skyKnee = 0.45;
+        float skyRange = 0.3;
         if ( sundisk < 0.5 && skyLuma > skyKnee ) {
           float over = skyLuma - skyKnee;
-          texColor *= ( skyKnee + over / ( 1.0 + over / 4.0 ) ) / skyLuma;
+          texColor *= ( skyKnee + over / ( 1.0 + over / skyRange ) ) / skyLuma;
         }
         gl_FragColor = vec4( texColor, 1.0 );`);
     const uniforms = mesh.material.uniforms;
