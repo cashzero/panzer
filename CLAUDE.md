@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Panzer Front is a **WW2 tank battle simulator** built with React 19, Three.js (via React Three Fiber), Zustand, and Vite. All visual design — UI, HUD, color palette, typography, effects — should follow a WW2 aesthetic (military olive drab, aged metal, period-appropriate instruments, wartime iconography).
+Open Panzer Front is a **WW2 tank battle simulator** built with React 19, Three.js (via React Three Fiber), Zustand, and Vite. All visual design — UI, HUD, color palette, typography, effects — should follow a WW2 aesthetic (military olive drab, aged metal, period-appropriate instruments, wartime iconography).
 
 ## Commands
 
@@ -18,7 +18,7 @@ npm run clean      # Remove dist/
 
 No test framework. No ESLint. `tsc --noEmit` is the only static check — always run `npm run lint` after code changes.
 
-The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.API_KEY` / `process.env.GEMINI_API_KEY`. `.env.example` documents the expected variables.
+The game needs no API keys or environment variables.
 
 ## Architecture
 

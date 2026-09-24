@@ -329,7 +329,7 @@ export function TankEditorApp() {
         <header className="editor-panel p-5 flex flex-col gap-4">
           <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
             <div className="flex flex-col gap-2">
-              <div className="text-[11px] uppercase tracking-[0.32em] text-[var(--editor-olive)]">Panzer Front Workshop</div>
+              <div className="text-[11px] uppercase tracking-[0.32em] text-[var(--editor-olive)]">Open Panzer Front Workshop</div>
               <div>
                 <h1 className="text-2xl md:text-3xl tracking-[0.18em] uppercase text-[var(--editor-brass)]">Tank Editor</h1>
                 <p className="text-sm text-[var(--editor-muted)] mt-2 max-w-3xl">
