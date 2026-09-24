@@ -1,6 +1,6 @@
 # 戰車三視圖比例校正流程
 
-這份文件記錄 Tiger I、Sherman、M4A2(76)W、Panzer II、Panzer IV 與 M10 GMC 使用的流程：下載對應型號的參考圖，以正式遊戲 renderer 產生正交視圖，在固定相機與比例尺下反覆疊圖、修改模型，最後核對碰撞面與遊戲數值。
+這份文件記錄 Tiger I、Sherman、M4A2(76)W、Panzer II、Panzer IV、T-34/76 與 M10 GMC 使用的流程：下載對應型號的參考圖，以正式遊戲 renderer 產生正交視圖，在固定相機與比例尺下反覆疊圖、修改模型，最後核對碰撞面與遊戲數值。
 
 成果是符合參考資料精度的遊戲模型。掃描圖、模型塗裝圖與簡化幾何都有誤差，不能把疊圖吻合視為製造尺寸認證。
 
@@ -198,6 +198,7 @@ Git 只保存流程文件、來源連結、量測摘要與可重用腳本。下�
 | [M4A2(76)W](references/sherman_a2_76/README.md) | 沿用另一車型已校正的共用懸吊（以主動輪登錄 Z 原點）、跨圖履帶厚度矛盾的取捨、左右配件整體鏡射修正、鑄造砲塔尾艙分段 OBB |
 | [Panzer II](references/panzer2/README.md) | F 型與 C 型資料的適用邊界、指揮塔及斜面 OBB |
 | [Panzer IV](references/panzer4/README.md) | 砲塔後移、六片裙板、輪徑與間距、裙板斜切及支架 |
+| [T-34/76 1943](references/t34/README.md) | 反向的圖面方向（側視看右側，相機放在 −X）、helper 換成頂底分開的 polyhedron、由輪組生成履帶輪廓與履帶板、依表面四邊形產生裝甲 |
 | [M10 GMC](references/m10/README.md) | 新增車型：以生成器建模、pass 0 初稿當 baseline；俯視獨立比例、開頂砲塔與配重、跨視圖矛盾的取捨、裝甲對渲染表面的射線驗證 |
 
 這些比對頁與腳本是開發用 fixture，不應額外加入正式 Vite build entry。
