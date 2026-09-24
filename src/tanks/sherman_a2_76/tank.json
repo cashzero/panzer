@@ -50,7 +50,7 @@
     "rotationalInertia": 2.5
   },
   "traverse": {
-    "turretSpeed": 0.09,
+    "turretSpeed": 0.42,
     "gunSpeed": 0.1,
     "maxElevationDeg": 25,
     "maxDepressionDeg": 10

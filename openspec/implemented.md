@@ -24,6 +24,7 @@ Completed roadmap items are documented here.
 - Ammo cycling with `R` supports AP by default plus APC and-or HE when the selected tank carries them.
 - Automatic weapons support magazine-based rapid fire for autocannon-equipped vehicles.
 - Per-gun dispersion applies weapon-specific yaw and pitch spread to both player and enemy fire.
+- Turret traverse rates follow each vehicle's historical 360° time: hydraulic Shermans 15 s, electric T-34 14 s and Panzer IV 22.5 s, the engine-driven Tiger I about 45 s, and the hand-cranked Panzer II, Panzer III and M10 about 75, 90 and 120 s. Arrow-key aiming still starts from a capped fine-adjustment speed, so fast powered traverses lay precisely on a tap.
 - Armor penetration falls off with range using either historical sample points or an auto-generated penetration curve.
 - Tank-to-tank collision prevents overlapping using a circle-based XZ collision model.
 - Gun sway simulates four vibration layers: base harmonic, terrain, inertial, and centrifugal.
