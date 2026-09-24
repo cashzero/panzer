@@ -17,7 +17,12 @@ const noise = `
   }
 `;
 
-/** Object-space detail also works on armor polyhedra and roofs without UVs. */
+/**
+ * Armour paint: a clean coat with only a broad, faint variation in tone and
+ * sheen across a plate, so large flat panels do not look like plastic. No
+ * chips, grit or speckle; they read as dirt on a vehicle at every range.
+ * Object space, so it also works on armour polyhedra without UVs.
+ */
 export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader) => {
   shader.vertexShader = 'varying vec3 vSurfacePosition;\n' + shader.vertexShader;
   shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>',
@@ -25,28 +30,12 @@ export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader)
   shader.fragmentShader = noise + shader.fragmentShader;
   shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
     #include <color_fragment>
-    float mottling = surfaceNoise(vSurfacePosition * 7.0);
-    float grit = surfaceNoise(vSurfacePosition * 155.0);
-    float wear = smoothstep(0.69, 0.88, surfaceNoise(vSurfacePosition * 42.0));
-    diffuseColor.rgb *= 0.82 + mottling * 0.32;
-    // Chips show dark primer. Kept darker than the paint they break through:
-    // a fixed brown came out lighter than Dunkelgrau and read as pale dirt.
-    vec3 chip = min(vec3(0.105, 0.084, 0.055), diffuseColor.rgb * vec3(0.55, 0.5, 0.45));
-    diffuseColor.rgb = mix(diffuseColor.rgb, chip, wear * 0.5);
-    diffuseColor.rgb += (grit - 0.5) * 0.018;
+    float paintTone = surfaceNoise(vSurfacePosition * 1.6);
+    diffuseColor.rgb *= 0.97 + paintTone * 0.06;
   `);
   shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
     #include <roughnessmap_fragment>
-    roughnessFactor = clamp(roughnessFactor + (mottling - 0.5) * 0.18 - wear * 0.18, 0.4, 1.0);
-  `);
-  shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `
-    #include <normal_fragment_maps>
-    // Fine cast-steel relief in view space, with derivative filtering at distance.
-    vec3 surfDx = dFdx(vViewPosition), surfDy = dFdy(vViewPosition);
-    vec3 tangentX = cross(surfDy, normal), tangentY = cross(normal, surfDx);
-    float determinant = dot(surfDx, tangentX);
-    vec3 gradient = sign(determinant) * (dFdx(grit) * tangentX + dFdy(grit) * tangentY);
-    normal = normalize(abs(determinant) * normal - 0.0009 * gradient);
+    roughnessFactor = clamp(roughnessFactor + (paintTone - 0.5) * 0.08, 0.4, 1.0);
   `);
 };
 
