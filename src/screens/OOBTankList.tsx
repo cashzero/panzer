@@ -1,6 +1,7 @@
 import { getAllTankDefs, getTankDef } from '../tanks/registry';
 import { useGameStore, isAxisNationality, type OOBUnit } from '../store';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
+import { ArmourSymbol } from './menuParts';
 import { getCamouflageScheme } from '../tanks/core/camouflage';
 
 const allTanks = getAllTankDefs();
@@ -18,14 +19,14 @@ function SchemeSelect({ tankType, value, onChange }: { tankType: string; value: 
   if (schemes.length < 2) return null;
   return (
     <select
-      className="w-full bg-transparent text-[10px] text-gray-500 border-none outline-none cursor-pointer"
+      className="force-row__paint"
       value={getCamouflageScheme(schemes, value).id}
       onChange={(e) => { e.stopPropagation(); onChange(e.target.value); }}
       onClick={(e) => e.stopPropagation()}
       title="Paint scheme"
     >
       {schemes.map((scheme) => (
-        <option key={scheme.id} value={scheme.id} className="bg-gray-900">Paint: {scheme.shortName}</option>
+        <option key={scheme.id} value={scheme.id}>{scheme.name}</option>
       ))}
     </select>
   );
@@ -47,105 +48,85 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
   const setOobPlayerCamouflage = useGameStore((s) => s.setOobPlayerCamouflage);
 
   const tankOptions = side === 'enemy' ? axisTanks : alliedTanks;
-  const sideColor = side === 'enemy' ? '#ff3333' : '#3399ff';
-  const label = side === 'enemy' ? 'ENEMIES' : 'ALLIES';
   const isPlacing = placementMode === side;
   const isPlayerSelected = side === 'ally' && selectedId === 'player';
-
-  const handleAdd = () => {
-    setOobPlacementMode(isPlacing ? null : side);
-  };
-
-  const totalCount = units.length + (side === 'ally' ? 1 : 0);
+  const symbolSide = side === 'enemy' ? 'enemy' : 'friendly';
 
   return (
-    <div className="oob-roster-content">
-      <div className="oob-roster-heading" style={{ color: sideColor }}>
-        <span>{label}</span><span>{totalCount.toString().padStart(2, '0')}</span>
-      </div>
+    <div className="force">
+      <h2 className="force__title">{side === 'enemy' ? 'Enemy' : 'Your force'}<span>{units.length + (side === 'ally' ? 1 : 0)} tanks</span></h2>
 
-      <button
-        onClick={handleAdd}
-        className={`oob-add-unit ${isPlacing ? 'is-active' : ''}`}
-      >
-        <Plus size={14} aria-hidden="true" />
-        {isPlacing ? 'Place on map' : `Add ${side === 'enemy' ? 'enemy' : 'ally'}`}
-      </button>
-
-      <div className="oob-unit-list">
-        {/* Player row (ally side only, always first) */}
+      <ul className="force__list">
         {side === 'ally' && (
-          <div
-            className={`oob-unit-row ${isPlayerSelected ? 'is-selected' : ''}`}
+          <li
+            className="force-row"
+            aria-selected={isPlayerSelected}
             onClick={() => setOobSelectedUnit(isPlayerSelected ? null : 'player')}
             onMouseEnter={() => onHoverTank({ tankType: oobPlayerTankType, camouflage: oobPlayerCamouflage ?? undefined })}
             onMouseLeave={() => onHoverTank(null)}
           >
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#00ff00' }} />
-            <div className="flex-1 min-w-0 flex flex-col">
-            <select
-              className="w-full bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
-              value={oobPlayerTankType}
-              onChange={(e) => {
-                e.stopPropagation();
-                setOobPlayerTankType(e.target.value);
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {allTanks.map((t) => (
-                <option key={t.id} value={t.id} className="bg-gray-900">{t.displayName}</option>
-              ))}
-            </select>
-            <SchemeSelect tankType={oobPlayerTankType} value={oobPlayerCamouflage ?? undefined} onChange={setOobPlayerCamouflage} />
+            <ArmourSymbol side="player" title="Your tank" />
+            <div className="force-row__body">
+              <select
+                className="force-row__type"
+                value={oobPlayerTankType}
+                onChange={(e) => { e.stopPropagation(); setOobPlayerTankType(e.target.value); }}
+                onClick={(e) => e.stopPropagation()}
+                aria-label="Your tank"
+              >
+                {allTanks.map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}
+              </select>
+              <SchemeSelect tankType={oobPlayerTankType} value={oobPlayerCamouflage ?? undefined} onChange={setOobPlayerCamouflage} />
             </div>
-            <span className="text-[9px] text-green-500 font-bold px-1">YOU</span>
-          </div>
+            <span className="force-row__tag">You</span>
+          </li>
         )}
 
-        {units.map((unit) => {
+        {units.map((unit, index) => {
           const isSelected = unit.id === selectedId;
           return (
-            <div
+            <li
               key={unit.id}
-              className={`oob-unit-row ${isSelected ? 'is-selected' : ''}`}
+              className="force-row"
+              aria-selected={isSelected}
               onClick={() => setOobSelectedUnit(isSelected ? null : unit.id)}
               onMouseEnter={() => onHoverTank({ tankType: unit.tankType, camouflage: unit.camouflage })}
               onMouseLeave={() => onHoverTank(null)}
             >
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sideColor }} />
-              <div className="flex-1 min-w-0 flex flex-col">
-              <select
-                className="w-full bg-transparent text-xs text-gray-300 border-none outline-none cursor-pointer"
-                value={unit.tankType}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  // A new tank type starts from its own default scheme.
-                  updateOobUnit(unit.id, { tankType: e.target.value, camouflage: undefined });
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {tankOptions.map((t) => (
-                  <option key={t.id} value={t.id} className="bg-gray-900">{t.displayName}</option>
-                ))}
-              </select>
-              <SchemeSelect tankType={unit.tankType} value={unit.camouflage}
-                onChange={(id) => updateOobUnit(unit.id, { camouflage: id })} />
+              <ArmourSymbol side={symbolSide} />
+              <div className="force-row__body">
+                <select
+                  className="force-row__type"
+                  value={unit.tankType}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    // A new tank type starts from its own default scheme.
+                    updateOobUnit(unit.id, { tankType: e.target.value, camouflage: undefined });
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  aria-label={`${side === 'enemy' ? 'Enemy' : 'Allied'} tank ${index + 1}`}
+                >
+                  {tankOptions.map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}
+                </select>
+                <SchemeSelect tankType={unit.tankType} value={unit.camouflage}
+                  onChange={(id) => updateOobUnit(unit.id, { camouflage: id })} />
               </div>
               <button
-                className="oob-remove-unit"
+                type="button"
+                className="force-row__remove"
                 onClick={(e) => { e.stopPropagation(); removeOobUnit(unit.id); }}
-                title="Remove"
+                aria-label="Remove this tank"
               >
-                <X size={13} aria-hidden="true" />
+                <X size={14} aria-hidden="true" />
               </button>
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ul>
 
-      <div className="oob-roster-footer">
-        {side === 'enemy' ? 'OPFOR' : 'FRIENDLY'} / {totalCount} UNIT{totalCount !== 1 ? 'S' : ''}
-      </div>
+      <button type="button" className="force__add" aria-pressed={isPlacing} onClick={() => setOobPlacementMode(isPlacing ? null : side)}>
+        {isPlacing ? 'Click the map to place it' : side === 'enemy' ? 'Add an enemy tank' : 'Add an allied tank'}
+      </button>
     </div>
   );
 }

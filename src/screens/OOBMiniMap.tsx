@@ -4,13 +4,50 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Terrain } from '../Terrain';
 import { Buildings } from '../BuildingRenderer';
+import { Trees } from '../TreeRenderer';
 import { isPointNearAnyBuilding } from '../buildings';
 import { GAME_CONFIG } from '../config';
 import { useGameStore, MAP_SIZE_VALUES } from '../store';
 
 /* ------------------------------------------------------------------ */
-/*  OOB Map Marker — colored triangle for a unit on the planning map  */
+/*  Unit marker: the period armour symbol, with a tick for its facing  */
 /* ------------------------------------------------------------------ */
+
+const PENCIL_BLUE = '#40628e';
+const PENCIL_RED = '#b0372d';
+const BRASS = '#c9a760';
+
+function outlineShape(width: number, height: number, thickness: number) {
+  const shape = new THREE.Shape();
+  shape.moveTo(-width / 2, -height / 2); shape.lineTo(width / 2, -height / 2);
+  shape.lineTo(width / 2, height / 2); shape.lineTo(-width / 2, height / 2); shape.closePath();
+  const hole = new THREE.Path();
+  const w = width / 2 - thickness, h = height / 2 - thickness;
+  hole.moveTo(-w, -h); hole.lineTo(-w, h); hole.lineTo(w, h); hole.lineTo(w, -h); hole.closePath();
+  shape.holes.push(hole);
+  return new THREE.ShapeGeometry(shape);
+}
+
+function ovalShape(width: number, height: number, thickness: number, filled: boolean) {
+  const shape = new THREE.Shape();
+  shape.absellipse(0, 0, width / 2, height / 2, 0, Math.PI * 2, false, 0);
+  if (!filled) {
+    const hole = new THREE.Path();
+    hole.absellipse(0, 0, width / 2 - thickness, height / 2 - thickness, 0, Math.PI * 2, true, 0);
+    shape.holes.push(hole);
+  }
+  return new THREE.ShapeGeometry(shape, 24);
+}
+
+const markerFrame = outlineShape(5.2, 3.4, 0.38);
+const markerTrack = ovalShape(3.1, 1.5, 0.3, false);
+const markerTrackFilled = ovalShape(3.1, 1.5, 0.3, true);
+const markerHalo = outlineShape(6.6, 4.8, 0.3);
+const facingTick = (() => {
+  const shape = new THREE.Shape();
+  shape.moveTo(-0.6, 0); shape.lineTo(0.6, 0); shape.lineTo(0, 1.4); shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+})();
 
 function OOBMarker({ position, rotation, color, isSelected, isPlayer }: {
   position: [number, number];
@@ -20,42 +57,73 @@ function OOBMarker({ position, rotation, color, isSelected, isPlayer }: {
   isPlayer?: boolean;
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const triangleGeo = useMemo(() => {
-    const shape = new THREE.Shape();
-    shape.moveTo(0, 2);
-    shape.lineTo(-1.2, -1.5);
-    shape.lineTo(1.2, -1.5);
-    shape.closePath();
-    return new THREE.ShapeGeometry(shape);
-  }, []);
+  const tickRef = useRef<THREE.Group>(null);
 
-  useFrame(({ camera }) => {
+  useFrame(({ camera, size }) => {
     if (!groupRef.current) return;
     groupRef.current.position.set(position[0], 10, position[1]);
-    groupRef.current.rotation.set(-Math.PI / 2, 0, Math.PI + rotation);
-    const dist = camera.position.distanceTo(groupRef.current.position);
-    const baseScale = dist / 150;
-    groupRef.current.scale.setScalar(Math.max(0.3, baseScale));
+    // Symbols stay upright on the map sheet; only the tick turns with the tank.
+    groupRef.current.rotation.set(-Math.PI / 2, 0, 0);
+    if (tickRef.current) tickRef.current.rotation.set(0, 0, Math.PI + rotation);
+    const cam = camera as THREE.OrthographicCamera;
+    const worldPerPixel = (cam.top - cam.bottom) / Math.max(1, size.height);
+    groupRef.current.scale.setScalar(Math.max(0.6, worldPerPixel * 7));
   });
 
+  const material = <meshBasicMaterial color={color} side={THREE.DoubleSide} depthTest={false} />;
   return (
-    <group ref={groupRef}>
-      <mesh geometry={triangleGeo}>
-        <meshBasicMaterial color={color} side={THREE.DoubleSide} depthTest={false} />
-      </mesh>
-      {isPlayer && (
-        <mesh>
-          <ringGeometry args={[2.5, 3, 32]} />
-          <meshBasicMaterial color="#ffffff" side={THREE.DoubleSide} depthTest={false} />
-        </mesh>
-      )}
+    <group ref={groupRef} renderOrder={10}>
+      <mesh geometry={markerFrame} renderOrder={10}>{material}</mesh>
+      <mesh geometry={isPlayer ? markerTrackFilled : markerTrack} renderOrder={10}>{material}</mesh>
+      <group ref={tickRef}>
+        <mesh geometry={facingTick} position={[0, 2.0, 0]} renderOrder={10}>{material}</mesh>
+      </group>
       {isSelected && (
-        <mesh>
-          <ringGeometry args={[3, 3.5, 32]} />
-          <meshBasicMaterial color="#ffff00" side={THREE.DoubleSide} depthTest={false} />
+        <mesh geometry={markerHalo} renderOrder={10}>
+          <meshBasicMaterial color={BRASS} side={THREE.DoubleSide} depthTest={false} />
         </mesh>
       )}
     </group>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Map grid: lettered columns and numbered rows, eight to a side      */
+/* ------------------------------------------------------------------ */
+
+const GRID_DIVISIONS = 8;
+
+function MapGrid({ size }: { size: number }) {
+  const half = size / 2;
+  const cell = size / GRID_DIVISIONS;
+  const lines = useMemo(() => {
+    const points: number[] = [];
+    for (let i = 0; i <= GRID_DIVISIONS; i++) {
+      const c = -half + i * cell;
+      points.push(c, 6, -half, c, 6, half, -half, 6, c, half, 6, c);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    return geometry;
+  }, [half, cell]);
+  useEffect(() => () => lines.dispose(), [lines]);
+  return (
+    <>
+      <lineSegments geometry={lines}>
+        <lineBasicMaterial color="#1d2319" transparent opacity={0.55} depthTest={false} />
+      </lineSegments>
+      {Array.from({ length: GRID_DIVISIONS }, (_, i) => (
+        <group key={i}>
+          {/* Letters along the north edge, numbers down the west edge, inside the sheet. */}
+          <Html position={[-half + (i + 0.5) * cell, 6, -half + cell * 0.1]} center className="map-grid-label">
+            {String.fromCharCode(65 + i)}
+          </Html>
+          <Html position={[-half + cell * 0.08, 6, -half + (i + 0.5) * cell]} center className="map-grid-label">
+            {i + 1}
+          </Html>
+        </group>
+      ))}
+    </>
   );
 }
 
@@ -64,7 +132,7 @@ function OOBMarker({ position, rotation, color, isSelected, isPlayer }: {
 /* ------------------------------------------------------------------ */
 
 function OOBMapCamera() {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const panOffset = useRef(new THREE.Vector2(0, 0));
   const zoom = useRef(1);
   const dragging = useRef(false);
@@ -110,12 +178,14 @@ function OOBMapCamera() {
   }, [halfSize]);
 
   useFrame(() => {
+    // Fit the whole map in the shorter side and keep squares square.
     const h = halfSize * zoom.current;
+    const aspect = size.width / Math.max(1, size.height);
     const cam = camera as THREE.OrthographicCamera;
-    cam.left = -h;
-    cam.right = h;
-    cam.top = h;
-    cam.bottom = -h;
+    cam.left = -h * Math.max(1, aspect);
+    cam.right = h * Math.max(1, aspect);
+    cam.top = h / Math.min(1, aspect);
+    cam.bottom = -h / Math.min(1, aspect);
     cam.near = 0.1;
     cam.far = 2000;
     cam.position.set(panOffset.current.x, 500, panOffset.current.y);
@@ -153,7 +223,7 @@ function ClickPlane() {
     const oobZ = z / mapScale;
 
     if (isPointNearAnyBuilding(x, z, buildings, GAME_CONFIG.tank.collisionRadius + 2)) {
-      setNotice('Blocked by building');
+      setNotice('A building stands there. Pick open ground.');
       return;
     }
 
@@ -203,9 +273,7 @@ function ClickPlane() {
       {notice && (
         <group position={[0, 18, 0]}>
           <Html center>
-            <div className="border border-red-800 bg-[#221410]/90 px-3 py-1 text-[10px] uppercase tracking-[0.25em] text-red-300">
-              {notice}
-            </div>
+            <div className="map-notice map-notice--warning">{notice}</div>
           </Html>
         </group>
       )}
@@ -229,70 +297,52 @@ export function OOBMiniMap() {
   const cursorStyle = placementMode ? 'crosshair' : selectedId ? 'pointer' : 'default';
 
   return (
-    <div className="w-full h-full relative" style={{ cursor: cursorStyle }}>
+    <div className="planning-map" style={{ cursor: cursorStyle }}>
       <Canvas orthographic camera={{ position: [0, 500, 0], zoom: 1 }} gl={{ antialias: true }}>
-        <ambientLight intensity={0.5} />
-        <directionalLight position={[100, 200, 50]} intensity={1.0} />
+        {/* Flat, even light: a map should read, not model the ground. */}
+        <hemisphereLight args={['#fbf6e6', '#8a8a70', 1.6]} />
+        <directionalLight position={[100, 300, 50]} intensity={0.9} />
         <OOBMapCamera />
         <Terrain showGroundCover={false} />
+        <Trees />
         <Buildings clickThrough />
+        <MapGrid size={MAP_SIZE_VALUES[mapSize]} />
         <ClickPlane />
 
-        {/* Player marker */}
         <OOBMarker
           position={[playerPos[0] * mapScale, playerPos[1] * mapScale]}
           rotation={0}
-          color="#00ff00"
+          color={PENCIL_BLUE}
           isSelected={selectedId === 'player'}
           isPlayer
         />
-
-        {/* Ally markers */}
         {oobAllies.map((u) => (
           <OOBMarker
             key={u.id}
             position={[u.position[0] * mapScale, u.position[1] * mapScale]}
             rotation={u.rotation}
-            color="#3399ff"
+            color={PENCIL_BLUE}
             isSelected={u.id === selectedId}
           />
         ))}
-
-        {/* Enemy markers */}
         {oobEnemies.map((u) => (
           <OOBMarker
             key={u.id}
             position={[u.position[0] * mapScale, u.position[1] * mapScale]}
             rotation={u.rotation}
-            color="#ff3333"
+            color={PENCIL_RED}
             isSelected={u.id === selectedId}
           />
         ))}
       </Canvas>
 
-      <div className="oob-map-grid" aria-hidden="true" />
-      <div className="oob-map-vignette" aria-hidden="true" />
-      <div className="oob-map-coordinate oob-map-coordinate--nw">NW 00</div>
-      <div className="oob-map-coordinate oob-map-coordinate--ne">NE 20</div>
-      <div className="oob-map-coordinate oob-map-coordinate--se">SE 40</div>
-      <div className="oob-map-north" aria-label="Map north"><span>N</span><i /></div>
-
-      {/* Map legend */}
-      <div className="oob-map-legend">
-        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#00ff00' }} />Player</span>
-        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#3399ff' }} />Allies</span>
-        <span><span className="inline-block w-2 h-2 rounded-full mr-1" style={{ backgroundColor: '#ff3333' }} />Enemies</span>
-      </div>
+      <p className="planning-map__scale">{MAP_SIZE_VALUES[mapSize] / GRID_DIVISIONS} m squares. Scroll to zoom, right-drag to pan.</p>
 
       {placementMode && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-yellow-400 bg-black/70 px-3 py-1 border border-yellow-600">
-          Click to place {placementMode}
-        </div>
+        <p className="map-notice">Click the map to place the {placementMode === 'enemy' ? 'enemy' : 'allied'} tank.</p>
       )}
-      {selectedId && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 text-xs text-yellow-400 bg-black/70 px-3 py-1 border border-yellow-600">
-          Click to reposition {selectedId === 'player' ? 'player' : 'unit'}
-        </div>
+      {!placementMode && selectedId && (
+        <p className="map-notice">Click the map to move {selectedId === 'player' ? 'your tank' : 'this tank'}.</p>
       )}
     </div>
   );

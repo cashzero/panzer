@@ -27,7 +27,7 @@ The Vite config injects `GEMINI_API_KEY` from the environment into `process.env.
 - `tank-editor.html` → `src/tank-editor/main.tsx` → `TankEditorApp.tsx` (standalone tank model/spec editor)
 
 **App screen routing**: `App.tsx` reads `gameScreen` from the store and renders one of:
-- `tank-select` — `screens/TankSelect.tsx` (rotating 3D preview, stats, armor tooltips, deploy)
+- `tank-select` — `screens/TankSelect.tsx` (3D preview, brass data plate, paint chips, armour tooltips); shared pieces in `screens/menuParts.tsx`
 - `oob-editor` — `screens/OOBEditor.tsx` + `OOBMiniMap.tsx` + `OOBTankList.tsx` (order-of-battle: allies, enemies, map size, seed)
 - default — `GameScene.tsx` + `UI.tsx` (live battle)
 

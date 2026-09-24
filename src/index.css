@@ -49,519 +49,763 @@ select:focus-visible {
   background: #91a098;
 }
 
-/* Vehicle catalogue */
-.tank-select-shell {
+/* Pre-battle screens: a command-post map table and the vehicle's brass data
+   plate. Painted steel and stencil chalk stay quiet; the plate is the one
+   bright object. Blue and red follow the period map convention for friend
+   and enemy. Fonts are OFL and served locally (public/assets/fonts). */
+
+@font-face {
+  font-family: "Big Shoulders Stencil";
+  src: url("/assets/fonts/big-shoulders-stencil-latin.woff2") format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-400-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-500-latin.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Barlow Semi Condensed";
+  src: url("/assets/fonts/barlow-semi-condensed-600-latin.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+
+.depot,
+.orders {
+  --steel: #2c312a;
+  --steel-raised: #383e34;
+  --steel-edge: #4a5144;
+  --chalk: #d6d1bf;
+  --chalk-dim: #9c9a8b;
+  --brass: #a88b52;
+  --brass-light: #c9ac6c;
+  --ink: #2b2519;
+  --pencil-blue: #5f84b4;
+  --pencil-red: #c3493d;
+  --stencil: "Big Shoulders Stencil", Bahnschrift, "Arial Narrow", sans-serif;
+  --text: "Barlow Semi Condensed", Bahnschrift, "Arial Narrow", sans-serif;
+
   position: absolute;
   inset: 0;
   display: grid;
-  grid-template-rows: 72px minmax(0, 1fr) auto;
   min-width: 320px;
-  color: var(--ink);
-  background: #090b09;
-  font-family: Consolas, "Courier New", monospace;
+  color: var(--chalk);
+  background: var(--steel);
+  font-family: var(--text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
 }
 
-.tank-select-shell * {
-  letter-spacing: 0;
+.depot button,
+.orders button,
+.orders select,
+.orders input {
+  color: inherit;
+  cursor: pointer;
 }
 
-.tank-select-header {
+/* Stencilled toggles: battlefield size, paint, vehicles. Pressed reads as
+   the chalk mark on a painted plate, not a coloured pill. */
+.map-size {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 24px;
-  border-bottom: 1px solid var(--rule);
-  background: linear-gradient(90deg, rgba(86, 100, 59, 0.19), transparent 40%);
+  gap: 2px;
 }
 
-.tank-select-header span,
-.tank-select-header > strong {
+.map-size button,
+.depot__nation button {
+  padding: 7px 14px;
+  border: 0;
+  background: var(--steel-raised);
+  color: var(--chalk-dim);
+  font-size: 15px;
+}
+
+.map-size button:hover,
+.depot__nation button:hover {
+  color: var(--chalk);
+}
+
+.map-size button[aria-pressed="true"],
+.depot__nation button[aria-pressed="true"] {
+  background: var(--chalk);
   color: var(--steel);
-  font-size: 9px;
 }
 
-.tank-select-header h1 {
-  margin: 2px 0 0;
-  color: #a8b778;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+.plain-button {
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: var(--chalk-dim);
+  font-size: 15px;
+  text-decoration: underline;
+  text-decoration-color: var(--steel-edge);
+  text-underline-offset: 4px;
+}
+
+.plain-button:hover {
+  color: var(--chalk);
+  text-decoration-color: var(--chalk-dim);
+}
+
+.command-button {
+  padding: 10px 26px 8px;
+  border: 2px solid var(--brass);
+  background: #3f4a2f;
+  color: #efe6c6;
+  font-family: var(--stencil);
   font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   line-height: 1;
-}
-
-.tank-select-main {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: minmax(0, 1fr) minmax(330px, 390px);
-}
-
-.tank-select-stage {
-  position: relative;
-  min-width: 0;
-  background: #18201b;
-}
-
-.tank-select-stage::after {
-  position: absolute;
-  inset: 0;
-  border: 12px solid rgba(7, 10, 8, 0.16);
-  box-shadow: inset 0 0 90px rgba(3, 5, 4, 0.58);
-  content: "";
-  pointer-events: none;
-}
-
-.tank-select-info {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
-  border-left: 1px solid var(--rule);
-  padding: 22px 24px;
-  background: #0b0e0c;
-}
-
-.tank-select-info h2 {
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-}
-
-.tank-select-catalog {
-  border-top: 1px solid var(--rule);
-  background: #090c0a;
-}
-
-.tank-select-confirm {
-  display: flex;
-  min-height: 38px;
-  align-items: center;
-  gap: 7px;
-  margin-left: 22px;
-  border: 1px solid #78904a;
-  padding: 7px 24px;
-  color: #ece2ac;
-  background: #3d5129;
-  cursor: pointer;
-  font-size: 11px;
-  font-weight: 700;
   text-transform: uppercase;
 }
 
-.tank-select-confirm:hover {
-  filter: brightness(1.18);
+.command-button:hover {
+  background: #4b5838;
 }
 
-/* Order of battle */
-.oob-shell {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) 210px;
-  min-width: 320px;
+/* ---- Brass data plate ------------------------------------------------ */
+
+.data-plate {
+  position: relative;
+  padding: 16px 22px 14px;
+  border: 1px solid #6f5a31;
   color: var(--ink);
-  background: var(--coal);
-  font-family: Consolas, "Courier New", monospace;
-}
-
-.oob-shell * {
-  letter-spacing: 0;
-}
-
-.oob-header {
-  z-index: 5;
-  display: flex;
-  min-height: 78px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  padding: 10px 18px 9px 22px;
-  border-bottom: 1px solid var(--rule);
   background:
-    linear-gradient(90deg, rgba(86, 100, 59, 0.18), transparent 34%),
-    #0a0d0b;
+    repeating-linear-gradient(90deg, rgba(255, 245, 210, 0.05) 0 1px, transparent 1px 3px),
+    linear-gradient(170deg, #c2a468 0%, var(--brass) 55%, #917540 100%);
+  box-shadow: inset 0 0 0 3px rgba(57, 44, 20, 0.28), inset 0 1px 0 rgba(255, 240, 200, 0.5);
 }
 
-.oob-brand {
-  min-width: 270px;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
+.data-plate__rivet {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e4cc92, #6c5427 70%);
 }
 
-.oob-kicker,
-.oob-control-label {
-  color: var(--steel);
-  font-size: 9px;
-  line-height: 1;
-  text-transform: uppercase;
-}
+.data-plate__rivet--tl { top: 7px; left: 7px; }
+.data-plate__rivet--tr { top: 7px; right: 7px; }
+.data-plate__rivet--bl { bottom: 7px; left: 7px; }
+.data-plate__rivet--br { right: 7px; bottom: 7px; }
 
-.oob-brand h1 {
-  margin: 4px 0 3px;
-  color: #a8b778;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-  font-size: clamp(20px, 2vw, 28px);
-  font-stretch: condensed;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.oob-brandline {
+.data-plate__head {
   display: flex;
-  gap: 14px;
-  color: #59645e;
-  font-size: 8px;
-}
-
-.oob-toolbar,
-.oob-control-group,
-.oob-seed-control,
-.oob-tool-button {
-  display: flex;
-  align-items: center;
-}
-
-.oob-toolbar {
-  min-width: 0;
-  gap: 18px;
-}
-
-.oob-control-group {
-  gap: 8px;
-}
-
-.oob-segmented {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(78px, 1fr));
-  border: 1px solid var(--rule);
-}
-
-.oob-segmented button {
-  min-height: 31px;
-  padding: 4px 10px;
-  border: 0;
-  border-right: 1px solid var(--rule);
-  color: #87908a;
-  background: #0b0e0c;
-  cursor: pointer;
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-.oob-segmented button:last-child {
-  border-right: 0;
-}
-
-.oob-segmented button span {
-  display: block;
-  color: #55605a;
-  font-size: 8px;
-}
-
-.oob-segmented button:hover,
-.oob-segmented button.is-active {
-  color: #f0d98c;
-  background: #2a2b18;
-}
-
-.oob-segmented button.is-active {
-  box-shadow: inset 0 -2px 0 var(--brass);
-}
-
-.oob-seed-control input {
-  width: 102px;
-  height: 31px;
-  border: 1px solid var(--rule);
-  padding: 0 9px;
-  color: #d6d8cf;
-  background: #0b0e0c;
-  font-size: 11px;
-}
-
-.oob-tool-button {
-  height: 31px;
-  gap: 6px;
-  border: 1px solid var(--rule);
-  padding: 0 9px;
-  color: #9ca8a1;
-  background: #111512;
-  cursor: pointer;
-  font-size: 9px;
-  text-transform: uppercase;
-}
-
-.oob-tool-button:hover {
-  border-color: #68796f;
-  color: #e8d48e;
-  background: #1a201c;
-}
-
-.oob-tool-button--text {
-  color: var(--brass);
-}
-
-.oob-main {
-  display: grid;
-  min-height: 0;
-  grid-template-columns: 190px minmax(0, 1fr) 190px;
-}
-
-.oob-roster {
-  z-index: 2;
-  min-width: 0;
-  background: #090c0a;
-}
-
-.oob-roster--allies {
-  border-right: 1px solid var(--rule);
-}
-
-.oob-roster--enemies {
-  border-left: 1px solid var(--rule);
-}
-
-.oob-roster-content {
-  display: flex;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 11px 9px;
-}
-
-.oob-roster-heading {
-  display: flex;
-  align-items: center;
+  flex-wrap: wrap;
+  align-items: baseline;
   justify-content: space-between;
-  border-bottom: 1px solid #222b27;
-  padding: 0 2px 8px;
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-  font-size: 11px;
-  font-weight: 700;
+  gap: 2px 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(43, 37, 25, 0.35);
 }
 
-.oob-add-unit {
-  display: flex;
-  min-height: 31px;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  border: 1px solid #35423d;
-  color: #7e8983;
-  background: #0c100d;
-  cursor: pointer;
-  font-size: 9px;
+.data-plate__head strong {
+  font-family: var(--stencil);
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
   text-transform: uppercase;
+  text-shadow: 0 1px 0 rgba(255, 238, 196, 0.45);
 }
 
-.oob-add-unit:hover,
-.oob-add-unit.is-active {
-  border-color: var(--brass);
-  color: #dec878;
-  background: #292816;
+.data-plate__head span,
+.data-plate__foot {
+  font-size: 14px;
 }
 
-.oob-unit-list {
-  display: flex;
-  min-height: 0;
-  flex: 1;
-  flex-direction: column;
-  gap: 5px;
-  overflow-y: auto;
-}
-
-.oob-unit-row {
-  display: flex;
-  min-height: 33px;
-  align-items: center;
-  gap: 6px;
-  border-left: 2px solid #27312d;
-  padding: 4px 5px 4px 7px;
-  background: #101411;
-  cursor: pointer;
-  transition: background-color 120ms ease, border-color 120ms ease;
-}
-
-.oob-unit-row:hover {
-  border-left-color: #718078;
-  background: #171c18;
-}
-
-.oob-unit-row.is-selected {
-  border-left-color: var(--brass);
-  background: #262719;
-}
-
-.oob-unit-row select {
-  min-width: 0;
-  flex: 1;
-  border: 0;
-  outline: 0;
-  color: #d3d8d2;
-  background: transparent;
-  cursor: pointer;
-  font-size: 10px;
-}
-
-.oob-remove-unit {
+.data-plate__rows {
   display: grid;
-  width: 22px;
+  gap: 5px;
+  margin: 10px 0 0;
+}
+
+.data-plate__row {
+  display: grid;
+  grid-template-columns: minmax(8.5em, auto) 1fr;
+  align-items: center;
+  gap: 12px;
+}
+
+.data-plate__row dt {
+  font-size: 14px;
+}
+
+.data-plate__row dd {
+  display: grid;
+  grid-template-columns: 5.2em 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.data-plate__value {
+  font-size: 18px;
+  font-weight: 600;
+  text-align: right;
+  text-shadow: 0 1px 0 rgba(255, 238, 196, 0.4);
+}
+
+.data-plate__value small {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Engraved scale: filled to the vehicle's figure, ticked every tenth of the
+   best in the catalogue. */
+.data-plate__scale {
+  height: 7px;
+  background:
+    repeating-linear-gradient(90deg, rgba(43, 37, 25, 0.45) 0 1px, transparent 1px 10%),
+    linear-gradient(90deg, var(--ink) calc(var(--fraction) * 100%), rgba(43, 37, 25, 0.12) 0);
+  box-shadow: 0 1px 0 rgba(255, 238, 196, 0.45);
+}
+
+.data-plate__foot {
+  margin-top: 9px;
+  padding-top: 7px;
+  border-top: 1px solid rgba(43, 37, 25, 0.35);
+}
+
+.data-plate--compact {
+  padding: 12px 18px 10px;
+}
+
+.data-plate--compact .data-plate__rows {
+  gap: 3px;
+  margin-top: 7px;
+}
+
+.data-plate--compact .data-plate__head strong {
+  font-size: 21px;
+}
+
+/* ---- Paint card ------------------------------------------------------ */
+
+.paint-chip {
+  display: inline-flex;
+  width: 34px;
   height: 22px;
-  flex: 0 0 22px;
-  place-items: center;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.paint-chip span {
+  flex: 1;
+}
+
+.paint-card {
+  display: grid;
+  gap: 2px;
+}
+
+.paint-card button {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 7px 10px;
   border: 0;
-  color: #59635e;
-  background: transparent;
-  cursor: pointer;
+  border-left: 3px solid transparent;
+  background: var(--steel-raised);
+  text-align: left;
 }
 
-.oob-remove-unit:hover {
-  color: #dc776d;
-  background: #321b18;
+.paint-card button small {
+  color: var(--chalk-dim);
+  font-size: 13px;
 }
 
-.oob-roster-footer {
-  color: #4f5b55;
-  font-size: 8px;
-  text-align: center;
+.paint-card button[aria-pressed="true"] {
+  border-left-color: var(--chalk);
+  background: var(--steel-edge);
 }
 
-.oob-map-stage {
+/* ---- Armour plate readout ------------------------------------------- */
+
+.plate-tooltip {
+  position: absolute;
+  z-index: 10;
+  display: grid;
+  gap: 1px;
+  min-width: 11em;
+  padding: 8px 12px;
+  border-left: 3px solid var(--brass);
+  background: rgba(30, 34, 28, 0.94);
+  pointer-events: none;
+  transform: translate(14px, -50%);
+}
+
+.plate-tooltip strong {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.plate-tooltip small {
+  color: var(--chalk-dim);
+  font-size: 13px;
+}
+
+/* ---- Vehicle catalogue (tank select) -------------------------------- */
+
+.depot {
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+
+.depot__stage {
   position: relative;
   min-width: 0;
+  min-height: 0;
+}
+
+/* The vehicle name, stencilled large on the studio wall behind the tank. */
+.depot__name {
+  position: absolute;
+  top: 18px;
+  left: 28px;
+  margin: 0;
+  color: rgba(214, 209, 191, 0.82);
+  font-family: var(--stencil);
+  font-size: clamp(48px, 7vw, 104px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  line-height: 0.9;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.depot__hint {
+  position: absolute;
+  bottom: 14px;
+  left: 28px;
+  margin: 0;
+  color: var(--chalk-dim);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.depot__sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 24px 26px 22px;
+  border-left: 1px solid var(--steel-edge);
+  background: var(--steel);
+}
+
+.depot__description {
+  max-width: 60ch;
+  margin: 0;
+  color: var(--chalk);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.depot__field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.depot__field legend {
+  margin-bottom: 8px;
+  padding: 0;
+  color: var(--chalk-dim);
+  font-size: 14px;
+}
+
+.depot__confirm {
+  margin-top: auto;
+}
+
+.depot__catalogue {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 36px;
+  padding: 14px 28px 16px;
+  border-top: 1px solid var(--steel-edge);
+  background: #262a24;
+}
+
+.depot__nation {
+  display: grid;
+  gap: 6px;
+}
+
+.depot__nation > span {
+  color: var(--chalk-dim);
+  font-size: 14px;
+}
+
+.depot__nation > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.depot__nation button {
+  font-family: var(--stencil);
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+/* ---- Order of battle ------------------------------------------------- */
+
+.orders {
+  grid-template-rows: auto minmax(0, 1fr) 208px;
+}
+
+.orders__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 28px;
+  padding: 12px 22px;
+  border-bottom: 1px solid var(--steel-edge);
+}
+
+.orders__head h1 {
+  margin: 0;
+  font-family: var(--stencil);
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.orders__settings,
+.orders__seed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 18px;
+}
+
+.orders__seed {
+  gap: 8px 12px;
+}
+
+.orders__seed label {
+  color: var(--chalk-dim);
+  font-size: 14px;
+}
+
+.orders__seed input {
+  width: 9.5em;
+  padding: 6px 9px;
+  border: 0;
+  border-bottom: 2px solid var(--steel-edge);
+  background: var(--steel-raised);
+  font-size: 16px;
+  cursor: text;
+}
+
+.orders__table {
+  display: grid;
+  grid-template-columns: 270px minmax(0, 1fr) 270px;
+  min-height: 0;
+}
+
+.orders__force {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 16px 14px;
+}
+
+.orders__force--friendly {
+  border-right: 1px solid var(--steel-edge);
+}
+
+.orders__force--enemy {
+  border-left: 1px solid var(--steel-edge);
+}
+
+.force {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.force__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+}
+
+.orders__force--friendly .force__title { color: var(--pencil-blue); }
+.orders__force--enemy .force__title { color: var(--pencil-red); }
+
+.force__title span {
+  color: var(--chalk-dim);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.force__list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.force-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 10px;
+  border-left: 3px solid transparent;
+  background: var(--steel-raised);
+  cursor: pointer;
+}
+
+.force-row:hover {
+  background: var(--steel-edge);
+}
+
+.force-row[aria-selected="true"] {
+  border-left-color: var(--brass-light);
+  background: var(--steel-edge);
+}
+
+.force-row__body {
+  display: grid;
+  min-width: 0;
+}
+
+.force-row select {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline-offset: 1px;
+  background: transparent;
+  appearance: none;
+}
+
+.force-row select option {
+  color: var(--chalk);
+  background: var(--steel);
+}
+
+.force-row__type {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.force-row__paint {
+  color: var(--chalk-dim);
+  font-size: 13px;
+}
+
+.force-row__tag {
+  color: var(--pencil-blue);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.force-row__remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: none;
+  color: var(--chalk-dim);
+}
+
+.force-row__remove:hover {
+  color: var(--pencil-red);
+}
+
+.force__add {
+  padding: 8px 10px;
+  border: 1px dashed var(--steel-edge);
+  background: none;
+  color: var(--chalk-dim);
+  font-size: 15px;
+  text-align: left;
+}
+
+.force__add:hover,
+.force__add[aria-pressed="true"] {
+  border-style: solid;
+  border-color: var(--chalk-dim);
+  color: var(--chalk);
+}
+
+.armour-symbol {
+  flex-shrink: 0;
+}
+
+/* The map sheet on the table: a thin frame and its own margin notes. */
+.orders__map {
+  position: relative;
+  min-width: 0;
+  padding: 10px;
+  background: #22261f;
+}
+
+.planning-map {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: hidden;
-  background: #263819;
+  background: #22261f;
 }
 
-.oob-map-grid,
-.oob-map-vignette {
+.planning-map__scale {
   position: absolute;
-  inset: 0;
+  bottom: 8px;
+  left: 12px;
+  margin: 0;
+  padding: 3px 8px;
+  background: rgba(34, 38, 31, 0.82);
+  color: var(--chalk);
+  font-size: 13px;
   pointer-events: none;
 }
 
-.oob-map-grid {
-  z-index: 1;
-  opacity: 0.24;
-  background-image:
-    linear-gradient(rgba(204, 213, 188, 0.2) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(204, 213, 188, 0.2) 1px, transparent 1px),
-    linear-gradient(rgba(204, 213, 188, 0.28) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(204, 213, 188, 0.28) 1px, transparent 1px);
-  background-size: 40px 40px, 40px 40px, 200px 200px, 200px 200px;
-}
-
-.oob-map-vignette {
-  z-index: 2;
-  border: 10px solid rgba(7, 10, 8, 0.18);
-  box-shadow: inset 0 0 80px rgba(3, 6, 4, 0.5);
-}
-
-.oob-map-coordinate,
-.oob-map-north {
-  position: absolute;
-  z-index: 3;
-  color: rgba(213, 219, 204, 0.52);
-  font-size: 8px;
+.map-grid-label {
+  color: rgba(26, 30, 22, 0.85);
+  font-family: var(--stencil);
+  font-size: 18px;
+  font-weight: 800;
   pointer-events: none;
+  user-select: none;
 }
 
-.oob-map-coordinate--nw { top: 9px; left: 11px; }
-.oob-map-coordinate--ne { top: 9px; right: 11px; }
-.oob-map-coordinate--se { right: 11px; bottom: 9px; }
 
-.oob-map-north {
+.map-notice {
+  position: absolute;
   top: 10px;
   left: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  color: #e2d190;
+  margin: 0;
+  padding: 5px 12px;
+  border-left: 3px solid var(--brass-light);
+  background: rgba(34, 38, 31, 0.92);
+  color: var(--chalk);
+  font-family: var(--text);
+  font-size: 14px;
+  white-space: nowrap;
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
-.oob-map-north i {
-  width: 0;
-  height: 0;
-  margin-top: 2px;
-  border-right: 4px solid transparent;
-  border-bottom: 9px solid #e2d190;
-  border-left: 4px solid transparent;
+.map-notice--warning {
+  position: static;
+  border-left-color: var(--pencil-red);
+  transform: none;
 }
 
-.oob-map-legend {
-  position: absolute;
-  z-index: 4;
-  bottom: 9px;
-  left: 11px;
-  display: flex;
-  gap: 12px;
-  color: #aab2aa;
-  font-size: 9px;
-}
-
-.oob-inspector {
-  z-index: 5;
+.orders__vehicle {
   display: grid;
-  min-height: 0;
-  grid-template-columns: 230px minmax(0, 1fr) 190px;
-  border-top: 1px solid var(--rule);
-  background:
-    linear-gradient(90deg, rgba(86, 100, 59, 0.12), transparent 34%),
-    #090b09;
-}
-
-.oob-tank-preview {
-  position: relative;
-  min-width: 0;
-  border-right: 1px solid #29332f;
-  background: linear-gradient(180deg, #141a16, #090c0a);
-}
-
-.oob-vehicle-data {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 6px;
-  overflow-y: auto;
-  padding: 13px 18px 10px;
-}
-
-.oob-vehicle-data h2 {
-  font-family: Bahnschrift, "Arial Narrow", sans-serif;
-}
-
-.oob-actions {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 8px;
-  border-left: 1px solid #29332f;
-  padding: 14px;
-}
-
-.oob-actions button {
-  display: flex;
-  min-height: 37px;
+  grid-template-columns: 300px minmax(0, 620px) 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  cursor: pointer;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  gap: 22px;
+  min-height: 0;
+  padding: 0 22px 0 0;
+  border-top: 1px solid var(--steel-edge);
 }
 
-.oob-secondary-action {
-  border: 1px solid #435049;
-  color: #a2aba5;
-  background: #111512;
+.orders__preview {
+  position: relative;
+  height: 100%;
+  min-width: 0;
 }
 
-.oob-deploy-action {
-  border: 1px solid #78904a;
-  color: #e8e0b2;
-  background: #3d5129;
+.orders__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
 }
 
-.oob-actions button:hover {
-  filter: brightness(1.18);
+@media (max-width: 1100px) {
+  .depot {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(300px, 45vh) auto auto;
+    overflow-y: auto;
+  }
+
+  .depot__sheet {
+    overflow: visible;
+    border-left: 0;
+    border-top: 1px solid var(--steel-edge);
+  }
+
+  .orders {
+    grid-template-rows: auto auto auto;
+    overflow-y: auto;
+  }
+
+  /* Stacked: every section keeps its own height and the page scrolls. */
+  .orders > *,
+  .orders__table > *,
+  .depot > * {
+    min-height: auto;
+  }
+
+  .orders__table {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 90vw auto;
+  }
+
+  .orders__force {
+    overflow: visible;
+  }
+
+  .orders__force--friendly,
+  .orders__force--enemy {
+    border: 0;
+  }
+
+  .orders__vehicle {
+    grid-template-columns: 1fr;
+    padding: 0 16px 16px;
+  }
+
+  .orders__preview {
+    height: 200px;
+  }
+
+  .orders__actions {
+    align-items: stretch;
+  }
+}
+
+.depot :focus-visible,
+.orders :focus-visible {
+  outline: 2px solid var(--brass-light);
+  outline-offset: 2px;
 }
 
 /* In-battle optical and driver displays */
@@ -883,205 +1127,7 @@ select:focus-visible {
   font-size: clamp(32px, 7vw, 64px);
 }
 
-@media (max-width: 1120px) {
-  .oob-header {
-    align-items: flex-start;
-    padding-top: 9px;
-  }
-
-  .oob-brand {
-    min-width: 210px;
-  }
-
-  .oob-toolbar {
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 7px 14px;
-  }
-
-  .oob-main {
-    grid-template-columns: 160px minmax(0, 1fr) 160px;
-  }
-
-  .oob-tool-button span,
-  .oob-control-label {
-    display: none;
-  }
-}
-
 @media (max-width: 720px) {
-  .tank-select-shell {
-    grid-template-rows: 58px minmax(0, 1fr) auto;
-  }
-
-  .tank-select-header {
-    padding: 7px 10px;
-  }
-
-  .tank-select-header h1 {
-    font-size: 18px;
-  }
-
-  .tank-select-header > strong,
-  .tank-select-header span {
-    font-size: 7px;
-  }
-
-  .tank-select-main {
-    grid-template-rows: minmax(240px, 1fr) auto;
-    grid-template-columns: 1fr;
-  }
-
-  .tank-select-info {
-    max-height: 230px;
-    gap: 8px;
-    border-top: 1px solid var(--rule);
-    border-left: 0;
-    padding: 10px 12px;
-  }
-
-  .tank-select-info h2 {
-    font-size: 18px;
-  }
-
-  .tank-select-catalog {
-    max-height: 126px;
-    overflow-y: auto;
-  }
-
-  .tank-select-catalog button {
-    padding: 5px 8px;
-    font-size: 8px;
-  }
-
-  .tank-select-confirm {
-    min-height: 30px;
-    margin-left: 2px;
-  }
-
-  .oob-shell {
-    grid-template-rows: auto minmax(0, 1fr) 156px;
-  }
-
-  .oob-header {
-    min-height: 58px;
-    gap: 8px;
-    padding: 7px 8px;
-  }
-
-  .oob-brand {
-    min-width: 118px;
-  }
-
-  .oob-brand h1 {
-    margin-top: 3px;
-    font-size: 16px;
-    line-height: 0.95;
-  }
-
-  .oob-kicker,
-  .oob-brandline span:last-child,
-  .oob-seed-control .oob-tool-button--text,
-  .oob-seed-control input {
-    display: none;
-  }
-
-  .oob-segmented {
-    grid-template-columns: repeat(3, 42px);
-  }
-
-  .oob-segmented button {
-    min-height: 28px;
-    padding: 3px;
-    font-size: 8px;
-  }
-
-  .oob-segmented button span {
-    font-size: 6px;
-  }
-
-  .oob-tool-button {
-    width: 29px;
-    height: 28px;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .oob-main {
-    grid-template-columns: 88px minmax(0, 1fr) 88px;
-  }
-
-  .oob-roster-content {
-    gap: 5px;
-    padding: 7px 5px;
-  }
-
-  .oob-roster-heading,
-  .oob-add-unit {
-    font-size: 8px;
-  }
-
-  .oob-add-unit {
-    min-height: 28px;
-  }
-
-  .oob-add-unit svg,
-  .oob-unit-row > div,
-  .oob-unit-row span,
-  .oob-remove-unit {
-    display: none;
-  }
-
-  .oob-unit-row {
-    min-height: 29px;
-    padding: 3px 2px;
-  }
-
-  .oob-unit-row select {
-    width: 100%;
-    font-size: 8px;
-  }
-
-  .oob-map-legend {
-    max-width: 72px;
-    flex-wrap: wrap;
-    gap: 3px 7px;
-    font-size: 7px;
-  }
-
-  .oob-inspector {
-    grid-template-columns: minmax(0, 1fr) 112px;
-  }
-
-  .oob-tank-preview {
-    display: none;
-  }
-
-  .oob-vehicle-data {
-    gap: 3px;
-    padding: 8px;
-  }
-
-  .oob-vehicle-data h2 {
-    font-size: 14px;
-  }
-
-  .oob-vehicle-data .text-xs,
-  .oob-vehicle-data .text-\[10px\] {
-    font-size: 7px;
-  }
-
-  .oob-actions {
-    gap: 5px;
-    padding: 8px;
-  }
-
-  .oob-actions button {
-    min-height: 34px;
-    padding: 4px;
-    font-size: 8px;
-  }
-
   .bearing-strip {
     width: 76vw;
   }
