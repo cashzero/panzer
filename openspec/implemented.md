@@ -12,6 +12,9 @@ Completed roadmap items are documented here.
 - Third-person right-click resolves a designated target from the screen-center ray across tanks, buildings, trees, terrain, and a stable long-range fallback.
 - Player right-click target pursuit no longer stops short on a coarse deadzone; the turret and sight keep converging toward the designated target while still respecting traverse and elevation speed limits.
 - GunAimPoint reflects the gun's current resolved aim point rather than mirroring the third-person viewpoint target.
+- The player hull is driven through forward speed and yaw rate rather than each track on its own. Yaw rate builds and settles at the tank's rotational inertia and never exceeds its turn-rate limit, so releasing the steering key stops the turn within a fraction of a second; turning under power costs some speed, fast turns are broader, and a stationary pivot is slower than a low-speed turn. With a track thrown the hull only creeps round the dead side.
+- The third-person camera follows the hull height through a short ease, so suspension bounce and terrain snapping do not shake the view, and it keeps clear of the ground when looking up.
+- In gunner view the mouse free-look stays on the sight line unless right-click is held, so the next right-click or return to third-person does not swing to a direction drifted off-screen. Gunner zoom steps ease rather than snap.
 - An order-of-battle editor lets the player configure allies, enemies, map size, and world seed before deployment.
 
 ## Vehicles, Weapons, And Combat

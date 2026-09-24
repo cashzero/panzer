@@ -377,3 +377,79 @@ export function accelerateTrackSpeeds(params: {
 
   return { left, right };
 }
+
+// --- Drive Model (input → track speeds with healthy running gear) ---
+
+export interface DriveParams {
+  throttle: number;
+  steering: number;
+  maxSpeed: number;
+  maxReverseSpeed: number;
+  acceleration: number;
+  deceleration: number;
+  trackWidth: number;
+  turnRateLimit: number;
+  rotationalInertia: number;
+  currentLeft: number;
+  currentRight: number;
+  delta: number;
+}
+
+function approach(current: number, target: number, maxStep: number) {
+  if (current < target) return Math.min(current + maxStep, target);
+  return Math.max(current - maxStep, target);
+}
+
+/**
+ * Drives the hull through its forward speed and yaw rate rather than through
+ * each track independently. Forward speed follows the engine's acceleration and
+ * braking; yaw rate builds and settles at the hull's rotational inertia and never
+ * exceeds the turn-rate limit. The tracks are then derived from both, so turning
+ * responds promptly on key press and release instead of waiting for a braked
+ * inner track to spool back up.
+ */
+export function computeDriveTrackSpeeds(params: DriveParams): TrackTargets {
+  const { throttle, steering, maxSpeed, maxReverseSpeed, acceleration, deceleration, turnRateLimit, rotationalInertia, delta } = params;
+  const drive = GAME_CONFIG.tank.drive;
+  const trackWidth = Math.max(params.trackWidth, 0.01);
+  const currentForward = (params.currentLeft + params.currentRight) / 2;
+  const currentYaw = (params.currentRight - params.currentLeft) / trackWidth;
+
+  let targetForward = 0;
+  let targetYaw = 0;
+
+  if (throttle !== 0) {
+    const direction = throttle > 0 ? 1 : -1;
+    const topSpeed = direction > 0 ? maxSpeed : maxReverseSpeed;
+    const speedRatio = THREE.MathUtils.clamp(Math.abs(currentForward) / Math.max(topSpeed, 0.01), 0, 1);
+    targetForward = direction * topSpeed;
+
+    if (steering !== 0) {
+      targetForward *= THREE.MathUtils.lerp(drive.steerSpeedScale[0], drive.steerSpeedScale[1], speedRatio);
+      // Reversing swings the nose the same way a car does.
+      targetYaw = steering * direction * turnRateLimit * THREE.MathUtils.lerp(1, drive.highSpeedYawScale, speedRatio);
+    }
+  } else if (steering !== 0) {
+    targetYaw = steering * turnRateLimit * drive.pivotYawScale;
+  }
+
+  const speedingUp = targetForward !== 0
+    && (currentForward === 0 || Math.sign(currentForward) === Math.sign(targetForward))
+    && Math.abs(targetForward) > Math.abs(currentForward);
+  const forward = approach(currentForward, targetForward, (speedingUp ? acceleration : deceleration) * delta);
+  const yaw = approach(currentYaw, targetYaw, rotationalInertia * delta);
+
+  const halfDifferential = yaw * trackWidth / 2;
+  return { left: forward - halfDifferential, right: forward + halfDifferential };
+}
+
+/**
+ * Scales a pair of track speeds down so their differential stays within the hull's
+ * turn-rate limit while keeping the ratio between them (a stopped track stays stopped).
+ */
+export function limitTrackYawRate(tracks: TrackTargets, trackWidth: number, turnRateLimit: number): TrackTargets {
+  const yaw = (tracks.right - tracks.left) / Math.max(trackWidth, 0.01);
+  if (Math.abs(yaw) <= turnRateLimit || yaw === 0) return tracks;
+  const scale = turnRateLimit / Math.abs(yaw);
+  return { left: tracks.left * scale, right: tracks.right * scale };
+}

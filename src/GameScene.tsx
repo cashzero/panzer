@@ -21,7 +21,7 @@ import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } 
 import { BattleMapGrid, MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
-import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock, computeTrackTargets, accelerateTrackSpeeds } from './tankPhysics';
+import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock, computeTrackTargets, accelerateTrackSpeeds, computeDriveTrackSpeeds, limitTrackYawRate } from './tankPhysics';
 import { useInput } from './useInput';
 import { fireTank, updatePlayerBurst } from './firing';
 import { computeTurretAiming } from './turretAiming';
@@ -152,8 +152,14 @@ function PlayerController() {
   const updatePlayer = useGameStore((state) => state.updatePlayer);
   const input = useInput(fireTank);
   const previousViewMode = useRef<'third-person' | 'gunner'>(useGameStore.getState().viewMode);
+  // Hull yaw rate actually applied last frame, so turn-rate limit and inertia act on real motion.
+  const hullYawRate = useRef(0);
+  // Smoothed height of the third-person orbit centre.
+  const cameraAnchorY = useRef<number | null>(null);
 
-  useFrame((state, delta) => {
+  useFrame((state, frameDelta) => {
+    // A long frame (tab switch, hitch) is simulated as a short one instead of teleporting the tank.
+    const delta = Math.min(frameDelta, GAME_CONFIG.physics.maxFrameDelta);
     const player = useGameStore.getState().playerTank;
     if (player.destroyed) return;
 
@@ -165,32 +171,50 @@ function PlayerController() {
     const throttle = (input.keys.current['KeyW'] ? 1 : 0) - (input.keys.current['KeyS'] ? 1 : 0);
     const steering = (input.keys.current['KeyA'] ? 1 : 0) - (input.keys.current['KeyD'] ? 1 : 0);
 
-    const trackTargets = computeTrackTargets({
-      throttle, steering,
-      maxSpeed: playerDef.maxSpeed,
-      maxReverseSpeed: playerDef.maxReverseSpeed,
-      currentLeftTrackSpeed: player.leftTrackSpeed || 0,
-      currentRightTrackSpeed: player.rightTrackSpeed || 0,
-      trackDestroyed: player.trackDestroyed ?? { left: false, right: false },
-    });
-
-    const trackSpeeds = accelerateTrackSpeeds({
-      currentLeft: player.leftTrackSpeed || 0,
-      currentRight: player.rightTrackSpeed || 0,
-      targetLeft: trackTargets.left,
-      targetRight: trackTargets.right,
-      acceleration: playerDef.acceleration,
-      deceleration: playerDef.deceleration,
-      delta,
-    });
+    const trackDestroyed = player.trackDestroyed ?? { left: false, right: false };
+    let trackSpeeds;
+    if (trackDestroyed.left || trackDestroyed.right) {
+      // A thrown track leaves only the other one driving: the hull pivots about the dead side.
+      const trackTargets = computeTrackTargets({
+        throttle, steering,
+        maxSpeed: playerDef.maxSpeed,
+        maxReverseSpeed: playerDef.maxReverseSpeed,
+        currentLeftTrackSpeed: player.leftTrackSpeed || 0,
+        currentRightTrackSpeed: player.rightTrackSpeed || 0,
+        trackDestroyed,
+      });
+      trackSpeeds = limitTrackYawRate(accelerateTrackSpeeds({
+        currentLeft: player.leftTrackSpeed || 0,
+        currentRight: player.rightTrackSpeed || 0,
+        targetLeft: trackTargets.left,
+        targetRight: trackTargets.right,
+        acceleration: playerDef.acceleration,
+        deceleration: playerDef.deceleration,
+        delta,
+      }), playerDef.trackWidth, playerDef.turnRateLimit);
+    } else {
+      trackSpeeds = computeDriveTrackSpeeds({
+        throttle, steering,
+        maxSpeed: playerDef.maxSpeed,
+        maxReverseSpeed: playerDef.maxReverseSpeed,
+        acceleration: playerDef.acceleration,
+        deceleration: playerDef.deceleration,
+        trackWidth: playerDef.trackWidth,
+        turnRateLimit: playerDef.turnRateLimit,
+        rotationalInertia: playerDef.rotationalInertia,
+        currentLeft: player.leftTrackSpeed || 0,
+        currentRight: player.rightTrackSpeed || 0,
+        delta,
+      });
+    }
 
     const leftSpeed = trackSpeeds.left;
     const rightSpeed = trackSpeeds.right;
 
     // Calculate tank movement from track speeds
-    const prevRotSpeed = ((player.rightTrackSpeed || 0) - (player.leftTrackSpeed || 0)) / playerDef.trackWidth;
-    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta, playerDef.trackWidth, playerDef.turnRateLimit, prevRotSpeed, playerDef.rotationalInertia);
+    const movement = computeTrackMovement(leftSpeed, rightSpeed, player.position, player.rotation, delta, playerDef.trackWidth, playerDef.turnRateLimit, hullYawRate.current, playerDef.rotationalInertia);
     const { forwardSpeed, rotationSpeed } = movement;
+    hullYawRate.current = rotationSpeed;
     let newRot = movement.rotation;
     let newPos = movement.position;
 
@@ -246,8 +270,17 @@ function PlayerController() {
     const preservedTransitionTarget = viewMode === 'gunner' && previousViewMode.current === 'third-person'
       ? player.designatedAimTarget.clone()
       : null;
-    const cameraTargetPos = newPos.clone().add(new THREE.Vector3(0, GAME_CONFIG.camera.heightOffset, 0));
+    // Follow the hull rigidly in plan but ease the height, so suspension bounce and
+    // terrain snapping do not shake the whole view; never let the orbit dip into the ground.
+    const anchorTargetY = newPos.y + GAME_CONFIG.camera.heightOffset;
+    if (cameraAnchorY.current === null || Math.abs(anchorTargetY - cameraAnchorY.current) > 8) {
+      cameraAnchorY.current = anchorTargetY;
+    } else {
+      cameraAnchorY.current += (anchorTargetY - cameraAnchorY.current) * (1 - Math.exp(-delta / GAME_CONFIG.camera.heightSmoothing));
+    }
+    const cameraTargetPos = new THREE.Vector3(newPos.x, cameraAnchorY.current, newPos.z);
     const cameraPos = cameraTargetPos.clone().sub(lookDir.clone().multiplyScalar(GAME_CONFIG.camera.distance));
+    cameraPos.y = Math.max(cameraPos.y, getTerrainHeight(cameraPos.x, cameraPos.z) + GAME_CONFIG.camera.groundClearance);
     const thirdPersonDesignatedTarget = viewMode === 'third-person'
       ? resolveDesignatedAimTarget(cameraPos, lookDir, 2000, 'player')
       : null;
@@ -318,6 +351,24 @@ function PlayerController() {
       tankType: useGameStore.getState().playerTank.tankType,
     });
 
+    // Without right-click the gunner's mouse look is not driving anything, so keep the
+    // free-look direction on the sight line. Otherwise it drifts unseen, and the next
+    // right-click or return to third-person swings to wherever it ended up.
+    if (viewMode === 'gunner' && !input.isAiming.current) {
+      const sightDir = computeAimPoint({
+        position: newPos,
+        rotation: newRot,
+        pitch, roll,
+        turretRotation: aiming.turretRotation,
+        sightPitch: aiming.sightPitch,
+        turretSwayOffset: 0,
+        gunSwayOffset: 0,
+        tankType: player.tankType,
+      }).aimDir;
+      input.cameraYaw.current = Math.atan2(sightDir.x, sightDir.z) - newRot;
+      input.cameraPitch.current = THREE.MathUtils.clamp(Math.asin(THREE.MathUtils.clamp(sightDir.y, -1, 1)), -Math.PI / 4, Math.PI / 4);
+    }
+
     // Camera shake decay
     useGameStore.getState().decayCameraShake(delta);
 
@@ -344,7 +395,7 @@ function PlayerController() {
     const shakeIntensity = useGameStore.getState().cameraShake;
     updateCamera({
       camera, viewMode,
-      playerPos: newPos,
+      thirdPersonPosition: cameraPos,
       lookDir,
       aimGunPivotWorld: aimResult.aimGunPivotWorld,
       aimDir: aimResult.aimDir,
@@ -352,6 +403,8 @@ function PlayerController() {
       gunnerAimTarget: actualGunAimTarget,
       shakeIntensity,
       gunnerZoom: useGameStore.getState().gunnerZoom,
+      smoothZoom: previousViewMode.current === 'gunner',
+      delta,
     });
 
     // Update direction indicator with actual camera yaw

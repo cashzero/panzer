@@ -5,7 +5,7 @@ import { GUNNER_ZOOM_LEVELS } from './store';
 export interface CameraParams {
   camera: THREE.Camera;
   viewMode: 'third-person' | 'gunner';
-  playerPos: THREE.Vector3;
+  thirdPersonPosition: THREE.Vector3; // orbit position, already smoothed and kept clear of the ground
   lookDir: THREE.Vector3;
   aimGunPivotWorld: THREE.Vector3;
   aimDir: THREE.Vector3;
@@ -13,21 +13,19 @@ export interface CameraParams {
   gunnerAimTarget?: THREE.Vector3;
   shakeIntensity?: number;
   gunnerZoom?: number; // index into GUNNER_ZOOM_LEVELS
+  smoothZoom?: boolean; // ease between gunner zoom steps instead of snapping
+  delta?: number;
 }
 
 export function updateCamera(params: CameraParams): void {
-  const { camera, viewMode, playerPos, lookDir, aimGunPivotWorld, aimDir, designatedAimTarget, gunnerAimTarget, shakeIntensity = 0, gunnerZoom = 0 } = params;
+  const { camera, viewMode, thirdPersonPosition, lookDir, aimGunPivotWorld, aimDir, designatedAimTarget, gunnerAimTarget, shakeIntensity = 0, gunnerZoom = 0, smoothZoom = false, delta = 0 } = params;
+  const perspective = camera as THREE.PerspectiveCamera;
 
   if (viewMode === 'third-person') {
     camera.up.set(0, 1, 0);
-    const cameraDistance = GAME_CONFIG.camera.distance;
-    const cameraHeightOffset = GAME_CONFIG.camera.heightOffset;
-    const targetPos = playerPos.clone().add(new THREE.Vector3(0, cameraHeightOffset, 0));
-    const camPos = targetPos.clone().sub(lookDir.clone().multiplyScalar(cameraDistance));
-
-    camera.position.copy(camPos);
-    camera.lookAt(designatedAimTarget ?? targetPos.clone().add(lookDir.clone().multiplyScalar(100)));
-    (camera as THREE.PerspectiveCamera).fov = 60;
+    camera.position.copy(thirdPersonPosition);
+    camera.lookAt(designatedAimTarget ?? thirdPersonPosition.clone().add(lookDir.clone().multiplyScalar(100)));
+    perspective.fov = 60;
   } else {
     // Gunner view stays centered on the calibrated sight line.
     camera.up.set(0, 1, 0);
@@ -35,7 +33,10 @@ export function updateCamera(params: CameraParams): void {
     const camPos = aimGunPivotWorld.clone().add(aimDir.clone().multiplyScalar(4.5));
     camera.position.copy(camPos);
     camera.lookAt(gunnerAimTarget ?? camPos.clone().add(aimDir.clone().multiplyScalar(100)));
-    (camera as THREE.PerspectiveCamera).fov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
+    const targetFov = GUNNER_ZOOM_LEVELS[gunnerZoom] ?? 20;
+    perspective.fov = smoothZoom
+      ? perspective.fov + (targetFov - perspective.fov) * (1 - Math.exp(-delta / GAME_CONFIG.camera.zoomSmoothing))
+      : targetFov;
   }
 
   // Apply screen shake
@@ -49,7 +50,7 @@ export function updateCamera(params: CameraParams): void {
     camera.position.z += shakeZ;
   }
 
-  (camera as THREE.PerspectiveCamera).near = 0.5;
-  (camera as THREE.PerspectiveCamera).far = 100000;
-  (camera as THREE.PerspectiveCamera).updateProjectionMatrix();
+  perspective.near = 0.5;
+  perspective.far = 100000;
+  perspective.updateProjectionMatrix();
 }

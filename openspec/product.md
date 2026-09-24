@@ -22,6 +22,7 @@ This app is a WW2 tank battle simulator. All visual design - UI, HUD, color pale
 - Steering while moving may trade a small amount of speed for a tighter line, preserving momentum without excessive understeer.
 - High-speed steering should remain broad and deliberate rather than snapping into tight turns.
 - Per-tank mobility tuning should preserve handling differences between lighter, medium, and heavy vehicles while following the same steering behavior contract.
+- A tank's turn-rate limit is a hard cap on hull yaw rate in every regime; steering input and release respond within the hull's rotational inertia rather than lagging behind track speed changes.
 
 ## Aiming System
 
@@ -140,6 +141,8 @@ Tracks:
 - Gunner view acts as the precision aiming mode with a stronger focus on sight alignment and ranging.
 - Map mode provides high-level battlefield awareness and command support.
 - Camera transitions should preserve player orientation and avoid disorienting jumps.
+- The third-person camera never passes below the terrain, and suspension bounce should not shake the whole view.
+- In gunner view, mouse free-look only aims while right-click is held; otherwise it stays aligned with the sight so later view changes start from where the gun points.
 
 ## Map Mode
 

@@ -1,6 +1,7 @@
 export const GAME_CONFIG = {
   physics: {
     gravity: 9.81,
+    maxFrameDelta: 0.05,     // s; longer player frames (tab switch, hitch) are simulated as this
   },
   tank: {
     gunSway: {
@@ -33,6 +34,14 @@ export const GAME_CONFIG = {
       yBounceFrequency: 3.2,   // Hz — suspension bounce
       turnRollGain: 0.03,      // rad per rad/s of rotation speed (centrifugal lean)
     },
+    drive: {
+      // Share of top speed held while turning under power, from standstill to full speed.
+      steerSpeedScale: [0.65, 0.8] as [number, number],
+      // Share of the turn-rate limit available at full speed, so fast turns stay broad.
+      highSpeedYawScale: 0.7,
+      // Share of the turn-rate limit available for a stationary pivot.
+      pivotYawScale: 0.75,
+    },
     collisionRadius: 3.0, // meters, approximate circle for tank-tank collision
     idleRPM: 800,
     maxRPM: 2800,
@@ -54,6 +63,9 @@ export const GAME_CONFIG = {
   camera: {
     distance: 12,
     heightOffset: 4.5,
+    heightSmoothing: 0.12,   // s time constant; filters suspension bounce out of the follow height
+    groundClearance: 1.2,    // m the third-person camera keeps above the terrain
+    zoomSmoothing: 0.07,     // s time constant for gunner sight zoom steps
   },
   ai: {
     detectionDistance: 800,
