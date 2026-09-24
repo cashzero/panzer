@@ -98,7 +98,8 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
 
   return <>
     <color attach="background" args={[HAZE]} />
-    <fog attach="fog" args={[HAZE, mapMode ? 1800 : 120, mapMode ? 4800 : 1400]} />
+    {/* Zoomed out over a 4 km map the camera looks down from about 11 km: keep the haze off it. */}
+    <fog attach="fog" args={[HAZE, mapMode ? 30000 : 120, mapMode ? 60000 : 1400]} />
     <primitive object={sky} />
     {/* Weak, neutral fill keeps shade readable without tinting grey armour blue. */}
     <hemisphereLight args={['#c7cbc6', '#4a4632', 0.7]} />

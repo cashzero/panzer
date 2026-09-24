@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Terrain } from '../Terrain';
 import { Buildings } from '../BuildingRenderer';
 import { Trees } from '../TreeRenderer';
+import { MAP_COLOURS, MAP_SYMBOL, symbolScale } from '../rendering/mapSymbols';
 import { isPointNearAnyBuilding } from '../buildings';
 import { GAME_CONFIG } from '../config';
 import { useGameStore, MAP_SIZE_VALUES } from '../store';
@@ -13,41 +14,8 @@ import { useGameStore, MAP_SIZE_VALUES } from '../store';
 /*  Unit marker: the period armour symbol, with a tick for its facing  */
 /* ------------------------------------------------------------------ */
 
-const PENCIL_BLUE = '#40628e';
-const PENCIL_RED = '#b0372d';
-const BRASS = '#c9a760';
-
-function outlineShape(width: number, height: number, thickness: number) {
-  const shape = new THREE.Shape();
-  shape.moveTo(-width / 2, -height / 2); shape.lineTo(width / 2, -height / 2);
-  shape.lineTo(width / 2, height / 2); shape.lineTo(-width / 2, height / 2); shape.closePath();
-  const hole = new THREE.Path();
-  const w = width / 2 - thickness, h = height / 2 - thickness;
-  hole.moveTo(-w, -h); hole.lineTo(-w, h); hole.lineTo(w, h); hole.lineTo(w, -h); hole.closePath();
-  shape.holes.push(hole);
-  return new THREE.ShapeGeometry(shape);
-}
-
-function ovalShape(width: number, height: number, thickness: number, filled: boolean) {
-  const shape = new THREE.Shape();
-  shape.absellipse(0, 0, width / 2, height / 2, 0, Math.PI * 2, false, 0);
-  if (!filled) {
-    const hole = new THREE.Path();
-    hole.absellipse(0, 0, width / 2 - thickness, height / 2 - thickness, 0, Math.PI * 2, true, 0);
-    shape.holes.push(hole);
-  }
-  return new THREE.ShapeGeometry(shape, 24);
-}
-
-const markerFrame = outlineShape(5.2, 3.4, 0.38);
-const markerTrack = ovalShape(3.1, 1.5, 0.3, false);
-const markerTrackFilled = ovalShape(3.1, 1.5, 0.3, true);
-const markerHalo = outlineShape(6.6, 4.8, 0.3);
-const facingTick = (() => {
-  const shape = new THREE.Shape();
-  shape.moveTo(-0.6, 0); shape.lineTo(0.6, 0); shape.lineTo(0, 1.4); shape.closePath();
-  return new THREE.ShapeGeometry(shape);
-})();
+const PENCIL_BLUE = MAP_COLOURS.friendly;
+const PENCIL_RED = MAP_COLOURS.enemy;
 
 function OOBMarker({ position, rotation, color, isSelected, isPlayer }: {
   position: [number, number];
@@ -65,22 +33,20 @@ function OOBMarker({ position, rotation, color, isSelected, isPlayer }: {
     // Symbols stay upright on the map sheet; only the tick turns with the tank.
     groupRef.current.rotation.set(-Math.PI / 2, 0, 0);
     if (tickRef.current) tickRef.current.rotation.set(0, 0, Math.PI + rotation);
-    const cam = camera as THREE.OrthographicCamera;
-    const worldPerPixel = (cam.top - cam.bottom) / Math.max(1, size.height);
-    groupRef.current.scale.setScalar(Math.max(0.6, worldPerPixel * 7));
+    groupRef.current.scale.setScalar(Math.max(0.6, symbolScale(camera, groupRef.current.position, size.height, 16)));
   });
 
   const material = <meshBasicMaterial color={color} side={THREE.DoubleSide} depthTest={false} />;
   return (
     <group ref={groupRef} renderOrder={10}>
-      <mesh geometry={markerFrame} renderOrder={10}>{material}</mesh>
-      <mesh geometry={isPlayer ? markerTrackFilled : markerTrack} renderOrder={10}>{material}</mesh>
+      <mesh geometry={MAP_SYMBOL.frame} renderOrder={10}>{material}</mesh>
+      <mesh geometry={isPlayer ? MAP_SYMBOL.trackFilled : MAP_SYMBOL.track} renderOrder={10}>{material}</mesh>
       <group ref={tickRef}>
-        <mesh geometry={facingTick} position={[0, 2.0, 0]} renderOrder={10}>{material}</mesh>
+        <mesh geometry={MAP_SYMBOL.tick} renderOrder={10}>{material}</mesh>
       </group>
       {isSelected && (
-        <mesh geometry={markerHalo} renderOrder={10}>
-          <meshBasicMaterial color={BRASS} side={THREE.DoubleSide} depthTest={false} />
+        <mesh geometry={MAP_SYMBOL.halo} renderOrder={10}>
+          <meshBasicMaterial color={MAP_COLOURS.selected} side={THREE.DoubleSide} depthTest={false} />
         </mesh>
       )}
     </group>

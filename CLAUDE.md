@@ -66,7 +66,7 @@ The game needs no API keys or environment variables.
 - `Tank.tsx` / `TankModel.tsx` — legacy procedural tank geometry + animation
 - `Particles.tsx` — 11+ effect types (fire, penetrate, bounce, ground/HE hits, explosion, dust, smoke, tree hits, non-pen, ricochet), pooled `Points` + `InstancedMesh`; also queues flash lights and crater decals per effect
 - `rendering/ShellTracers.tsx` (screen-space HDR tracer streaks, rendered by `ProjectileManager`), `rendering/FlashLights.tsx` (fixed 4-light flash pool), `rendering/ImpactDecals.tsx` (multiply-blended ground craters), `rendering/TrackMarks.tsx` (tread marks per track); `groundSurface.ts` classifies grass / mud / road under a point for surface-dependent effects
-- `MapMode.tsx` + `MapMarker.tsx` — top-down tactical view (M key) with pan/zoom
+- `MapMode.tsx` + `MapMarker.tsx` + `WaypointMarker.tsx` — top-down tactical view (M key): pan/zoom, map grid, unit symbols (shared with the planning map in `rendering/mapSymbols.ts`) and move orders; the orders panel is `MapModeHUD` in `UI.tsx`
 - `BurningWrecks.tsx` — time-limited smoke on destroyed tanks
 
 **Aiming system** (see `openspec/product.md` for canonical rules): three distinct aim points — gunner sight (arrow keys), gun aim point (with ballistic elevation offset), viewpoint (free-look mouse). Distance calibration via PageUp/PageDown drives drop compensation. The center of the gunner sight is the calibrated point of impact at the selected zero.

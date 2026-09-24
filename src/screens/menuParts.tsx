@@ -6,7 +6,7 @@ import type { CamouflageScheme } from '../tanks/core/camouflage';
  * command-post maps, the vehicle data plate, and paint chips.
  */
 
-export type ForceSide = 'friendly' | 'enemy' | 'player';
+export type ForceSide = 'friendly' | 'enemy' | 'player' | 'destroyed';
 
 /**
  * Armour unit symbol as drawn on 1940s situation maps: a rectangle with an
@@ -14,7 +14,7 @@ export type ForceSide = 'friendly' | 'enemy' | 'player';
  * The player's own tank carries a filled oval.
  */
 export function ArmourSymbol({ side, size = 22, title }: { side: ForceSide; size?: number; title?: string }) {
-  const stroke = side === 'enemy' ? 'var(--pencil-red)' : 'var(--pencil-blue)';
+  const stroke = side === 'enemy' ? 'var(--pencil-red)' : side === 'destroyed' ? 'var(--chalk-dim)' : 'var(--pencil-blue)';
   return (
     <svg className="armour-symbol" width={size} height={size * 0.64} viewBox="0 0 34 22" role={title ? 'img' : undefined}
       aria-label={title} aria-hidden={title ? undefined : true}>

@@ -1,87 +1,75 @@
-import { useRef, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from './store';
+import { MAP_COLOURS, symbolScale } from './rendering/mapSymbols';
 
 export function WaypointMarkers() {
-  return <WaypointMarkersInner />;
-}
-
-function WaypointMarkersInner() {
   const allyIds = useGameStore(useShallow(state => state.allies.map(a => a.id)));
   return (
     <>
-      {allyIds.map(id => (
-        <WaypointMarker key={`wp-${id}`} allyId={id} />
-      ))}
+      {allyIds.map(id => <WaypointMarker key={`wp-${id}`} allyId={id} />)}
     </>
   );
 }
 
-function WaypointMarker({ allyId }: { allyId: string }) {
-  const groupRef = useRef<THREE.Group>(null);
+const arrowGeometry = (() => {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0); shape.lineTo(-0.9, -2.2); shape.lineTo(0.9, -2.2); shape.closePath();
+  return new THREE.ShapeGeometry(shape);
+})();
 
-  const lineObj = useMemo(() => {
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3));
-    const mat = new THREE.LineBasicMaterial({ color: '#3399ff', depthTest: false, transparent: true, opacity: 0.4 });
-    return new THREE.Line(geo, mat);
+/**
+ * A move order as drawn in grease pencil: a dashed line from the tank to its
+ * objective, ending in an arrowhead. The selected ally's order is brass.
+ */
+function WaypointMarker({ allyId }: { allyId: string }) {
+  const { line, arrow } = useMemo(() => {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0], 3));
+    const line = new THREE.Line(geometry, new THREE.LineDashedMaterial({ color: MAP_COLOURS.friendly, depthTest: false, dashSize: 6, gapSize: 4 }));
+    line.renderOrder = 9;
+    const arrow = new THREE.Mesh(arrowGeometry, new THREE.MeshBasicMaterial({ color: MAP_COLOURS.friendly, side: THREE.DoubleSide, depthTest: false }));
+    arrow.renderOrder = 9;
+    return { line, arrow };
   }, []);
 
-  useFrame(({ camera }) => {
-    const wp = useGameStore.getState().allyWaypoints[allyId];
-    const ally = useGameStore.getState().allies.find(a => a.id === allyId);
-    const isSelected = useGameStore.getState().selectedAllyId === allyId;
-    const isMoveOrder = !!wp;
+  useFrame(({ camera, size }) => {
+    const state = useGameStore.getState();
+    const wp = state.allyWaypoints[allyId];
+    const ally = state.allies.find(a => a.id === allyId);
+    const show = !!wp && !!ally && !ally.destroyed;
+    line.visible = arrow.visible = show;
+    if (!show) return;
+    const colour = state.selectedAllyId === allyId ? MAP_COLOURS.selected : MAP_COLOURS.friendly;
+    (line.material as THREE.LineDashedMaterial).color.set(colour);
+    (arrow.material as THREE.MeshBasicMaterial).color.set(colour);
 
-    if (!wp || !ally || !groupRef.current || !isMoveOrder) {
-      if (groupRef.current) groupRef.current.visible = false;
-      return;
-    }
+    const from = new THREE.Vector3(ally!.position.x, ally!.position.y + 3, ally!.position.z);
+    const to = new THREE.Vector3(wp!.x, wp!.y + 3, wp!.z);
+    // Dashes keep a constant screen length at every zoom.
+    const scale = symbolScale(camera, to, size.height, 1);
+    const material = line.material as THREE.LineDashedMaterial;
+    material.dashSize = scale * 9 * 3.4;
+    material.gapSize = scale * 6 * 3.4;
+    const position = line.geometry.getAttribute('position') as THREE.BufferAttribute;
+    position.setXYZ(0, from.x, from.y, from.z);
+    position.setXYZ(1, to.x, to.y, to.z);
+    position.needsUpdate = true;
+    line.computeLineDistances();
+    line.geometry.computeBoundingSphere();
 
-    groupRef.current.visible = true;
-    groupRef.current.position.set(wp.x, wp.y + 2, wp.z);
-
-    // Scale with camera distance
-    const dist = camera.position.distanceTo(groupRef.current.position);
-    const s = Math.max(0.3, dist / 150);
-    groupRef.current.scale.setScalar(s);
-
-    // Update line color based on selection
-    const color = isSelected ? '#ffcc00' : '#3399ff';
-    (lineObj.material as THREE.LineBasicMaterial).color.set(color);
-
-    // Update line endpoints (local space of group)
-    const posAttr = lineObj.geometry.getAttribute('position') as THREE.BufferAttribute;
-    const invScale = 1 / s;
-    posAttr.setXYZ(0,
-      (ally.position.x - wp.x) * invScale,
-      (ally.position.y - wp.y) * invScale,
-      (ally.position.z - wp.z) * invScale
-    );
-    posAttr.setXYZ(1, 0, 0, 0);
-    posAttr.needsUpdate = true;
+    arrow.position.copy(to);
+    // Local +y is the tip; after the flat X rotation it points along (-sin, -cos) of Z.
+    arrow.rotation.set(-Math.PI / 2, 0, Math.atan2(-(to.x - from.x), -(to.z - from.z)));
+    arrow.scale.setScalar(scale * 12);
   });
 
-  const selectedAllyId = useGameStore(state => state.selectedAllyId);
-  const isSelected = selectedAllyId === allyId;
-  const markerColor = isSelected ? '#ffcc00' : '#3399ff';
-
   return (
-    <group ref={groupRef}>
-      {/* Diamond marker */}
-      <mesh rotation={[-Math.PI / 2, 0, Math.PI / 4]}>
-        <planeGeometry args={[2, 2]} />
-        <meshBasicMaterial color={markerColor} side={THREE.DoubleSide} depthTest={false} transparent opacity={0.7} />
-      </mesh>
-      {/* Ring around diamond */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <ringGeometry args={[2, 2.4, 6]} />
-        <meshBasicMaterial color={markerColor} side={THREE.DoubleSide} depthTest={false} transparent opacity={0.5} />
-      </mesh>
-      {/* Line from ally to waypoint */}
-      <primitive object={lineObj} />
-    </group>
+    <>
+      <primitive object={line} />
+      <primitive object={arrow} />
+    </>
   );
 }

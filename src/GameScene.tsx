@@ -18,7 +18,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
-import { MapCameraController } from './MapMode';
+import { BattleMapGrid, MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, updateGunSway, computeEngineState, computeBodyRock, computeTrackTargets, accelerateTrackSpeeds } from './tankPhysics';
@@ -441,6 +441,7 @@ export function GameScene() {
                 <MapMarker key={id} id={id} isAlly />
               ))}
               <WaypointMarkers />
+              <BattleMapGrid />
               <MapCameraController />
             </>
           ) : (

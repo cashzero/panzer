@@ -1,9 +1,67 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from './store';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
+
+/**
+ * A narrow field of view, raised so the visible area matches the old 60 degree
+ * view at the same zoom: buildings and trees read nearly flat, like a map.
+ */
+const MAP_FOV = 22;
+const MAP_HEIGHT_FACTOR = Math.tan(THREE.MathUtils.degToRad(30)) / Math.tan(THREE.MathUtils.degToRad(MAP_FOV / 2));
+
+/** Read by the map HUD for its scale bar. Metres per screen pixel at ground level. */
+export const mapView = { metresPerPixel: 1 };
+
+/** Grid cells per side; must match the order-of-battle planning map. */
+export const MAP_GRID_DIVISIONS = 8;
+
+/** Grid reference ("C4") of a world point: columns A-H west to east, rows 1-8 north to south. */
+export function gridReference(x: number, z: number, terrainSize: number) {
+  const cell = terrainSize / MAP_GRID_DIVISIONS;
+  const column = Math.min(MAP_GRID_DIVISIONS - 1, Math.max(0, Math.floor((x + terrainSize / 2) / cell)));
+  const row = Math.min(MAP_GRID_DIVISIONS - 1, Math.max(0, Math.floor((z + terrainSize / 2) / cell)));
+  return `${String.fromCharCode(65 + column)}${row + 1}`;
+}
+
+/** The battlefield's map grid, with each square's reference in its north-west corner. */
+export function BattleMapGrid() {
+  const size = useGameStore((state) => state.roadNetwork.terrainSize);
+  const half = size / 2;
+  const cell = size / MAP_GRID_DIVISIONS;
+  const lines = useMemo(() => {
+    const points: number[] = [];
+    for (let i = 0; i <= MAP_GRID_DIVISIONS; i++) {
+      const c = -half + i * cell;
+      points.push(c, 40, -half, c, 40, half, -half, 40, c, half, 40, c);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    return geometry;
+  }, [half, cell]);
+  useEffect(() => () => lines.dispose(), [lines]);
+  const labels = [];
+  for (let column = 0; column < MAP_GRID_DIVISIONS; column++) {
+    for (let row = 0; row < MAP_GRID_DIVISIONS; row++) {
+      labels.push(
+        <Html key={`${column}-${row}`} position={[-half + column * cell, 40, -half + row * cell]} className="battle-map-ref" zIndexRange={[5, 0]}>
+          {String.fromCharCode(65 + column)}{row + 1}
+        </Html>,
+      );
+    }
+  }
+  return (
+    <>
+      <lineSegments geometry={lines} renderOrder={8}>
+        <lineBasicMaterial color="#1d2319" transparent opacity={0.6} depthTest={false} />
+      </lineSegments>
+      {labels}
+    </>
+  );
+}
 
 export function MapCameraController() {
   const { camera } = useThree();
@@ -49,9 +107,13 @@ export function MapCameraController() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const { zoomStep, minZoom, maxZoom } = GAME_CONFIG.map;
-      const delta = e.deltaY > 0 ? zoomStep : -zoomStep;
-      mapZoom.current = THREE.MathUtils.clamp(mapZoom.current + delta, minZoom, maxZoom);
+      // Proportional steps: each notch zooms by the same factor at any scale.
+      const { zoomFactor, minZoom } = GAME_CONFIG.map;
+      // Fully zoomed out, the whole battlefield fits in the view's height.
+      const terrainSize = useGameStore.getState().roadNetwork.terrainSize;
+      const maxZoom = (terrainSize * 1.1) / (2 * Math.tan(THREE.MathUtils.degToRad(30)));
+      const factor = e.deltaY > 0 ? zoomFactor : 1 / zoomFactor;
+      mapZoom.current = THREE.MathUtils.clamp(mapZoom.current * factor, minZoom, maxZoom);
     };
 
     const handleMouseDown = (e: MouseEvent) => {
@@ -100,7 +162,7 @@ export function MapCameraController() {
       if (mapDragging.current && lastMousePos.current) {
         const dx = e.clientX - lastMousePos.current.x;
         const dy = e.clientY - lastMousePos.current.y;
-        const panScale = mapZoom.current / 500;
+        const panScale = mapView.metresPerPixel;
         mapPanOffset.current.x -= dx * panScale;
         mapPanOffset.current.y -= dy * panScale;
         lastMousePos.current = { x: e.clientX, y: e.clientY };
@@ -168,10 +230,11 @@ export function MapCameraController() {
     useGameStore.getState().issueAllyMoveOrder(selectedId, { x: worldPoint.x, y, z: worldPoint.z });
   };
 
-  useFrame((_state, delta) => {
+  useFrame(({ size }, delta) => {
     const player = useGameStore.getState().playerTank;
-    const mapHeight = mapZoom.current;
-    const panSpeed = mapHeight * GAME_CONFIG.map.panSpeed;
+    const mapHeight = mapZoom.current * MAP_HEIGHT_FACTOR;
+    mapView.metresPerPixel = (2 * mapHeight * Math.tan(THREE.MathUtils.degToRad(MAP_FOV / 2))) / Math.max(1, size.height);
+    const panSpeed = mapZoom.current * GAME_CONFIG.map.panSpeed;
 
     // WASD panning
     if (keys.current['KeyW']) mapPanOffset.current.y += panSpeed * delta;
@@ -184,10 +247,13 @@ export function MapCameraController() {
     );
     const camPos = lookTarget.clone().add(new THREE.Vector3(0, mapHeight, 0));
 
+    // Depth precision at up to 2.4 km. The battlefield camera sets its own planes each frame.
+    (camera as THREE.PerspectiveCamera).near = Math.max(0.5, mapHeight * 0.2);
+    (camera as THREE.PerspectiveCamera).far = mapHeight * 3;
     camera.position.copy(camPos);
     camera.lookAt(lookTarget);
     camera.up.set(0, 0, -1);
-    (camera as THREE.PerspectiveCamera).fov = 60;
+    (camera as THREE.PerspectiveCamera).fov = MAP_FOV;
     camera.updateProjectionMatrix();
   });
 

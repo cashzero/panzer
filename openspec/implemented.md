@@ -56,7 +56,7 @@ Completed roadmap items are documented here.
 
 - Tank selection includes a rotating 3D preview, stat bars, description, nationality, year, and deploy flow.
 - Armor plate hover tooltips in tank selection show plate name, zone, thickness, and slope, while highlighting the hovered plate and pausing auto-rotation.
-- Map mode provides a tactical top-down view with pan, zoom, marker rendering, and state reset on exit.
+- Map mode provides a tactical top-down view with pan, zoom, marker rendering, and state reset on exit. It shares the order-of-battle look: armour symbols (blue own force with a filled track for the player, red spotted enemies, grey and crossed out when destroyed, a tick for facing, a brass halo on the selected ally), dashed move orders ending in an arrowhead, the A-H by 1-8 grid with a reference in each square, and a scale bar. A narrow 22 degree camera keeps the view nearly flat; wheel steps zoom by a constant factor, and fully zoomed out the whole battlefield fits the screen. The orders panel lists your allies with their current task (following, holding, moving to a grid square, knocked out) and gives movement, fire and engagement orders.
 - Track damage and repair are surfaced through damage-state HUD text and combat messages rather than per-track HP bars, and gunner view keeps that status block hidden.
 
 ## Audio And Effects

@@ -179,8 +179,7 @@ export const GAME_CONFIG = {
   map: {
     defaultZoom: 150,
     minZoom: 30,
-    maxZoom: 800,
-    zoomStep: 10,
+    zoomFactor: 1.15,      // per wheel notch; zooming out stops once the whole map fits
     panSpeed: 0.5,
   },
   tracers: {

@@ -3,29 +3,11 @@ import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { getTankDef } from './tanks/registry';
-import type { AllyBaseMoveOrder, AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
+import type { AllyBaseMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
+import { gridReference, mapView } from './MapMode';
+import { ArmourSymbol } from './screens/menuParts';
 
-const MAP_BUTTON_CLASS = 'pointer-events-auto rounded border px-2 py-1 text-xs font-bold tracking-wide transition-colors';
 
-function OrderButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`${MAP_BUTTON_CLASS} ${active ? 'border-yellow-300 bg-yellow-700/70 text-yellow-100' : 'border-gray-600 bg-black/50 text-gray-300 hover:border-yellow-500 hover:text-yellow-200'}`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function ReloadIndicator() {
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -302,93 +284,122 @@ function DirectionIndicator() {
   );
 }
 
+const MOVE_LABEL: Record<AllyBaseMoveOrder, string> = { follow: 'Follow me', hold: 'Hold here' };
+const FIRE_LABEL: Record<AllyFireOrder, string> = { 'hold-fire': 'Hold fire', 'return-fire': 'Return fire', 'fire-at-will': 'Fire at will' };
+const POSTURE_LABEL: Record<AllyEngagementPosture, string> = { 'fire-from-position': 'Fire from position', 'advance-and-fire': 'Advance and fire' };
+
+/** Scale bar sized to a round distance, redrawn as the map zooms. */
+function MapScaleBar() {
+  const [bar, setBar] = useState({ metres: 100, pixels: 100 });
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const target = mapView.metresPerPixel * 140;
+      const metres = [25, 50, 100, 200, 250, 500, 1000, 2000].reduce((best, step) => (Math.abs(step - target) < Math.abs(best - target) ? step : best));
+      setBar((current) => {
+        const pixels = Math.round(metres / mapView.metresPerPixel);
+        return current.metres === metres && current.pixels === pixels ? current : { metres, pixels };
+      });
+    }, 120);
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <div className="map-orders__scale" aria-label={`Scale: ${bar.metres} metres`}>
+      <i style={{ width: bar.pixels }} />
+      <span>{bar.metres >= 1000 ? `${bar.metres / 1000} km` : `${bar.metres} m`}</span>
+    </div>
+  );
+}
+
 function MapModeHUD() {
-  const selectedAllyId = useGameStore((state) => state.selectedAllyId);
   const allies = useGameStore((state) => state.allies);
-  const selectedAlly = selectedAllyId ? allies.find(a => a.id === selectedAllyId) : null;
-  const baseMoveOrder = useGameStore((state) => selectedAllyId ? state.allyBaseMoveOrders[selectedAllyId] : undefined) ?? 'follow';
-  const fireOrder = useGameStore((state) => selectedAllyId ? state.allyFireOrders[selectedAllyId] : undefined) ?? 'fire-at-will';
-  const engagementPosture = useGameStore((state) => selectedAllyId ? state.allyEngagementPostures[selectedAllyId] : undefined) ?? 'fire-from-position';
-  const waypoint = useGameStore((state) => selectedAllyId ? state.allyWaypoints[selectedAllyId] : undefined);
-  const effectiveMoveOrder: AllyEffectiveMoveOrder = waypoint ? 'move' : (baseMoveOrder as AllyBaseMoveOrder);
+  const selectedAllyId = useGameStore((state) => state.selectedAllyId);
+  const selectAlly = useGameStore((state) => state.selectAlly);
+  const moveOrders = useGameStore((state) => state.allyBaseMoveOrders);
+  const fireOrders = useGameStore((state) => state.allyFireOrders);
+  const postures = useGameStore((state) => state.allyEngagementPostures);
+  const waypoints = useGameStore((state) => state.allyWaypoints);
+  const terrainSize = useGameStore((state) => state.roadNetwork.terrainSize);
   const setAllyBaseMoveOrder = useGameStore((state) => state.setAllyBaseMoveOrder);
   const setAllyFireOrder = useGameStore((state) => state.setAllyFireOrder);
   const setAllyEngagementPosture = useGameStore((state) => state.setAllyEngagementPosture);
   const clearAllyWaypoint = useGameStore((state) => state.clearAllyWaypoint);
 
+  const selected = allies.find((ally) => ally.id === selectedAllyId && !ally.destroyed) ?? null;
+  const name = (ally: TankData, index: number) => `${getTankDef(ally.tankType).displayName} ${index + 1}`;
+  const task = (ally: TankData) => {
+    if (ally.destroyed) return 'Knocked out';
+    const waypoint = waypoints[ally.id];
+    if (waypoint) return `Moving to ${gridReference(waypoint.x, waypoint.z, terrainSize)}`;
+    return (moveOrders[ally.id] ?? 'follow') === 'hold' ? 'Holding' : 'Following you';
+  };
+
   return (
-    <div data-map-hud="true" className="pointer-events-auto mt-4 max-w-md bg-black/55 p-3 text-sm font-bold text-yellow-400 border border-yellow-900/70 rounded">
-      <div className="text-xl animate-pulse">MAP MODE ACTIVE</div>
-      <div className="mt-1 text-sm text-gray-300 font-normal">
-        WASD/Drag - Pan | Scroll - Zoom | M - Exit
-      </div>
-      <div className="mt-3 text-sm font-normal">
-        {selectedAlly ? (
-          <div className="space-y-3">
-            <div>
-              <div className="text-yellow-300">
-                Selected: <span className="uppercase">{selectedAlly.tankType}</span>
-              </div>
-              <div className="mt-1 text-gray-400">
-                Task: <span className="text-white uppercase">{effectiveMoveOrder}</span> | Fire: <span className="text-white uppercase">{fireOrder}</span>
-              </div>
-              <div className="mt-1 text-gray-400">
-                Posture: <span className="text-white uppercase">{engagementPosture}</span>
-              </div>
-              <div className="mt-1 text-gray-400">
-                {waypoint ? 'Right-click to update waypoint' : 'Right-click to assign waypoint'}
-              </div>
-            </div>
+    <aside data-map-hud="true" className="map-orders">
+      <h2>Tactical map</h2>
+      <p className="map-orders__hint">Drag or use W A S D to pan, scroll to zoom. Press M to return.</p>
+      <MapScaleBar />
 
-            <div>
-              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Movement</div>
-              <div className="flex flex-wrap gap-2">
-                <OrderButton active={baseMoveOrder === 'follow' && !waypoint} onClick={() => selectedAllyId && setAllyBaseMoveOrder(selectedAllyId, 'follow')}>
-                  Follow
-                </OrderButton>
-                <OrderButton active={baseMoveOrder === 'hold' && !waypoint} onClick={() => selectedAllyId && setAllyBaseMoveOrder(selectedAllyId, 'hold')}>
-                  Hold
-                </OrderButton>
-                {waypoint && selectedAllyId && (
-                  <OrderButton active={true} onClick={() => clearAllyWaypoint(selectedAllyId)}>
-                    Clear Waypoint
-                  </OrderButton>
-                )}
-              </div>
-            </div>
+      {allies.length > 0 ? (
+        <>
+          <h3>Your tanks</h3>
+          <ul className="map-orders__allies">
+            {allies.map((ally, index) => (
+              <li key={ally.id}>
+                <button type="button" aria-pressed={ally.id === selected?.id} disabled={ally.destroyed}
+                  onClick={() => selectAlly(ally.id === selected?.id ? null : ally.id)}>
+                  <ArmourSymbol side={ally.destroyed ? 'destroyed' : 'friendly'} size={24} />
+                  <span>{name(ally, index)}</span>
+                  <small>{task(ally)}</small>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="map-orders__hint">You have no allied tanks to command.</p>
+      )}
 
-            <div>
-              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Fire Control</div>
-              <div className="flex flex-wrap gap-2">
-                <OrderButton active={fireOrder === 'hold-fire'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'hold-fire')}>
-                  Hold Fire
-                </OrderButton>
-                <OrderButton active={fireOrder === 'return-fire'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'return-fire')}>
-                  Return Fire
-                </OrderButton>
-                <OrderButton active={fireOrder === 'fire-at-will'} onClick={() => selectedAllyId && setAllyFireOrder(selectedAllyId, 'fire-at-will')}>
-                  Fire At Will
-                </OrderButton>
-              </div>
-            </div>
-
-            <div>
-              <div className="mb-1 text-xs uppercase tracking-[0.2em] text-gray-500">Engagement</div>
-              <div className="flex flex-wrap gap-2">
-                <OrderButton active={engagementPosture === 'fire-from-position'} onClick={() => selectedAllyId && setAllyEngagementPosture(selectedAllyId, 'fire-from-position')}>
-                  Fire In Place
-                </OrderButton>
-                <OrderButton active={engagementPosture === 'advance-and-fire'} onClick={() => selectedAllyId && setAllyEngagementPosture(selectedAllyId, 'advance-and-fire')}>
-                  Advance And Fire
-                </OrderButton>
-              </div>
-            </div>
+      {selected && (() => {
+        const waypoint = waypoints[selected.id];
+        const move = (moveOrders[selected.id] ?? 'follow') as AllyBaseMoveOrder;
+        const fire = (fireOrders[selected.id] ?? 'fire-at-will') as AllyFireOrder;
+        const posture = (postures[selected.id] ?? 'fire-from-position') as AllyEngagementPosture;
+        return (
+          <div className="map-orders__orders">
+            <p className="map-orders__hint">Right-click the map to send {name(selected, allies.indexOf(selected))} there.</p>
+            <fieldset>
+              <legend>Movement</legend>
+              {(Object.keys(MOVE_LABEL) as AllyBaseMoveOrder[]).map((order) => (
+                <button key={order} type="button" aria-pressed={!waypoint && move === order}
+                  onClick={() => setAllyBaseMoveOrder(selected.id, order)}>{MOVE_LABEL[order]}</button>
+              ))}
+              {waypoint && (
+                <button type="button" aria-pressed onClick={() => clearAllyWaypoint(selected.id)}>
+                  Cancel move to {gridReference(waypoint.x, waypoint.z, terrainSize)}
+                </button>
+              )}
+            </fieldset>
+            <fieldset>
+              <legend>Fire</legend>
+              {(Object.keys(FIRE_LABEL) as AllyFireOrder[]).map((order) => (
+                <button key={order} type="button" aria-pressed={fire === order}
+                  onClick={() => setAllyFireOrder(selected.id, order)}>{FIRE_LABEL[order]}</button>
+              ))}
+            </fieldset>
+            <fieldset>
+              <legend>When engaging</legend>
+              {(Object.keys(POSTURE_LABEL) as AllyEngagementPosture[]).map((order) => (
+                <button key={order} type="button" aria-pressed={posture === order}
+                  onClick={() => setAllyEngagementPosture(selected.id, order)}>{POSTURE_LABEL[order]}</button>
+              ))}
+            </fieldset>
           </div>
-        ) : (
-          <div className="text-gray-400">Left-click an ally to select, then right-click to issue a waypoint</div>
-        )}
-      </div>
-    </div>
+        );
+      })()}
+      {!selected && allies.some((ally) => !ally.destroyed) && (
+        <p className="map-orders__hint">Pick a tank here or click it on the map to give it orders.</p>
+      )}
+    </aside>
   );
 }
 
@@ -494,8 +505,8 @@ export function UI() {
           <strong className={ammoType === 'AP' ? 'is-ap' : ammoType === 'APC' ? 'is-apc' : 'is-he'}>{ammoType}</strong>
         </div>
         <ReloadIndicator />
-        {isMapMode && <MapModeHUD />}
       </div>
+      {isMapMode && <MapModeHUD />}
 
       {/* Crosshair - only in third person */}
       {viewMode === 'third-person' && !isMapMode && (
