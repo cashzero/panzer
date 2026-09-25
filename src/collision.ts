@@ -3,6 +3,7 @@ import { TankData } from './store';
 import { GAME_CONFIG } from './config';
 import type { TreeInstance } from './trees';
 import { forEachTreeNear } from './treeIndex';
+import { forestDepthAt, getActiveForest, pushOutOfForest } from './forest';
 
 /** Indices of trees whose grid cells overlap a box, in array order. */
 function treesNear(trees: TreeInstance[], x: number, z: number, reach: number): number[] {
@@ -86,6 +87,15 @@ export function isPathClear(
     const blockRadius = tankRadius + getBuildingClearanceRadius(building);
     if (distancePointToSegmentXZ(building.position[0], building.position[2], startX, startZ, endX, endZ) < blockRadius) {
       return false;
+    }
+  }
+
+  const forest = getActiveForest();
+  if (forest) {
+    const steps = Math.max(1, Math.ceil(lookAhead / 4));
+    for (let s = 1; s <= steps; s++) {
+      const t = s / steps;
+      if (forestDepthAt(forest, startX + (endX - startX) * t, startZ + (endZ - startZ) * t) > -tankRadius) return false;
     }
   }
 
@@ -206,6 +216,12 @@ export function resolveTreeCollision(
   }
 
   return { knockedTreeIndex: null };
+}
+
+/** Forests are impassable: a tank slides along the edge instead of entering. */
+export function resolveForestCollision(newPos: THREE.Vector3): void {
+  const forest = getActiveForest();
+  if (forest) pushOutOfForest(forest, newPos, GAME_CONFIG.tank.collisionRadius);
 }
 
 export function resolveBuildingCollision(newPos: THREE.Vector3, buildings: BuildingInstance[]): void {

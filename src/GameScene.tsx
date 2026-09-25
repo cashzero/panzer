@@ -17,7 +17,7 @@ import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
-import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
+import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
 import { BattleMapGrid, MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
@@ -28,6 +28,7 @@ import { computeTurretAiming } from './turretAiming';
 import { computeAimGunPivotWorld, computeAimPoint } from './aimPoint';
 import { updateCamera } from './CameraController';
 import { Trees, Understory } from './TreeRenderer';
+import { ForestScreen } from './rendering/ForestScreen';
 import { WorldDressing } from './rendering/WorldDressing';
 import { HorizonSkirt } from './rendering/HorizonSkirt';
 import { Buildings } from './BuildingRenderer';
@@ -229,6 +230,7 @@ function PlayerController() {
     const allTanks = [player, ...useGameStore.getState().enemies, ...useGameStore.getState().allies];
     resolveTankCollision('player', newPos, allTanks);
     resolveBuildingCollision(newPos, useGameStore.getState().buildings);
+    resolveForestCollision(newPos);
 
     // Tree collision
     const treeResult = resolveTreeCollision(newPos, forwardSpeed, useGameStore.getState().trees);
@@ -477,6 +479,7 @@ export function GameScene() {
           <Buildings />
           <Trees />
           <Understory />
+          <ForestScreen />
           <WorldDressing />
           <HorizonSkirt />
           <TrackRepairManager />

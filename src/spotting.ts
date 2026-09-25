@@ -6,8 +6,9 @@ import type { TreeInstance } from './trees';
 import type { TankData } from './store';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
+import { FOREST, forestLengthAlong, getActiveForest } from './forest';
 
-export type LosBlocker = 'terrain' | 'building' | 'tree' | null;
+export type LosBlocker = 'terrain' | 'building' | 'tree' | 'forest' | null;
 
 export interface LineOfSightResult {
   visible: boolean;
@@ -20,6 +21,7 @@ export interface LineOfSightResult {
 const _observerOffset = new THREE.Vector3();
 const _ray = new THREE.Ray();
 const _direction = new THREE.Vector3();
+const _forestEnd = new THREE.Vector3();
 
 function getObserverPoint(tank: TankData): THREE.Vector3 {
   const def = getTankDef(tank.tankType);
@@ -63,6 +65,16 @@ function isBlocked(ray: THREE.Ray, distance: number, trees: TreeInstance[], buil
   const treeHit = checkTreeRayCollision(ray, distance, trees, GAME_CONFIG.trees.collisionRadius);
   if (treeHit && treeHit.distance < distance - margin) {
     return 'tree';
+  }
+
+  // A crew at the edge of a wood sees out and can be seen; nobody sees
+  // through more than FOREST.sightDepth of it below the canopy.
+  const forest = getActiveForest();
+  if (forest) {
+    const end = ray.at(distance, _forestEnd);
+    const inForest = forestLengthAlong(forest, ray.origin.x, ray.origin.y, ray.origin.z, end.x, end.y, end.z,
+      getTerrainMeshHeight, FOREST.sightDepth);
+    if (inForest >= FOREST.sightDepth) return 'forest';
   }
 
   return null;

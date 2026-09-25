@@ -6,7 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings, type BuildingInstance } from './buildings';
-import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
+import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -14,6 +14,8 @@ import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccu
 import { clampGunElevation } from './turretAiming';
 import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
+import { routeDirection } from './navigation';
+import { getActiveForest } from './forest';
 
 function computeEngagementMovement(
   ally: TankData,
@@ -23,10 +25,11 @@ function computeEngagementMovement(
   trees: ReturnType<typeof useGameStore.getState>['trees'],
   allTanks: TankData[],
 ) {
-  const dirToEnemy = target.position.clone().sub(ally.position).normalize();
+  // Drive around forests rather than into them.
+  const routeDir = routeDirection(ally.id, ally.position, target.position, getActiveForest(), buildings);
   const moveDir = chooseAvoidanceDirection(
     ally.position,
-    steerDirectionAroundBuildings(ally.position, dirToEnemy, buildings, 90, 14),
+    steerDirectionAroundBuildings(ally.position, routeDir, buildings, 90, 14),
     ally.id,
     allTanks,
     trees,
@@ -125,7 +128,7 @@ function computeMoveToPoint(
 
   const dirToWp = chooseAvoidanceDirection(
     ally.position,
-    steerDirectionAroundBuildings(ally.position, destination.clone().sub(ally.position).normalize(), buildings, 85, 14),
+    steerDirectionAroundBuildings(ally.position, routeDirection(ally.id, ally.position, destination, getActiveForest(), buildings), buildings, 85, 14),
     ally.id,
     allTanks,
     trees,
@@ -165,7 +168,7 @@ function computeFollowMovement(
 
   const dirToPlayer = chooseAvoidanceDirection(
     ally.position,
-    steerDirectionAroundBuildings(ally.position, player.position.clone().sub(ally.position).normalize(), buildings, 85, 14),
+    steerDirectionAroundBuildings(ally.position, routeDirection(ally.id, ally.position, player.position, getActiveForest(), buildings), buildings, 85, 14),
     ally.id,
     allTanks,
     trees,
@@ -336,6 +339,7 @@ export function AllyAI() {
       // Collision with all tanks
       resolveTankCollision(ally.id, newPos, allTanks);
       resolveBuildingCollision(newPos, useGameStore.getState().buildings);
+      resolveForestCollision(newPos);
 
       // Tree collision
       const treeResult = resolveTreeCollision(newPos, forwardSpeed, trees);

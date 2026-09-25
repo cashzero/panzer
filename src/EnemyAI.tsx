@@ -6,7 +6,7 @@ import { GAME_CONFIG } from './config';
 import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings } from './buildings';
-import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision } from './collision';
+import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -14,6 +14,9 @@ import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccu
 import { clampGunElevation } from './turretAiming';
 import type { TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
+import { routeDirection } from './navigation';
+import { FOREST, forestLengthAlong, getActiveForest } from './forest';
+import { getTerrainMeshHeight } from './Terrain';
 
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
@@ -76,9 +79,12 @@ export function EnemyAI() {
 
       // Aim at target
       const dirToPlayer = target.position.clone().sub(enemy.position).normalize();
+      // Drive around forests rather than into them.
+      const forest = getActiveForest();
+      const routeDir = routeDirection(enemy.id, enemy.position, target.position, forest, buildings);
       const moveDir = chooseAvoidanceDirection(
         enemy.position,
-        steerDirectionAroundBuildings(enemy.position, dirToPlayer, buildings, 90, 14),
+        steerDirectionAroundBuildings(enemy.position, routeDir, buildings, 90, 14),
         enemy.id,
         allTanks,
         trees,
@@ -104,8 +110,14 @@ export function EnemyAI() {
       const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
       const rangeDeadzone = preferredRange * 0.15; // 15% deadzone to avoid jitter
 
-      if (dist > preferredRange + rangeDeadzone) {
-        // Too far — advance towards target
+      // A target screened by forest cannot be shot from here: keep moving.
+      const screened = forest !== null && forestLengthAlong(forest,
+        enemy.position.x, enemy.position.y + 2.5, enemy.position.z,
+        target.position.x, target.position.y + 2, target.position.z,
+        getTerrainMeshHeight, FOREST.sightDepth) >= FOREST.sightDepth;
+
+      if (dist > preferredRange + rangeDeadzone || screened) {
+        // Too far (or screened) — advance towards target
         const angleToPlayer = Math.atan2(moveDir.x, moveDir.z);
         let rotDiff = angleToPlayer - enemy.rotation;
         rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
@@ -178,6 +190,7 @@ export function EnemyAI() {
       // Tank-tank collision
       resolveTankCollision(enemy.id, newPos, allTanks);
       resolveBuildingCollision(newPos, useGameStore.getState().buildings);
+      resolveForestCollision(newPos);
 
       // Tree collision
       const treeResult = resolveTreeCollision(newPos, forwardSpeed, trees);

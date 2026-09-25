@@ -113,7 +113,8 @@ export function planUnderstory(
     && !inFarmland(x, z, -0.5)
     && !yards.some((yard) => isPointInYard(x, z, yard, 1.5));
   for (const tree of trees) {
-    if (tree.habitat === 'lone') continue;
+    // Lone trees stand clear; interior forest trees are never seen up close.
+    if (tree.habitat === 'lone' || tree.interior) continue;
     const [tx, , tz] = tree.position;
     const count = tree.habitat === 'wood' ? 2 : 1;
     for (let k = 0; k < count; k++) {

@@ -7,6 +7,7 @@ import { sampleTerrainHeight } from './terrainHeight';
 import { planFieldBoundaries, plotToWorld } from './fieldBoundaries';
 import { landUseAt } from './landUse';
 import { isPointInYard, type FarmYard } from './landLayout';
+import { forestDepthAt, forestSiteAt, isForestWood, type ForestMap } from './forest';
 
 export interface TreeInstance {
   position: [number, number, number];
@@ -15,6 +16,12 @@ export interface TreeInstance {
   type: 'deciduous' | 'conifer';
   /** Where the tree grows: inside a wood, in a field-edge or roadside row, or alone. Visual only. */
   habitat: 'wood' | 'line' | 'lone';
+  /**
+   * Deep inside a forest, behind its edge. Drawn with lite crowns and no
+   * shadows, and left out of collision and ray tests: the forest map blocks
+   * movement and sight there.
+   */
+  interior?: boolean;
   health: number;
   fallen: boolean;
   fallDirection: number;
@@ -37,7 +44,7 @@ export interface WoodSite {
 }
 
 /** Wood outline radius toward `angle`: a blob rather than a circle. */
-function woodOutline(site: WoodSite, angle: number) {
+export function woodOutline(site: WoodSite, angle: number) {
   return site.radius * (0.72 + 0.16 * Math.sin(angle * 2 + site.lobes[0])
     + 0.1 * Math.sin(angle * 3 + site.lobes[1]) + 0.06 * Math.sin(angle * 5 + site.lobes[2]));
 }
@@ -142,6 +149,7 @@ export function generateTrees(
   seed: number = GAME_CONFIG.trees.seed,
   woods: WoodSite[] = planWoods(mapScale, roadNetwork, seed),
   yards: FarmYard[] = [],
+  forest: ForestMap | null = null,
 ): TreeInstance[] {
   const cfg = GAME_CONFIG.trees;
   const rng = mulberry32(seed ^ 0x3c6ef372);
@@ -162,6 +170,8 @@ export function generateTrees(
     if (yards.some((yard) => isPointInYard(x, z, yard, 3))) return false;
     const margin = allowFieldEdge ? 0.5 : GAME_CONFIG.farmland.treeExclusionMargin;
     if (!inPlot && inFarmland(x, z, margin)) return false;
+    // Forests are planted from the forest map, below; keep other trees out.
+    if (forest && forestDepthAt(forest, x, z) > -1.5) return false;
     if (!grid.isFree(x, z, spacing)) return false;
     grid.add(x, z);
     trees.push({
@@ -234,11 +244,12 @@ export function generateTrees(
     if (tryPlace(x, z, rng() < 0.7 ? 'deciduous' : 'conifer', cfg.minSpacing * 3, 'lone')) lone++;
   }
 
-  // Copses and plantations: blobby outlines filled at woodland density;
-  // forest zones last, at wider spacing, with whatever of the budget remains.
-  for (const wood of [...woods.filter((w) => !w.forest), ...woods.filter((w) => w.forest)]) {
+  // Copses and plantations: blobby outlines filled at woodland density.
+  // Woods large enough to be forest are planted from the forest map instead.
+  for (const wood of woods) {
     if (trees.length >= maxTrees) break;
-    const spacing = wood.forest ? cfg.forestSpacing : cfg.woodSpacing;
+    if (forest && isForestWood(wood)) continue;
+    const spacing = cfg.woodSpacing;
     const attempts = Math.round((Math.PI * wood.radius * wood.radius) / (spacing * spacing) * 1.6);
     for (let a = 0; a < attempts; a++) {
       const angle = rng() * Math.PI * 2;
@@ -248,5 +259,52 @@ export function generateTrees(
     }
   }
 
+  if (forest) plantForest(forest, roadNetwork, trees, rng);
   return trees;
+}
+
+/**
+ * Plants the forests outside the tree budget, in two layers:
+ * - the edge band, the outer FOREST_EDGE_BAND metres, closely set with full
+ *   trees: the wall of trunks and crowns a crew actually looks at;
+ * - the interior, set wider with larger crowns that close the canopy. These
+ *   are marked interior: drawn lite, and left out of collision and ray tests,
+ *   which the forest map handles.
+ * A jittered lattice per layer, so spacing is even without a spacing grid.
+ */
+const FOREST_EDGE_BAND = 10;
+const FOREST_EDGE_SPACING = 7;
+const FOREST_INTERIOR_SPACING = 12;
+
+function plantForest(forest: ForestMap, roadNetwork: RoadNetwork, trees: TreeInstance[], rng: () => number) {
+  const cfg = GAME_CONFIG.trees;
+  const end = forest.origin + forest.size * forest.cell;
+  const layers = [
+    { spacing: FOREST_EDGE_SPACING, interior: false, accept: (depth: number) => depth >= 1 && depth <= FOREST_EDGE_BAND },
+    { spacing: FOREST_INTERIOR_SPACING, interior: true, accept: (depth: number) => depth > FOREST_EDGE_BAND - 1 },
+  ];
+  for (const layer of layers) {
+    for (let lz = forest.origin; lz < end; lz += layer.spacing) {
+      for (let lx = forest.origin; lx < end; lx += layer.spacing) {
+        const x = lx + rng() * layer.spacing, z = lz + rng() * layer.spacing;
+        const depth = forestDepthAt(forest, x, z);
+        if (!layer.accept(depth)) continue;
+        const site = forestSiteAt(forest, x, z);
+        const conifer = rng() < (site?.conifer ? 0.82 : 0.22);
+        trees.push({
+          position: [x, sampleTerrainHeight(x, z, roadNetwork, getRoadInfluence), z],
+          rotation: rng() * Math.PI * 2,
+          // Interior crowns are larger so the canopy closes over the wider spacing.
+          scale: layer.interior ? 1.15 + rng() * 0.4 : 0.85 + rng() * 0.45,
+          type: conifer ? 'conifer' : 'deciduous',
+          habitat: 'wood',
+          interior: layer.interior || undefined,
+          health: cfg.health,
+          fallen: false,
+          fallDirection: 0,
+          fallProgress: 0,
+        });
+      }
+    }
+  }
 }

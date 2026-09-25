@@ -7,6 +7,7 @@ import { getTankDef } from './tanks/registry';
 import { GAME_CONFIG } from './config';
 import { checkTerrainCollision, checkTreeRayCollision, checkBuildingCollision } from './projectilePhysics';
 import { getTerrainHeight } from './Terrain';
+import { forestStrikeAlong, getActiveForest } from './forest';
 import { ShellTracers } from './rendering/ShellTracers';
 
 const NORMAL_SAMPLE = 0.6; // m, finite-difference step for the terrain normal
@@ -86,6 +87,16 @@ export function ProjectileManager() {
           fallDirection,
           fallProgress: tree.fallen ? tree.fallProgress : 0.01,
         });
+        removeProjectile(p.id);
+        return;
+      }
+
+      // Deep in a forest the shell strikes a tree that is not modelled one by one.
+      const forest = getActiveForest();
+      const forestStrike = forest && forestStrikeAlong(forest, prevPos, nextPos, getTerrainHeight);
+      if (forestStrike) {
+        const { spawnParticle, removeProjectile } = useGameStore.getState();
+        spawnParticle('tree_hit', forestStrike, rayDir.clone().negate(), (p.caliber || 75) / 75);
         removeProjectile(p.id);
         return;
       }

@@ -81,6 +81,46 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     pipeline.current?.setSize(size.width, size.height);
   }, [gl, size]);
 
+  // Dev-only frame benchmark, callable from the console or automation as
+  // `await __panzerBench(60)`. It steps whole frames (game logic and every
+  // render pass) synchronously and waits for the GPU after each, so it
+  // measures the same in a background tab, where requestAnimationFrame stops.
+  const advance = useThree((state) => state.advance);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    const context = gl.getContext();
+    const pixel = new Uint8Array(4);
+    const bench = (frames = 60) => {
+      const autoReset = gl.info.autoReset;
+      gl.info.autoReset = false;
+      const times: number[] = [];
+      let calls = 0, triangles = 0;
+      for (let frame = 0; frame < frames; frame++) {
+        gl.info.reset();
+        const start = performance.now();
+        advance(start);
+        // Reading a pixel back blocks until the GPU has finished the frame.
+        context.readPixels(0, 0, 1, 1, context.RGBA, context.UNSIGNED_BYTE, pixel);
+        times.push(performance.now() - start);
+        calls += gl.info.render.calls;
+        triangles += gl.info.render.triangles;
+      }
+      gl.info.autoReset = autoReset;
+      times.sort((a, b) => a - b);
+      const mean = times.reduce((sum, time) => sum + time, 0) / frames;
+      return {
+        meanMs: +mean.toFixed(2),
+        medianMs: +times[Math.floor(frames / 2)].toFixed(2),
+        p95Ms: +times[Math.min(frames - 1, Math.floor(frames * 0.95))].toFixed(2),
+        drawCalls: Math.round(calls / frames),
+        triangles: Math.round(triangles / frames),
+      };
+    };
+    const target = window as unknown as { __panzerBench?: typeof bench };
+    target.__panzerBench = bench;
+    return () => { if (target.__panzerBench === bench) delete target.__panzerBench; };
+  }, [gl, advance]);
+
   useFrame((_, delta) => {
     if (pipeline.current && !mapMode) {
       if (shockwaves.current) {

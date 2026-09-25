@@ -10,13 +10,14 @@ import { getCamouflageScheme } from './tanks/core/camouflage';
 import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
 import { generateTrees, planWoods, TREE_SEED_OFFSET } from './trees';
+import { buildForestMap, forestDepthAt, getActiveForest, setActiveForest } from './forest';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
 import type { RoadNetwork } from './roads';
 import { generateRoadNetwork } from './roads';
 import type { BuildingInstance, FarmlandPlot } from './buildings';
-import { findNearestOpenPosition, projectBuildingsToTerrain } from './buildings';
+import { findNearestOpenPosition, isPointNearAnyBuilding, projectBuildingsToTerrain } from './buildings';
 import { generateBuildings, generateFarmlands, type FarmYard } from './landLayout';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
@@ -280,10 +281,27 @@ function toOobPosition(position: [number, number], mapSize: MapSize): [number, n
   return [position[0] / mapScale, position[1] / mapScale];
 }
 
+/** The nearest point a tank can stand on: clear of buildings and outside any forest. */
+function nearestOpenGround(worldX: number, worldZ: number, buildings: BuildingInstance[]): [number, number] {
+  const margin = GAME_CONFIG.tank.collisionRadius + 2;
+  const position = findNearestOpenPosition(worldX, worldZ, buildings, margin);
+  const forest = getActiveForest();
+  const open = (x: number, z: number) => !forest || forestDepthAt(forest, x, z) < -margin;
+  if (open(position[0], position[1])) return position;
+  for (let radius = 8; radius <= 400; radius += 8) {
+    for (let i = 0; i < 32; i++) {
+      const angle = (Math.PI * 2 * i) / 32;
+      const x = worldX + Math.cos(angle) * radius, z = worldZ + Math.sin(angle) * radius;
+      if (open(x, z) && !isPointNearAnyBuilding(x, z, buildings, margin)) return [x, z];
+    }
+  }
+  return position;
+}
+
 function sanitizeOobPosition(position: [number, number], mapSize: MapSize, buildings: BuildingInstance[]): [number, number] {
   const [worldX, worldZ] = toWorldPosition(position, mapSize);
-  const [safeX, safeZ] = findNearestOpenPosition(worldX, worldZ, buildings, GAME_CONFIG.tank.collisionRadius + 2);
-  return toOobPosition([safeX, safeZ], mapSize);
+  // Units placed on a building or in a forest start at open ground beside it.
+  return toOobPosition(nearestOpenGround(worldX, worldZ, buildings), mapSize);
 }
 
 function sanitizeOobLayout(
@@ -309,8 +327,12 @@ function generateWorld(mapSize: MapSize, seed: number) {
   // Woods are planned first; fields leave them clear and trees then fill them.
   const woods = planWoods(mapScale, roadNetwork, seed + TREE_SEED_OFFSET);
   const farmlands = generateFarmlands(buildings, roadNetwork, mapSize, seed + 29, woods, yards);
-  const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands, seed + TREE_SEED_OFFSET, woods, yards);
-  return { roadNetwork, buildings, farmlands, trees, yards };
+  // Large woods become forest: impassable, sight-blocking terrain (forest.ts).
+  const forest = buildForestMap(mapScale, woods, roadNetwork, buildings, farmlands, yards);
+  // Every generated world is put straight into play by the store.
+  setActiveForest(forest);
+  const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands, seed + TREE_SEED_OFFSET, woods, yards, forest);
+  return { roadNetwork, buildings, farmlands, trees, yards, forest };
 }
 
 const initialWorld = generateWorld('medium', GAME_CONFIG.world.seed);
@@ -611,18 +633,22 @@ export const useGameStore = create<GameState>((set, get) => ({
   deployOob: () => {
     const state = get();
     const mapScale = MAP_SIZE_VALUES[state.mapSize] / 1000;
+    // Units dragged onto a building or into a forest start at open ground next to it.
+    const open = (position: [number, number]) => sanitizeOobPosition(position, state.mapSize, state.buildings);
+    const playerPosition = open(state.oobPlayerPosition);
 
     // Create player tank
     const player = createTankData(state.oobPlayerTankType, true, state.oobPlayerCamouflage);
-    const px = state.oobPlayerPosition[0] * mapScale;
-    const pz = state.oobPlayerPosition[1] * mapScale;
+    const px = playerPosition[0] * mapScale;
+    const pz = playerPosition[1] * mapScale;
     player.position = new Vector3(px, 0, pz);
 
     // Create enemies
     const enemies: TankData[] = state.oobEnemies.map((u) => {
       const t = createTankData(u.tankType, false, u.camouflage);
-      const ex = u.position[0] * mapScale;
-      const ez = u.position[1] * mapScale;
+      const [ux, uz] = open(u.position);
+      const ex = ux * mapScale;
+      const ez = uz * mapScale;
       t.position = new Vector3(ex, 0, ez);
       t.rotation = u.rotation;
       return t;
@@ -631,8 +657,9 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Create allies
     const allies: TankData[] = state.oobAllies.map((u) => {
       const t = createTankData(u.tankType, false, u.camouflage);
-      const ax = u.position[0] * mapScale;
-      const az = u.position[1] * mapScale;
+      const [ux, uz] = open(u.position);
+      const ax = ux * mapScale;
+      const az = uz * mapScale;
       t.position = new Vector3(ax, 0, az);
       t.rotation = u.rotation;
       return t;
@@ -765,9 +792,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   setAllyEngagementPosture: (allyId, posture) => set((state) => ({
     allyEngagementPostures: { ...state.allyEngagementPostures, [allyId]: posture },
   })),
-  issueAllyMoveOrder: (allyId, position) => set((state) => ({
-    allyWaypoints: { ...state.allyWaypoints, [allyId]: position },
-  })),
+  issueAllyMoveOrder: (allyId, position) => set((state) => {
+    // An order into a forest goes to the open ground at its edge.
+    const [x, z] = nearestOpenGround(position.x, position.z, state.buildings);
+    return { allyWaypoints: { ...state.allyWaypoints, [allyId]: { x, y: position.y, z } } };
+  }),
   clearAllyWaypoint: (allyId) => set((state) => {
     const { [allyId]: _, ...rest } = state.allyWaypoints;
     return { allyWaypoints: rest };
@@ -1163,3 +1192,4 @@ export const useGameStore = create<GameState>((set, get) => ({
     }));
   },
 }));
+

@@ -96,6 +96,24 @@ function createDeciduousCanopyGeometry(): THREE.BufferGeometry {
   ], { center: [0, 5.75, 0], radii: [2.9, 2.3, 2.9] }, 7331);
 }
 
+/** Far and forest-interior crown: the same shape from about a third of the cards. */
+function createDeciduousLiteCanopyGeometry(): THREE.BufferGeometry {
+  return buildCrown([
+    { center: [0, 5.85, 0], radii: [2.3, 1.8, 2.3], cards: 6, size: [2.4, 3.0] },
+    { center: [1.15, 5.05, 0.45], radii: [1.45, 1.15, 1.45], cards: 2, size: [2.0, 2.5] },
+    { center: [-0.95, 5.3, -0.75], radii: [1.5, 1.25, 1.5], cards: 2, size: [2.0, 2.5] },
+    { center: [0.2, 6.75, -0.3], radii: [1.35, 0.95, 1.35], cards: 1, size: [1.9, 2.3] },
+  ], { center: [0, 5.75, 0], radii: [2.9, 2.3, 2.9] }, 7331);
+}
+
+function createConiferLiteCanopyGeometry(): THREE.BufferGeometry {
+  return buildConiferCrown([
+    { y: 4.2, width: 4.6, height: 3.6, offsetX: -0.08, offsetZ: 0.06, phase: 0.08 },
+    { y: 6.0, width: 3.6, height: 3.2, offsetX: 0.1, offsetZ: -0.05, phase: 0.42 },
+    { y: 7.7, width: 2.2, height: 2.6, offsetX: -0.04, offsetZ: 0.02, phase: 0.28 },
+  ]);
+}
+
 function createConiferCanopyGeometry(): THREE.BufferGeometry {
   return buildConiferCrown([
     { y: 3.75, width: 4.65, height: 2.55, offsetX: -0.08, offsetZ: 0.06, phase: 0.08 },
@@ -107,7 +125,7 @@ function createConiferCanopyGeometry(): THREE.BufferGeometry {
   ]);
 }
 
-// Shared geometries and materials keep the forest to four draw calls.
+// Geometries and materials are shared by every tree chunk.
 const shrubGeo = buildCrown([
   { center: [0, 0.85, 0], radii: [1.3, 0.8, 1.3], cards: 9, size: [0.9, 1.3] },
   { center: [0.7, 0.6, 0.3], radii: [0.8, 0.6, 0.8], cards: 4, size: [0.8, 1.1] },
@@ -116,6 +134,8 @@ const trunkGeo = createBentTrunkGeometry();
 const deciduousBranchGeo = createBranchGeometry();
 const deciduousCanopyGeo = createDeciduousCanopyGeometry();
 const coniferCanopyGeo = createConiferCanopyGeometry();
+const deciduousLiteGeo = createDeciduousLiteCanopyGeometry();
+const coniferLiteGeo = createConiferLiteCanopyGeometry();
 
 const textureLoader = new THREE.TextureLoader();
 const barkTexture = textureLoader.load('/assets/trees/bark-albedo.jpg');
@@ -231,106 +251,227 @@ function setTreeMatrix(tree: TreeInstance, mat: THREE.Matrix4) {
   mat.compose(_pos, _quat, _scale);
 }
 
-function colorTreeInstances(
-  trees: TreeInstance[],
-  trunk: THREE.InstancedMesh | null,
-  branches: THREE.InstancedMesh | null,
-  deciduous: THREE.InstancedMesh | null,
-  conifer: THREE.InstancedMesh | null,
-) {
-  let deciduousIndex = 0;
-  let coniferIndex = 0;
+function treeTrunkColor(tree: TreeInstance) {
+  // Grey-brown bark, darker than the albedo scan, which reads pink in the grade.
+  const trunkLightness = 0.5 + visualNoise(tree, 12) * 0.16;
+  return _color.setRGB(trunkLightness * 0.93, trunkLightness * 0.96, trunkLightness * 0.95);
+}
 
+function treeLeafColor(tree: TreeInstance) {
+  if (tree.type === 'deciduous') {
+    const leafVariation = visualNoise(tree, 21);
+    return _color.setHSL(0.22 + leafVariation * 0.025, 0.1 + leafVariation * 0.06, 0.76 + leafVariation * 0.1);
+  }
+  const leafVariation = visualNoise(tree, 31);
+  return _color.setHSL(0.35 + leafVariation * 0.018, 0.1 + leafVariation * 0.055, 0.72 + leafVariation * 0.09);
+}
+
+/**
+ * Trees are drawn in square chunks, so the renderer skips every chunk
+ * outside the view and outside the sun's shadow box. Before this, every tree
+ * on the map went into the shadow map each frame. Each chunk holds:
+ * - detail: full crowns, branches and shadows, drawn while the chunk is near;
+ * - lite: the same trees with a third of the crown cards and no shadows,
+ *   drawn once the chunk is far;
+ * - interior: trees deep inside a forest, always lite and never casting
+ *   shadows. Nothing sees them up close: the forest edge hides them and
+ *   tanks cannot drive in.
+ */
+interface TreeLayers {
+  trunk: THREE.InstancedMesh | null;
+  branches: THREE.InstancedMesh | null;
+  deciduous: THREE.InstancedMesh | null;
+  conifer: THREE.InstancedMesh | null;
+}
+
+interface TreeChunk {
+  min: THREE.Vector2;
+  max: THREE.Vector2;
+  detail: THREE.Group;
+  lite: THREE.Group;
+  interior: THREE.Group;
+  detailLayers: TreeLayers;
+  liteLayers: TreeLayers;
+  interiorLayers: TreeLayers;
+  useLite: boolean;
+}
+
+interface TreeSlot {
+  chunk: number;
+  trunk: number;
+  crown: number;
+}
+
+// Chunks whose nearest edge is further than this (m, normalised to the 60
+// degree third-person FOV so zoomed sights keep detail) switch to lite crowns.
+const LITE_ENTER_DISTANCE = 220;
+const LITE_EXIT_DISTANCE = 190;
+const TREE_REFERENCE_HALF_FOV_TAN = Math.tan(THREE.MathUtils.degToRad(30));
+
+function makeLayer(geometry: THREE.BufferGeometry, material: THREE.Material, count: number,
+  depth: THREE.Material | null, castShadow: boolean) {
+  if (count === 0) return null;
+  const mesh = new THREE.InstancedMesh(geometry, material, count);
+  if (depth) mesh.customDepthMaterial = depth;
+  mesh.castShadow = castShadow;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+function layerMeshes(layers: TreeLayers) {
+  return [layers.trunk, layers.branches, layers.deciduous, layers.conifer]
+    .filter((mesh): mesh is THREE.InstancedMesh => mesh !== null);
+}
+
+function buildTreeChunks(trees: TreeInstance[]) {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const tree of trees) {
+    minX = Math.min(minX, tree.position[0]); maxX = Math.max(maxX, tree.position[0]);
+    minZ = Math.min(minZ, tree.position[2]); maxZ = Math.max(maxZ, tree.position[2]);
+  }
+  // About nine chunks across the map, at least 250 m: small enough to cull
+  // and switch detail usefully, few enough to keep the draw calls down.
+  const size = Math.max(250, Math.max(maxX - minX, maxZ - minZ) / 9);
+  const columns = Math.max(1, Math.ceil((maxX - minX + 1) / size));
+  const chunkOf = (tree: TreeInstance) => Math.floor((tree.position[2] - minZ) / size) * columns
+    + Math.floor((tree.position[0] - minX) / size);
+
+  // Count per chunk and bucket (trunks, broadleaf, conifer) first, then
+  // allocate exact-size meshes.
+  const counts = new Map<number, { outer: [number, number, number]; interior: [number, number, number] }>();
+  const slots: TreeSlot[] = trees.map((tree) => {
+    const key = chunkOf(tree);
+    let entry = counts.get(key);
+    if (!entry) { entry = { outer: [0, 0, 0], interior: [0, 0, 0] }; counts.set(key, entry); }
+    const bucket = tree.interior ? entry.interior : entry.outer;
+    const trunk = bucket[0]++;
+    const crown = tree.type === 'deciduous' ? bucket[1]++ : bucket[2]++;
+    return { chunk: key, trunk, crown };
+  });
+
+  const chunkByKey = new Map<number, TreeChunk>();
+  const group = (layers: TreeLayers) => {
+    const g = new THREE.Group();
+    layerMeshes(layers).forEach((mesh) => g.add(mesh));
+    return g;
+  };
+  for (const [key, { outer, interior }] of counts) {
+    const cx = key % columns, cz = Math.floor(key / columns);
+    const detailLayers: TreeLayers = {
+      trunk: makeLayer(trunkGeo, trunkMat, outer[0], null, true),
+      branches: makeLayer(deciduousBranchGeo, trunkMat, outer[1], null, true),
+      deciduous: makeLayer(deciduousCanopyGeo, deciduousLeafMat, outer[1], deciduousLeafDepthMat, true),
+      conifer: makeLayer(coniferCanopyGeo, coniferLeafMat, outer[2], coniferLeafDepthMat, true),
+    };
+    const liteLayers: TreeLayers = {
+      trunk: makeLayer(trunkGeo, trunkMat, outer[0], null, false),
+      branches: null,
+      deciduous: makeLayer(deciduousLiteGeo, deciduousLeafMat, outer[1], null, false),
+      conifer: makeLayer(coniferLiteGeo, coniferLeafMat, outer[2], null, false),
+    };
+    const interiorLayers: TreeLayers = {
+      trunk: makeLayer(trunkGeo, trunkMat, interior[0], null, false),
+      branches: null,
+      deciduous: makeLayer(deciduousLiteGeo, deciduousLeafMat, interior[1], null, false),
+      conifer: makeLayer(coniferLiteGeo, coniferLeafMat, interior[2], null, false),
+    };
+    const chunk: TreeChunk = {
+      min: new THREE.Vector2(minX + cx * size, minZ + cz * size),
+      max: new THREE.Vector2(minX + (cx + 1) * size, minZ + (cz + 1) * size),
+      detail: group(detailLayers), lite: group(liteLayers), interior: group(interiorLayers),
+      detailLayers, liteLayers, interiorLayers,
+      useLite: false,
+    };
+    chunk.lite.visible = false;
+    chunkByKey.set(key, chunk);
+  }
+
+  // Colours never change; matrices are written by writeTree.
   trees.forEach((tree, index) => {
-    // Grey-brown bark, darker than the albedo scan, which reads pink in the grade.
-    const trunkLightness = 0.5 + visualNoise(tree, 12) * 0.16;
-    _color.setRGB(trunkLightness * 0.93, trunkLightness * 0.96, trunkLightness * 0.95);
-    trunk?.setColorAt(index, _color);
-
-    if (tree.type === 'deciduous') {
-      branches?.setColorAt(deciduousIndex, _color);
-      const leafVariation = visualNoise(tree, 21);
-      _color.setHSL(0.22 + leafVariation * 0.025, 0.1 + leafVariation * 0.06, 0.76 + leafVariation * 0.1);
-      deciduous?.setColorAt(deciduousIndex, _color);
-      deciduousIndex++;
-    } else {
-      const leafVariation = visualNoise(tree, 31);
-      _color.setHSL(0.35 + leafVariation * 0.018, 0.1 + leafVariation * 0.055, 0.72 + leafVariation * 0.09);
-      conifer?.setColorAt(coniferIndex, _color);
-      coniferIndex++;
+    const slot = slots[index];
+    const chunk = chunkByKey.get(slot.chunk)!;
+    for (const layers of tree.interior ? [chunk.interiorLayers] : [chunk.detailLayers, chunk.liteLayers]) {
+      layers.trunk?.setColorAt(slot.trunk, treeTrunkColor(tree));
+      if (tree.type === 'deciduous') layers.branches?.setColorAt(slot.crown, _color);
+      (tree.type === 'deciduous' ? layers.deciduous : layers.conifer)?.setColorAt(slot.crown, treeLeafColor(tree));
     }
   });
+  const chunks = [...chunkByKey.values()];
+  // The root is built here, with the chunks: adding them to a group made
+  // anywhere else would move them out of any earlier root.
+  const root = new THREE.Group();
+  for (const chunk of chunks) root.add(chunk.detail, chunk.lite, chunk.interior);
+  return { chunks, chunkByKey, slots, root };
+}
 
-  [trunk, branches, deciduous, conifer].forEach((mesh) => {
-    if (mesh?.instanceColor) mesh.instanceColor.needsUpdate = true;
-  });
+/** Write one tree's matrices into its chunk, collecting the meshes touched. */
+function writeTree(tree: TreeInstance, slot: TreeSlot, chunk: TreeChunk, touched: Set<THREE.InstancedMesh>) {
+  setTreeMatrix(tree, _mat);
+  setCrownMatrix(tree, _mat, _crownMat);
+  for (const layers of tree.interior ? [chunk.interiorLayers] : [chunk.detailLayers, chunk.liteLayers]) {
+    const crown = tree.type === 'deciduous' ? layers.deciduous : layers.conifer;
+    const branches = tree.type === 'deciduous' ? layers.branches : null;
+    layers.trunk?.setMatrixAt(slot.trunk, _mat);
+    branches?.setMatrixAt(slot.crown, _mat);
+    crown?.setMatrixAt(slot.crown, _crownMat);
+    for (const mesh of [layers.trunk, branches, crown]) if (mesh) touched.add(mesh);
+  }
 }
 
 export function Trees() {
   const trees = useGameStore((state) => state.trees);
-  const trunkRef = useRef<THREE.InstancedMesh>(null);
-  const deciduousBranchRef = useRef<THREE.InstancedMesh>(null);
-  const deciduousRef = useRef<THREE.InstancedMesh>(null);
-  const coniferRef = useRef<THREE.InstancedMesh>(null);
-
-  const treeLayoutKey = useMemo(() => trees.reduce(
-    (key, tree) => key
-      + tree.position[0] * 0.011
-      + tree.position[2] * 0.017
-      + (tree.type === 'deciduous' ? 0.37 : 0.73),
-    trees.length,
-  ), [trees]);
-
-  const { deciduousIndices, coniferIndices } = useMemo(() => {
-    const deciduous: number[] = [];
-    const conifer: number[] = [];
-    trees.forEach((tree, index) => {
-      if (tree.type === 'deciduous') deciduous.push(index);
-      else conifer.push(index);
-    });
-    return { deciduousIndices: deciduous, coniferIndices: conifer };
-  }, [treeLayoutKey]);
-
-  useEffect(() => {
-    colorTreeInstances(
-      trees,
-      trunkRef.current,
-      deciduousBranchRef.current,
-      deciduousRef.current,
-      coniferRef.current,
-    );
-  }, [treeLayoutKey]);
-
-  // Trees only move when one is knocked over, which replaces the store array.
-  const uploadedTrees = useRef<TreeInstance[] | null>(null);
-  useFrame(() => {
-    if (!trunkRef.current) return;
-    const currentTrees = useGameStore.getState().trees;
-    if (currentTrees.length === 0 || currentTrees === uploadedTrees.current) return;
-    uploadedTrees.current = currentTrees;
-
-    let deciduousIndex = 0;
-    let coniferIndex = 0;
-    for (let index = 0; index < currentTrees.length; index++) {
-      const tree = currentTrees[index];
-      setTreeMatrix(tree, _mat);
-      trunkRef.current.setMatrixAt(index, _mat);
-
-      if (tree.type === 'deciduous') {
-        deciduousBranchRef.current?.setMatrixAt(deciduousIndex, _mat);
-        deciduousRef.current?.setMatrixAt(deciduousIndex, setCrownMatrix(tree, _mat, _crownMat));
-        deciduousIndex++;
-      } else {
-        coniferRef.current?.setMatrixAt(coniferIndex, setCrownMatrix(tree, _mat, _crownMat));
-        coniferIndex++;
+  // Knockdowns replace the tree array without moving trees: key on the layout.
+  const layout = treeLayoutSignature(trees);
+  const built = useMemo(() => buildTreeChunks(useGameStore.getState().trees), [layout]);
+  useEffect(() => () => {
+    for (const chunk of built.chunks) {
+      for (const layers of [chunk.detailLayers, chunk.liteLayers, chunk.interiorLayers]) {
+        layerMeshes(layers).forEach((mesh) => mesh.dispose());
       }
     }
+  }, [built]);
 
-    for (const mesh of [trunkRef.current, deciduousBranchRef.current, deciduousRef.current, coniferRef.current]) {
-      if (!mesh) continue;
-      mesh.instanceMatrix.needsUpdate = true;
-      // Frustum culling uses the instance bounds; refresh them with the matrices.
-      mesh.computeBoundingSphere();
+  // Trees only move when one is knocked over, which replaces that tree's
+  // object in a new store array: rewrite just the trees that changed.
+  const uploadedTrees = useRef<TreeInstance[] | null>(null);
+  const uploadedBuild = useRef<typeof built | null>(null);
+  const cameraPosition = useMemo(() => new THREE.Vector3(), []);
+  useFrame(({ camera }) => {
+    const currentTrees = useGameStore.getState().trees;
+    if (currentTrees.length === built.slots.length
+      && (currentTrees !== uploadedTrees.current || uploadedBuild.current !== built)) {
+      const fresh = uploadedBuild.current !== built;
+      const previous = uploadedTrees.current;
+      const touched = new Set<THREE.InstancedMesh>();
+      for (let index = 0; index < currentTrees.length; index++) {
+        const tree = currentTrees[index];
+        if (!fresh && previous && previous[index] === tree) continue;
+        const slot = built.slots[index];
+        writeTree(tree, slot, built.chunkByKey.get(slot.chunk)!, touched);
+      }
+      for (const mesh of touched) {
+        mesh.instanceMatrix.needsUpdate = true;
+        if (fresh && mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+        // Frustum culling uses the instance bounds; refresh them with the matrices.
+        mesh.computeBoundingSphere();
+      }
+      uploadedTrees.current = currentTrees;
+      uploadedBuild.current = built;
+    }
+
+    // Detail by distance from the camera to the nearest point of each chunk.
+    camera.getWorldPosition(cameraPosition);
+    const fov = (camera as THREE.PerspectiveCamera).fov ?? 60;
+    const zoom = Math.tan(THREE.MathUtils.degToRad(fov) / 2) / TREE_REFERENCE_HALF_FOV_TAN;
+    for (const chunk of built.chunks) {
+      const dx = Math.max(chunk.min.x - cameraPosition.x, 0, cameraPosition.x - chunk.max.x);
+      const dz = Math.max(chunk.min.y - cameraPosition.z, 0, cameraPosition.z - chunk.max.y);
+      const distance = Math.hypot(dx, dz, Math.max(0, cameraPosition.y - 40)) * zoom;
+      const useLite = chunk.useLite ? distance > LITE_EXIT_DISTANCE : distance > LITE_ENTER_DISTANCE;
+      if (useLite === chunk.useLite) continue;
+      chunk.useLite = useLite;
+      chunk.detail.visible = !useLite;
+      chunk.lite.visible = useLite;
     }
   });
 
@@ -345,46 +486,7 @@ export function Trees() {
   });
 
   if (trees.length === 0) return null;
-
-  const deciduousCount = deciduousIndices.length;
-  const coniferCount = coniferIndices.length;
-
-  return (
-    <group>
-      <instancedMesh
-        ref={trunkRef}
-        args={[trunkGeo, trunkMat, trees.length]}
-        castShadow
-        receiveShadow
-      />
-      {deciduousCount > 0 && (
-        <>
-          <instancedMesh
-            ref={deciduousBranchRef}
-            args={[deciduousBranchGeo, trunkMat, deciduousCount]}
-            castShadow
-            receiveShadow
-          />
-          <instancedMesh
-            ref={deciduousRef}
-            args={[deciduousCanopyGeo, deciduousLeafMat, deciduousCount]}
-            customDepthMaterial={deciduousLeafDepthMat}
-            castShadow
-            receiveShadow
-          />
-        </>
-      )}
-      {coniferCount > 0 && (
-        <instancedMesh
-          ref={coniferRef}
-          args={[coniferCanopyGeo, coniferLeafMat, coniferCount]}
-          customDepthMaterial={coniferLeafDepthMat}
-          castShadow
-          receiveShadow
-        />
-      )}
-    </group>
-  );
+  return <primitive object={built.root} />;
 }
 
 /** Lowest foliage on the spruce crown, in model units; saplings sink to it. */

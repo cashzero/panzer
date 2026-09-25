@@ -28,6 +28,8 @@ function getIndex(trees: TreeInstance[], radius: number): TreeIndex {
   if (cached?.signature === signature) return cached;
   const cells = new Map<number, number[]>();
   trees.forEach((tree, index) => {
+    // Interior forest trees are out of reach; the forest map blocks there.
+    if (tree.interior) return;
     const [x, , z] = tree.position;
     for (let ix = Math.floor((x - radius) / CELL); ix <= Math.floor((x + radius) / CELL); ix++) {
       for (let iz = Math.floor((z - radius) / CELL); iz <= Math.floor((z + radius) / CELL); iz++) {

@@ -168,7 +168,6 @@ export const GAME_CONFIG = {
     woodsPerKm2: 4,       // copses scattered through farmland and open ground
     woodRadius: [35, 110] as [number, number],
     woodSpacing: 7.5,     // m between trees inside woods
-    forestSpacing: 10.5,  // m between trees inside the forest zones (crowns spread to close the canopy)
     lonePerKm2: 40,       // mostly on open grazing land
     openScrubChance: 0.14, // share of 14 m cells on open land with a scrub bush
     roadsideRowChance: 0.35,

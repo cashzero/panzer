@@ -18,6 +18,8 @@ npm run clean      # Remove dist/
 
 No test framework. No ESLint. `tsc --noEmit` is the only static check — always run `npm run lint` after code changes.
 
+In dev builds, `await __panzerBench(60)` in the battle's browser console steps whole frames synchronously and returns mean/median/p95 frame ms, draw calls and triangles. It works in a background tab, where requestAnimationFrame stops.
+
 The game needs no API keys or environment variables.
 
 ## Architecture
@@ -55,12 +57,13 @@ The game needs no API keys or environment variables.
 **World**:
 - `Terrain.tsx` + `terrainHeight.ts` — layered-noise terrain with metre-high swells, sunken roads, flattened center
 - `roads.ts` — seeded road network (N-S / E-W crossroads), height blend, speed bonus
-- `trees.ts` + `TreeRenderer.tsx` — seeded woods, field-edge treelines, roadside avenues and lone trees; collision, HP, knockdown; instanced billboard-card crowns (`rendering/foliageCards.ts`) and visual-only understory (`rendering/woodland.ts`). `treeIndex.ts` grids tree queries; `fieldBoundaries.ts` decides which field edges get trees, hedges or nothing
+- `trees.ts` + `TreeRenderer.tsx` — seeded woods, field-edge treelines, roadside avenues and lone trees; collision, HP, knockdown; instanced billboard-card crowns (`rendering/foliageCards.ts`) drawn in chunks with a lite far/forest-interior LOD, and visual-only understory (`rendering/woodland.ts`). `treeIndex.ts` grids tree queries; `fieldBoundaries.ts` decides which field edges get trees, hedges or nothing
+- `forest.ts` — large woods rasterised per world into a signed-distance grid that makes forests impassable, blocks sight through more than 30 m of them and stops shells; read through `getActiveForest()`. `rendering/ForestScreen.tsx` draws the dark undergrowth inside the edge
 - `rendering/WorldDressing.tsx` (hedges, telegraph lines) and `rendering/HorizonSkirt.tsx` (countryside beyond the map edge) — visual only, no collision or line-of-sight effect
 - `landLayout.ts` + `landUse.ts` — villages along the roads out of each junction, farmsteads, rectangular field parcels squared to the roads, land-use zones (farmland, open grazing, forest)
 - `buildings.ts` + `BuildingRenderer.tsx` — building shapes and footprints, wall/roof impacts, farmland plot helpers. Building `rotation` is a three.js Y rotation: use `buildingLocalToWorld` / `worldToBuildingLocal`, never the math-convention formula
 
-**AI**: `EnemyAI.tsx` and `AllyAI.tsx` each drive their tanks (approach/retreat, gravity-compensated aim, dispersion drift, steady-aim zero after stillness). Allies also accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`).
+**AI**: `EnemyAI.tsx` and `AllyAI.tsx` each drive their tanks (approach/retreat, gravity-compensated aim, dispersion drift, steady-aim zero after stillness). Allies also accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`). Movement goals go through `navigation.ts` (`routeDirection`: A* around forests, direct when the line is clear) before local obstacle steering.
 
 **Rendering & views**:
 - `Tank.tsx` / `TankModel.tsx` — legacy procedural tank geometry + animation
