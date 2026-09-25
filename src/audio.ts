@@ -1,3 +1,24 @@
+import {
+  Ambience,
+  VehicleVoices,
+  airAbsorptionCutoff,
+  createNoiseLoop,
+  createSpatialPanner,
+  createTraverseMotorBuffer,
+  createTraverseRatchetBuffer,
+  distance,
+  placePanner,
+  playFlyby,
+  playReload,
+  propagationDelay,
+  type EngineBuffers,
+  type FlybyEvent,
+  type ReloadEvent,
+  type VehicleTelemetry,
+} from './audioField';
+
+export type { FlybyEvent, ReloadEvent, VehicleTelemetry } from './audioField';
+
 export type AudioViewMode = 'third-person' | 'gunner' | 'map';
 export type AudioSource = 'player' | 'ally' | 'enemy';
 export type AudioTarget = AudioSource | 'terrain';
@@ -28,6 +49,10 @@ export interface EngineTelemetry {
   rightTrackSpeed: number;
   destroyed: boolean;
   viewMode: AudioViewMode;
+  /** Turret traverse rate, rad/s. */
+  turretRate?: number;
+  /** Powered (electric or hydraulic) traverse; otherwise the gunner cranks it by hand. */
+  poweredTraverse?: boolean;
 }
 
 export interface ShotEvent {
@@ -62,6 +87,12 @@ export interface AudioBackend {
   playShot(event: ShotEvent): void;
   playImpact(event: ImpactEvent): void;
   playExplosion(event: ExplosionEvent): void;
+  /** On while a battle scene is mounted; everything battle-bound falls silent when it is off. */
+  setBattleActive(active: boolean): void;
+  /** Engine telemetry of every other tank, each frame. */
+  syncVehicles(vehicles: VehicleTelemetry[]): void;
+  playFlyby(event: FlybyEvent): void;
+  playReload(event: ReloadEvent): void;
 }
 
 type AudioWindow = Window & {
@@ -293,6 +324,16 @@ class SilentAudioBackend implements AudioBackend {
   playShot(_event: ShotEvent): void {}
   playImpact(_event: ImpactEvent): void {}
   playExplosion(_event: ExplosionEvent): void {}
+  setBattleActive(_active: boolean): void {}
+  syncVehicles(_vehicles: VehicleTelemetry[]): void {}
+  playFlyby(_event: FlybyEvent): void {}
+  playReload(_event: ReloadEvent): void {}
+}
+
+interface TurretLayers {
+  panner: PannerNode;
+  motor: { source: AudioBufferSourceNode; gain: GainNode };
+  ratchet: { source: AudioBufferSourceNode; gain: GainNode };
 }
 
 class LayeredTankAudioBackend implements AudioBackend {
@@ -301,6 +342,14 @@ class LayeredTankAudioBackend implements AudioBackend {
   private transientNoiseBuffer: AudioBuffer | null = null;
   private lastListenerPose: ListenerPose | null = null;
   private lastEngineTelemetry: EngineTelemetry | null = null;
+  /** Everything ends here: a limiter keeps a salvo of close guns from clipping. */
+  private master: GainNode | null = null;
+  private limiter: DynamicsCompressorNode | null = null;
+  private engineBuffers: EngineBuffers | null = null;
+  private vehicleVoices: VehicleVoices | null = null;
+  private ambience: Ambience | null = null;
+  private turret: TurretLayers | null = null;
+  private battleActive = false;
   private state: EngineSmoothingState = {
     outputGain: 0,
     viewLowpass: 1400,
@@ -325,7 +374,24 @@ class LayeredTankAudioBackend implements AudioBackend {
     this.detachContext();
     this.context = context;
     this.transientNoiseBuffer = createNoiseBuffer(context, 2.0);
+    this.limiter = context.createDynamicsCompressor();
+    this.limiter.threshold.value = -4;
+    this.limiter.knee.value = 2;
+    this.limiter.ratio.value = 16;
+    this.limiter.attack.value = 0.002;
+    this.limiter.release.value = 0.22;
+    this.limiter.connect(context.destination);
+    this.master = context.createGain();
+    this.master.connect(this.limiter);
+    this.engineBuffers = {
+      idle: createIdleLoopBuffer(context),
+      load: createLoadLoopBuffer(context),
+      track: createTrackLoopBuffer(context),
+    };
     this.graph = this.createGraph(context);
+    this.vehicleVoices = new VehicleVoices(context, this.engineBuffers, this.master);
+    this.ambience = new Ambience(context, createNoiseLoop(context, 4), this.master);
+    this.turret = this.createTurretLayers(context, this.master);
 
     if (this.lastListenerPose) {
       this.setListenerPose(this.lastListenerPose);
@@ -336,6 +402,24 @@ class LayeredTankAudioBackend implements AudioBackend {
   }
 
   detachContext(): void {
+    this.vehicleVoices?.dispose();
+    this.ambience?.dispose();
+    if (this.turret) {
+      for (const layer of [this.turret.motor, this.turret.ratchet]) {
+        try { layer.source.stop(); } catch { /* already stopped */ }
+        layer.source.disconnect();
+        layer.gain.disconnect();
+      }
+      this.turret.panner.disconnect();
+    }
+    this.master?.disconnect();
+    this.limiter?.disconnect();
+    this.vehicleVoices = null;
+    this.ambience = null;
+    this.turret = null;
+    this.master = null;
+    this.limiter = null;
+    this.engineBuffers = null;
     if (!this.graph) {
       this.context = null;
       return;
@@ -382,7 +466,7 @@ class LayeredTankAudioBackend implements AudioBackend {
     const turnRatio = clamp(Math.abs(telemetry.leftTrackSpeed - telemetry.rightTrackSpeed) / Math.max(maxSpeed * 1.2, 0.1), 0, 1);
     const loadRatio = clamp(rpmRatio * 0.68 + trackRatio * 0.34 + turnRatio * 0.24, 0, 1);
 
-    const targetOutputGain = telemetry.destroyed
+    const targetOutputGain = telemetry.destroyed || !this.battleActive
       ? 0
       : telemetry.viewMode === 'map'
         ? 0.05
@@ -425,13 +509,85 @@ class LayeredTankAudioBackend implements AudioBackend {
     this.state.whineFilter = smooth(this.state.whineFilter, targetWhineFilter, 0.15);
 
     this.applyState(this.graph, this.state);
+    this.updateTurret(telemetry);
+  }
+
+  /**
+   * Turret machinery while it traverses: a motor and gear whine for powered
+   * traverse, the ratchet of the hand crank for the rest, clicking faster
+   * the faster the gunner winds.
+   */
+  private updateTurret(telemetry: EngineTelemetry): void {
+    if (!this.turret || !this.context) return;
+    const now = this.context.currentTime;
+    placePanner(this.turret.panner, { ...telemetry.position, y: telemetry.position.y + 2 });
+    const rate = Math.abs(telemetry.turretRate ?? 0);
+    const on = this.battleActive && !telemetry.destroyed && telemetry.viewMode !== 'map';
+    const inside = telemetry.viewMode === 'gunner' ? 1.6 : 1;
+    const powered = telemetry.poweredTraverse ?? true;
+    const motor = on && powered ? clamp(rate / 0.25, 0, 1) : 0;
+    const crank = on && !powered ? clamp(rate / 0.05, 0, 1) : 0;
+    this.turret.motor.gain.gain.setTargetAtTime(motor * 0.11 * inside, now, motor > 0 ? 0.05 : 0.12);
+    this.turret.motor.source.playbackRate.setTargetAtTime(lerp(0.75, 1.2, motor), now, 0.08);
+    this.turret.ratchet.gain.gain.setTargetAtTime(crank * 0.12 * inside, now, 0.04);
+    this.turret.ratchet.source.playbackRate.setTargetAtTime(Math.max(0.2, rate / 0.06), now, 0.05);
+  }
+
+  private createTurretLayers(context: AudioContext, destination: AudioNode): TurretLayers {
+    const panner = createSpatialPanner(context, 4, 1.1);
+    panner.connect(destination);
+    const layer = (buffer: AudioBuffer) => {
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+      source.loop = true;
+      const gain = context.createGain();
+      gain.gain.value = 0;
+      source.connect(gain);
+      gain.connect(panner);
+      source.start();
+      return { source, gain };
+    };
+    return { panner, motor: layer(createTraverseMotorBuffer(context)), ratchet: layer(createTraverseRatchetBuffer(context)) };
+  }
+
+  setBattleActive(active: boolean): void {
+    this.battleActive = active;
+    if (!active) {
+      this.vehicleVoices?.update([], null, false);
+      this.ambience?.update(false, false);
+      if (this.lastEngineTelemetry) this.syncPlayerEngine(this.lastEngineTelemetry);
+      if (this.graph && this.context) this.graph.outputGain.gain.setTargetAtTime(0, this.context.currentTime, 0.2);
+    }
+  }
+
+  syncVehicles(vehicles: VehicleTelemetry[]): void {
+    const listener = this.lastListenerPose;
+    this.vehicleVoices?.update(vehicles, listener?.position ?? null, this.battleActive);
+    this.ambience?.update(this.battleActive, listener?.viewMode === 'map');
+  }
+
+  playFlyby(event: FlybyEvent): void {
+    if (!this.context || !this.master || !this.transientNoiseBuffer || !this.battleActive) return;
+    playFlyby(this.context, this.master, this.transientNoiseBuffer, event);
+  }
+
+  playReload(event: ReloadEvent): void {
+    if (!this.context || !this.master || !this.transientNoiseBuffer || !this.battleActive) return;
+    playReload(this.context, this.master, this.transientNoiseBuffer, event);
+  }
+
+  /** Time for a sound to cross from its source to the listener. */
+  private delayFor(position: AudioVec3): number {
+    const listener = this.lastListenerPose?.position;
+    return listener ? propagationDelay(distance(position, listener)) : 0;
   }
 
   playShot(event: ShotEvent): void {
     if (!this.context) return;
 
     const context = this.context;
-    const now = context.currentTime;
+    // Heard when the sound arrives: a gun 700 m off two seconds after its flash.
+    const now = context.currentTime + this.delayFor(event.position);
     const shotScale = clamp(event.caliber / 75, 0.4, 1.95);
     const cannonScale = clamp((event.caliber - 37) / 51, 0, 1);
     const burstFactor = event.burst ? 0.68 : 1;
@@ -569,7 +725,8 @@ class LayeredTankAudioBackend implements AudioBackend {
     if (!this.context) return;
 
     const context = this.context;
-    const now = context.currentTime;
+    // Heard when the sound arrives: a gun 700 m off two seconds after its flash.
+    const now = context.currentTime + this.delayFor(event.position);
     const impactScale = clamp(event.caliber / 75, 0.4, 1.6);
     const isArmor = event.material === 'armor';
     const isPlayerHit = event.target === 'player';
@@ -987,7 +1144,8 @@ class LayeredTankAudioBackend implements AudioBackend {
     if (!this.context) return;
 
     const context = this.context;
-    const now = context.currentTime;
+    // Heard when the sound arrives: a gun 700 m off two seconds after its flash.
+    const now = context.currentTime + this.delayFor(event.position);
     const scale = clamp(event.scale, 0.5, 2.2);
     const isPlayerExplosion = event.source === 'player';
     const listenerDistance = this.lastListenerPose ? distanceBetween(this.lastListenerPose.position, event.position) : 999;
@@ -1288,11 +1446,12 @@ class LayeredTankAudioBackend implements AudioBackend {
     viewLowpass.connect(viewHighpass);
     viewHighpass.connect(compressor);
     compressor.connect(outputGain);
-    outputGain.connect(context.destination);
+    outputGain.connect(this.master ?? context.destination);
 
-    const idle = this.createLoopLayer(context, createIdleLoopBuffer(context), 'lowpass', 0.4, engineBus);
-    const load = this.createLoopLayer(context, createLoadLoopBuffer(context), 'lowpass', 0.55, engineBus);
-    const track = this.createLoopLayer(context, createTrackLoopBuffer(context), 'bandpass', 0.8, engineBus);
+    const buffers = this.engineBuffers ?? { idle: createIdleLoopBuffer(context), load: createLoadLoopBuffer(context), track: createTrackLoopBuffer(context) };
+    const idle = this.createLoopLayer(context, buffers.idle, 'lowpass', 0.4, engineBus);
+    const load = this.createLoopLayer(context, buffers.load, 'lowpass', 0.55, engineBus);
+    const track = this.createLoopLayer(context, buffers.track, 'bandpass', 0.8, engineBus);
     const whine = this.createLoopLayer(context, createWhineLoopBuffer(context), 'bandpass', 1.2, engineBus);
 
     const graph: EngineGraph = {
@@ -1388,7 +1547,9 @@ class LayeredTankAudioBackend implements AudioBackend {
     panner.panningModel = 'HRTF';
     panner.distanceModel = 'inverse';
     panner.refDistance = config.refDistance;
-    panner.maxDistance = config.maxDistance;
+    // Keep falling off to the edge of a 4 km map: a clamp at a few hundred
+    // metres made every distant gun as loud as one at the clamp.
+    panner.maxDistance = Math.max(config.maxDistance, 4000);
     panner.rolloffFactor = config.rolloffFactor;
     panner.coneInnerAngle = 360;
     panner.coneOuterAngle = 0;
@@ -1402,14 +1563,16 @@ class LayeredTankAudioBackend implements AudioBackend {
 
     const lowpass = context.createBiquadFilter();
     lowpass.type = 'lowpass';
-    lowpass.frequency.value = config.lowpass;
+    // Air takes the highs off distant sounds.
+    const listener = this.lastListenerPose?.position;
+    lowpass.frequency.value = listener ? Math.min(config.lowpass, airAbsorptionCutoff(distance(position, listener))) : config.lowpass;
     lowpass.Q.value = 0.25;
 
     input.connect(panner);
     panner.connect(highpass);
     highpass.connect(lowpass);
     lowpass.connect(output);
-    output.connect(context.destination);
+    output.connect(this.master ?? context.destination);
 
     return { input, output, panner, highpass, lowpass };
   }
@@ -1430,6 +1593,7 @@ class AudioManager {
   private unlockListenersAttached = false;
   private lastListenerPose: ListenerPose | null = null;
   private lastPlayerEngine: EngineTelemetry | null = null;
+  private battleActive = false;
 
   constructor(backend: AudioBackend = new SilentAudioBackend()) {
     this.backend = backend;
@@ -1477,6 +1641,7 @@ class AudioManager {
     if (this.lastListenerPose) {
       this.backend.setListenerPose(this.lastListenerPose);
     }
+    this.backend.setBattleActive(this.battleActive);
     if (this.lastPlayerEngine) {
       this.backend.syncPlayerEngine(this.lastPlayerEngine);
     }
@@ -1508,6 +1673,32 @@ class AudioManager {
     void this.runWithContext(() => {
       this.backend.playExplosion(event);
     });
+  }
+
+  setBattleActive(active: boolean): void {
+    this.battleActive = active;
+    this.backend.setBattleActive(active);
+  }
+
+  syncVehicles(vehicles: VehicleTelemetry[]): void {
+    this.backend.syncVehicles(vehicles);
+  }
+
+  playFlyby(event: FlybyEvent): void {
+    void this.runWithContext(() => {
+      this.backend.playFlyby(event);
+    });
+  }
+
+  playReload(event: ReloadEvent): void {
+    void this.runWithContext(() => {
+      this.backend.playReload(event);
+    });
+  }
+
+  /** Where the listener is, for callers deciding whether something passes close. */
+  getListenerPosition(): AudioVec3 | null {
+    return this.lastListenerPose?.position ?? null;
   }
 
   private detachUnlockListeners(): void {

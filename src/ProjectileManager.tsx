@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useGameStore } from './store';
 import * as THREE from 'three';
+import { audioManager, toAudioVec3 } from './audio';
 import { testProjectileAgainstTank } from './armorModel';
 import type { HitResult } from './armorModel';
 import { getTankDef } from './tanks/registry';
@@ -34,6 +35,35 @@ function resolveTerrainImpact(from: THREE.Vector3, to: THREE.Vector3) {
   return { point, normal };
 }
 
+/** A shell passing within this of the listener is heard going by. */
+const FLYBY_RANGE = 30;
+// Shells already heard, so each passes once.
+const heardFlyby = new Set<string>();
+
+/**
+ * Plays the crack of a shell passing close to the listener, once per shell,
+ * where its step brings it nearest. The listener's own rounds leave it
+ * behind and are not heard this way.
+ */
+function listenForFlyby(p: { id: string; firedBy: string; caliber: number }, from: THREE.Vector3, to: THREE.Vector3) {
+  if (p.firedBy === 'player' || heardFlyby.has(p.id)) return;
+  const listener = audioManager.getListenerPosition();
+  if (!listener) return;
+  const segment = to.clone().sub(from);
+  const lengthSq = segment.lengthSq();
+  if (lengthSq === 0) return;
+  const t = THREE.MathUtils.clamp(
+    ((listener.x - from.x) * segment.x + (listener.y - from.y) * segment.y + (listener.z - from.z) * segment.z) / lengthSq, 0, 1);
+  // Only once the shell has come level with the listener, not while still on its way.
+  if (t <= 0 || t >= 1) return;
+  const closest = from.clone().addScaledVector(segment, t);
+  const miss = Math.hypot(closest.x - listener.x, closest.y - listener.y, closest.z - listener.z);
+  if (miss > FLYBY_RANGE) return;
+  heardFlyby.add(p.id);
+  if (heardFlyby.size > 512) heardFlyby.clear();
+  audioManager.playFlyby({ position: toAudioVec3(closest), caliber: p.caliber, missDistance: miss });
+}
+
 export function ProjectileManager() {
   const updateProjectiles = useGameStore((state) => state.updateProjectiles);
   const handleHit = useGameStore((state) => state.handleHit);
@@ -63,6 +93,7 @@ export function ProjectileManager() {
 
       if (rayLength === 0) return;
 
+      listenForFlyby(p, prevPos, nextPos);
       rayDir.normalize();
       const ray = new THREE.Ray(prevPos, rayDir);
 

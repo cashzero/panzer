@@ -6,6 +6,8 @@
 - The manager owns Web Audio unlock/lifecycle and now boots a layered player-engine backend built from looped buffers.
 - Gameplay code only emits events and telemetry; it does not build sounds directly anymore.
 - Shot, impact, and explosion events now use generated transient layers with 3D panning as a placeholder backend.
+- `src/audioField.ts` holds the battlefield sound field used by the backend: propagation (speed-of-sound delay, air-absorption low-pass), AI engine voices, shell fly-bys, turret traverse machinery, the reload clank and the ambience bed.
+- All sound goes through one master bus and limiter. Engines, ambience and machinery follow `setBattleActive`, set by the battle scene on mount and unmount.
 
 ## Runtime pieces
 
@@ -13,12 +15,15 @@
 - `audioManager.replaceBackend()` still lets us swap the current backend without rewriting gameplay callsites.
 - `audioManager.setListenerPose()` receives camera position/orientation and current view mode.
 - `audioManager.syncPlayerEngine()` receives player engine telemetry every frame.
-- `audioManager.playShot()`, `audioManager.playImpact()`, and `audioManager.playExplosion()` are the one-shot event surface.
+- `audioManager.playShot()`, `audioManager.playImpact()`, and `audioManager.playExplosion()` are the one-shot event surface; they are delayed and filtered by distance from the listener.
+- `audioManager.playFlyby()` and `audioManager.playReload()` add the shell passing close and the breech closing.
+- `audioManager.syncVehicles()` receives every other tank's engine telemetry each frame; `audioManager.setBattleActive()` switches battle sound on and off; `audioManager.getListenerPosition()` serves fly-by checks.
 
 ## Integration points
 
 - `src/App.tsx` mounts the audio manager once for the app lifecycle.
-- `src/GameScene.tsx` feeds listener pose and player engine telemetry.
+- `src/GameScene.tsx` (`AudioSync`) feeds listener pose, player engine and turret telemetry, other tanks' engines, the reload completing, and battle on/off.
+- `src/ProjectileManager.tsx` reports shells passing close to the listener.
 - `src/firing.ts`, `src/EnemyAI.tsx`, and `src/AllyAI.tsx` emit gunfire events.
 - `src/store.ts` emits impact and destruction events.
 

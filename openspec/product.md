@@ -112,6 +112,10 @@ Tracks:
 - Weapon audio should clearly distinguish firing, penetration, ricochet, ground impact, and explosion outcomes.
 - Ambient battlefield audio should support atmosphere without masking nearby tactical cues.
 - Audio feedback should help the player infer what just happened even when visibility is limited.
+- Sound travels: a distant gun is heard after its flash (at the speed of sound, about two seconds at 700 m), quieter and duller with distance, and still audible across the ranges tanks fight at. A shell passing close is heard as the crack of its shock wave before the report of the gun that fired it.
+- Other tanks are heard: the engines and tracks of the nearest ones, placed where they are.
+- The crew's machinery is audible: the traverse motor of a powered turret or the ratchet of a hand-cranked one, and the breech closing on a fresh round when the reload completes, loudest from the gunner's seat.
+- Wind over the fields and artillery working somewhere beyond the map keep a quiet battlefield from sounding empty. Battle sound stops when the battle does.
 
 ## World Generation
 

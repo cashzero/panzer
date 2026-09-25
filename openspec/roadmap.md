@@ -45,16 +45,6 @@ Implementation tasks:
 Player-facing validation:
 - [ ] Penetrations, bounces, and ground hits are distinguishable by ear during combat
 
-### Feature 2.5: Ambient Battlefield Sounds [S]
-
-Objective: give the battlefield a persistent sense of place beyond immediate weapon fire.
-
-Implementation tasks:
-- [ ] Add ambient loop support to `audio.ts` for distant artillery and wind loops
-
-Player-facing validation:
-- [ ] The battlefield sounds alive even during quiet periods without overpowering nearby combat cues
-
 ---
 
 ## Sprint 3: AI Behaviors, Difficulty, And Sky

@@ -1,4 +1,4 @@
-import { memo, useRef, useState, Suspense } from 'react';
+import { memo, useEffect, useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -73,12 +73,24 @@ function GunAimPoint() {
   );
 }
 
+/** Traverse faster than this (rad/s) is powered; slower turrets are wound by hand. */
+const POWERED_TRAVERSE = 0.12;
+
 function AudioSync() {
   const { camera } = useThree();
   const forwardRef = useRef(new THREE.Vector3());
   const upRef = useRef(new THREE.Vector3());
+  const lastTurret = useRef<number | null>(null);
+  // The shot the loader is working on, so the breech closes once per round.
+  const loading = useRef<number | null>(null);
 
-  useFrame(() => {
+  // Battle sound (engines, ambience, machinery) lives as long as the scene.
+  useEffect(() => {
+    audioManager.setBattleActive(true);
+    return () => audioManager.setBattleActive(false);
+  }, []);
+
+  useFrame((_, delta) => {
     const state = useGameStore.getState();
     const viewMode = state.isMapMode ? 'map' : state.viewMode;
     const playerDef = getTankDef(state.playerTank.tankType);
@@ -93,7 +105,13 @@ function AudioSync() {
       viewMode,
     });
 
+    const turret = state.playerTank.turretRotation;
+    const turned = lastTurret.current === null ? 0 : Math.atan2(Math.sin(turret - lastTurret.current), Math.cos(turret - lastTurret.current));
+    lastTurret.current = turret;
+
     audioManager.syncPlayerEngine({
+      turretRate: delta > 0 ? turned / delta : 0,
+      poweredTraverse: playerDef.turretSpeed > POWERED_TRAVERSE,
       position: toAudioVec3(state.playerTank.position),
       rpm: state.playerTank.destroyed ? 0 : state.playerTank.engineRPM,
       gear: state.playerTank.destroyed ? 0 : state.playerTank.gear,
@@ -104,6 +122,34 @@ function AudioSync() {
       destroyed: state.playerTank.destroyed,
       viewMode,
     });
+
+    // The breech closes on a fresh round as the reload completes. Magazine
+    // and burst guns are left out: their clatter is part of the firing.
+    if (!state.playerTank.destroyed && !playerDef.automaticMagazineSize && !playerDef.burstCount) {
+      if (state.lastFireTime > 0 && state.lastFireTime !== loading.current && Date.now() - state.lastFireTime < playerDef.reloadTime) {
+        loading.current = state.lastFireTime;
+      }
+      if (loading.current !== null && Date.now() - loading.current >= playerDef.reloadTime) {
+        loading.current = null;
+        const turretTop = state.playerTank.position.clone();
+        turretTop.y += playerDef.turretOffset[1] + 0.6;
+        audioManager.playReload({ position: toAudioVec3(turretTop), caliber: playerDef.caliber });
+      }
+    }
+
+    // Every other tank's engine, for the nearest few voices.
+    audioManager.syncVehicles([...state.enemies, ...state.allies].map((tank) => {
+      const def = getTankDef(tank.tankType);
+      return {
+        id: tank.id,
+        position: toAudioVec3(tank.position),
+        speed: tank.speed,
+        maxSpeed: def.maxSpeed,
+        turnRate: ((tank.rightTrackSpeed || 0) - (tank.leftTrackSpeed || 0)) / def.trackWidth,
+        weight: def.weight,
+        destroyed: tank.destroyed,
+      };
+    }));
   });
 
   return null;
