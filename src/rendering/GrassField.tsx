@@ -327,7 +327,7 @@ const _frustum = new THREE.Frustum();
 const _matrix = new THREE.Matrix4();
 const _box = new THREE.Box3();
 
-export function GrassField() {
+export function GrassField({ visible = true }: { visible?: boolean }) {
   const { camera } = useThree();
   const roadNetwork = useGameStore((s) => s.roadNetwork);
   const buildings = useGameStore((s) => s.buildings);
@@ -366,6 +366,10 @@ export function GrassField() {
       if (tank) slot.set(tank.x, tank.z, 3.2, 0); else slot.set(0, 0, 0, 0);
     });
 
+    if (!visible) {
+      for (const { mesh } of layers) mesh.visible = false;
+      return;
+    }
     _frustum.setFromProjectionMatrix(_matrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
     for (const { layer, mesh, origins, reach, perSide, heightInfo } of layers) {
       mesh.visible = ready;

@@ -38,7 +38,7 @@ const LABEL_INSET_PX = 16;
  * the view so a zoomed-in map still shows where it is. Ground beyond the
  * battlefield is dimmed so the edge of the playable map reads at a glance.
  */
-export function BattleMapGrid() {
+export function BattleMapGrid({ active = true }: { active?: boolean }) {
   const size = useGameStore((state) => state.roadNetwork.terrainSize);
   const half = size / 2;
   const cell = size / MAP_GRID_DIVISIONS;
@@ -63,6 +63,7 @@ export function BattleMapGrid() {
   const columnRefs = useRef<(THREE.Group | null)[]>([]);
   const rowRefs = useRef<(THREE.Group | null)[]>([]);
   useFrame(({ camera, size: viewport }) => {
+    if (!active) return;
     const perspective = camera as THREE.PerspectiveCamera;
     const halfZ = (camera.position.y - OVERLAY_Y) * Math.tan(THREE.MathUtils.degToRad(perspective.fov / 2));
     const halfX = halfZ * (viewport.width / Math.max(1, viewport.height));
@@ -84,19 +85,23 @@ export function BattleMapGrid() {
     });
   });
 
+  // Mounted for the whole battle and hidden when the map is closed: each
+  // label is its own DOM root, and creating them all on every map toggle
+  // cost a visible stall.
+  const labelStyle = active ? undefined : { display: 'none' };
   const labels = [];
   for (let i = 0; i < MAP_GRID_DIVISIONS; i++) {
     labels.push(
       <group key={`c${i}`} ref={(group) => { columnRefs.current[i] = group; }}>
-        <Html center className="battle-map-ref" zIndexRange={[5, 0]}>{String.fromCharCode(65 + i)}</Html>
+        <Html center className="battle-map-ref" style={labelStyle} zIndexRange={[5, 0]}>{String.fromCharCode(65 + i)}</Html>
       </group>,
       <group key={`r${i}`} ref={(group) => { rowRefs.current[i] = group; }}>
-        <Html center className="battle-map-ref" zIndexRange={[5, 0]}>{i + 1}</Html>
+        <Html center className="battle-map-ref" style={labelStyle} zIndexRange={[5, 0]}>{i + 1}</Html>
       </group>,
     );
   }
   return (
-    <>
+    <group visible={active}>
       <mesh geometry={outside} renderOrder={7}>
         <meshBasicMaterial color="#12150f" transparent opacity={0.62} depthTest={false} depthWrite={false} fog={false} />
       </mesh>
@@ -104,7 +109,7 @@ export function BattleMapGrid() {
         <lineBasicMaterial color="#1d2319" transparent opacity={0.6} depthTest={false} fog={false} />
       </lineSegments>
       {labels}
-    </>
+    </group>
   );
 }
 

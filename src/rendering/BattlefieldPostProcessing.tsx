@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { N8AOPass } from 'n8ao';
@@ -34,11 +35,17 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
   const { gl, scene, camera, size } = useThree();
   const pipeline = useRef<EffectComposer | null>(null);
   const shockwaves = useRef<ShaderPass | null>(null);
+  const battlePasses = useRef<{ ao: N8AOPass; bloom: UnrealBloomPass; plain: RenderPass } | null>(null);
   const bufferSize = useRef(new Vector2());
   const sample = useRef({ seconds: 0, frames: 0 });
 
+  // The pipeline lives for the whole battle, map included. Tearing it down
+  // for the map meant rebuilding it, AO shaders and all, on the way out; and
+  // drawing the map straight to the screen compiled a second, tone-mapped
+  // variant of every material on the first map frame (over a second). The
+  // map draws through the same targets with a plain render pass instead of
+  // AO and bloom.
   useEffect(() => {
-    if (mapMode) return;
     const composer = new EffectComposer(gl);
     const ao = new N8AOPass(scene, camera, 1, 1);
     ao.configuration.gammaCorrection = false;
@@ -53,6 +60,9 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     const output = new OutputPass();
     const grade = createColorGradePass();
     const antialias = new SMAAPass();
+    const plain = new RenderPass(scene, camera);
+    plain.enabled = false;
+    composer.addPass(plain);
     composer.addPass(ao);
     composer.addPass(bloom);
     composer.addPass(shock);
@@ -62,9 +72,12 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     composer.setSize(size.width, size.height);
     pipeline.current = composer;
     shockwaves.current = shock;
+    battlePasses.current = { ao, bloom, plain };
     return () => {
       pipeline.current = null;
       shockwaves.current = null;
+      battlePasses.current = null;
+      plain.dispose();
       shock.dispose();
       disposeAO(ao);
       bloom.dispose();
@@ -74,7 +87,7 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
       composer.dispose();
     };
     // Resize separately without reallocating passes or recompiling AO shaders.
-  }, [gl, scene, camera, mapMode]);
+  }, [gl, scene, camera]);
 
   useEffect(() => {
     pipeline.current?.setPixelRatio(gl.getPixelRatio());
@@ -114,6 +127,8 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
         p95Ms: +times[Math.min(frames - 1, Math.floor(frames * 0.95))].toFixed(2),
         drawCalls: Math.round(calls / frames),
         triangles: Math.round(triangles / frames),
+        // Compiled shader programs so far: a jump means a compile stall.
+        programs: gl.info.programs?.length ?? 0,
       };
     };
     const target = window as unknown as { __panzerBench?: typeof bench };
@@ -122,10 +137,17 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
   }, [gl, advance]);
 
   useFrame((_, delta) => {
-    if (pipeline.current && !mapMode) {
+    const passes = battlePasses.current;
+    if (pipeline.current && passes) {
+      passes.ao.enabled = !mapMode;
+      passes.bloom.enabled = !mapMode;
+      passes.plain.enabled = mapMode;
       if (shockwaves.current) {
-        gl.getDrawingBufferSize(bufferSize.current);
-        updateShockwavePass(shockwaves.current, camera, bufferSize.current.x, bufferSize.current.y);
+        if (mapMode) shockwaves.current.enabled = false;
+        else {
+          gl.getDrawingBufferSize(bufferSize.current);
+          updateShockwavePass(shockwaves.current, camera, bufferSize.current.x, bufferSize.current.y);
+        }
       }
       pipeline.current.render(delta);
     }

@@ -176,7 +176,8 @@ export function Terrain({ showGroundCover = true }: { showGroundCover?: boolean 
       <mesh geometry={geometry} receiveShadow>
         <GroundMaterial />
       </mesh>
-      {showGroundCover && <GrassField />}
+      {/* Hidden, not unmounted: rebuilding the blades stalled every return from the map. */}
+      <GrassField visible={showGroundCover} />
     </group>
   );
 }

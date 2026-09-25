@@ -20,6 +20,14 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
   const { gl, scene, camera } = useThree();
   const light = useRef<THREE.DirectionalLight>(null!);
   const target = useMemo(() => new THREE.Object3D(), []);
+  // One fog for the battle: a new fog object makes every material look up its
+  // program again. Map mode only pushes its range out of the way.
+  const fog = useMemo(() => new THREE.Fog(HAZE, 100, 3000), []);
+  useEffect(() => {
+    // Zoomed out over a 4 km map the camera looks down from about 11 km: keep the haze off it.
+    fog.near = mapMode ? 30000 : 100;
+    fog.far = mapMode ? 60000 : 3000;
+  }, [fog, mapMode]);
   const sky = useMemo(() => {
     const mesh = new SkyMesh();
     mesh.scale.setScalar(50000);
@@ -106,14 +114,15 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
 
   return <>
     <color attach="background" args={[HAZE]} />
-    {/* Zoomed out over a 4 km map the camera looks down from about 11 km: keep the haze off it. */}
-    <fog attach="fog" args={[HAZE, mapMode ? 30000 : 100, mapMode ? 60000 : 3000]} />
+    <primitive attach="fog" object={fog} />
     <primitive object={sky} />
     {/* Weak, neutral fill keeps shade readable without tinting grey armour blue. */}
     <hemisphereLight args={['#c7cbc6', '#4a4632', 0.7]} />
     <primitive object={target} />
     <directionalLight ref={light} target={target} position={[-143, 143, -110]}
-      castShadow={!mapMode} color="#ffe2bd" intensity={3.3}
+      // Shadows stay on in map mode and the shadow map is simply not
+      // redrawn: switching castShadow recompiled every material both ways.
+      castShadow shadow-autoUpdate={!mapMode} color="#ffe2bd" intensity={3.3}
       shadow-mapSize={[SHADOW_SIZE, SHADOW_SIZE]}
       shadow-bias={-0.00008} shadow-normalBias={0.035}
       shadow-camera-near={1} shadow-camera-far={520}

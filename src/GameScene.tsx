@@ -1,4 +1,4 @@
-import { useRef, useState, Suspense } from 'react';
+import { memo, useRef, useState, Suspense } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -38,20 +38,20 @@ import { audioManager, toAudioVec3 } from './audio';
 import { resolveDesignatedAimTarget } from './designatedAimTarget';
 import { collectVisibleTargetIds } from './spotting';
 
-function EnemyTank({ id }: { id: string }) {
+const EnemyTank = memo(function EnemyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.enemies.find(e => e.id === id)?.tankType ?? 'tiger');
   return <Tank id={id} tankType={tankType} />;
-}
+});
 
-function AllyTank({ id }: { id: string }) {
+const AllyTank = memo(function AllyTank({ id }: { id: string }) {
   const tankType = useGameStore(state => state.allies.find(a => a.id === id)?.tankType ?? 'sherman');
   return <Tank id={id} tankType={tankType} />;
-}
+});
 
-function PlayerTank({ visible }: { visible: boolean }) {
+const PlayerTank = memo(function PlayerTank({ visible }: { visible: boolean }) {
   const tankType = useGameStore(state => state.playerTank.tankType);
   return <Tank id="player" tankType={tankType} visible={visible} />;
-}
+});
 
 function GunAimPoint() {
   const groupRef = useRef<THREE.Group>(null);
@@ -449,15 +449,75 @@ function PlayerController() {
   return null;
 }
 
-export function GameScene() {
+/**
+ * The tanks, kept mounted for the whole battle. Map mode hides them with one
+ * group instead of unmounting them, which rebuilt every tank's merged meshes
+ * each time the map closed. The tank components are memoised so the toggle
+ * does not re-render their hundreds of parts either.
+ */
+function BattleTanks() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
+  const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
+  const isMapMode = useGameStore((state) => state.isMapMode);
+  const viewMode = useGameStore((state) => state.viewMode);
+  return (
+    <>
+      <group visible={!isMapMode}>
+        <PlayerTank visible={viewMode !== 'gunner'} />
+        {enemyIds.map((id) => (
+          <EnemyTank key={id} id={id} />
+        ))}
+        {allyIds.map((id) => (
+          <AllyTank key={id} id={id} />
+        ))}
+      </group>
+      {!isMapMode && <GunAimPoint />}
+    </>
+  );
+}
+
+/** Symbols, orders and grid of the tactical map (M). */
+function TacticalMapLayer() {
   const spottedEnemyIds = useGameStore(useShallow((state) => state.enemies
     .filter((enemy) => state.playerSideSpotting[enemy.id]?.spotted)
     .map((enemy) => enemy.id)));
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
-  const viewMode = useGameStore((state) => state.viewMode);
+  return (
+    <>
+      <BattleMapGrid active={isMapMode} />
+      {isMapMode && (
+        <>
+          <MapMarker id="player" isPlayer />
+          {spottedEnemyIds.map((id) => (
+            <MapMarker key={id} id={id} />
+          ))}
+          {allyIds.map((id) => (
+            <MapMarker key={id} id={id} isAlly />
+          ))}
+          <WaypointMarkers />
+          <MapCameraController />
+        </>
+      )}
+    </>
+  );
+}
 
+// Each reads map mode itself, so toggling the map re-renders only these,
+// not the whole scene.
+function SceneLighting() {
+  return <BattlefieldLighting mapMode={useGameStore((state) => state.isMapMode)} />;
+}
+
+function SceneTerrain() {
+  return <Terrain showGroundCover={!useGameStore((state) => state.isMapMode)} />;
+}
+
+function ScenePostProcessing() {
+  return <BattlefieldPostProcessing mapMode={useGameStore((state) => state.isMapMode)} />;
+}
+
+export function GameScene() {
   return (
     <div className="battlefield-canvas">
       <Canvas
@@ -473,9 +533,9 @@ export function GameScene() {
         }}
       >
         <Suspense fallback={null}>
-          <BattlefieldLighting mapMode={isMapMode} />
+          <SceneLighting />
 
-          <Terrain showGroundCover={!isMapMode} />
+          <SceneTerrain />
           <Buildings />
           <Trees />
           <Understory />
@@ -487,31 +547,8 @@ export function GameScene() {
           <SpottingSystem />
           <AudioSync />
 
-          {isMapMode ? (
-            <>
-              <MapMarker id="player" isPlayer />
-              {spottedEnemyIds.map((id) => (
-                <MapMarker key={id} id={id} />
-              ))}
-              {allyIds.map((id) => (
-                <MapMarker key={id} id={id} isAlly />
-              ))}
-              <WaypointMarkers />
-              <BattleMapGrid />
-              <MapCameraController />
-            </>
-          ) : (
-            <>
-              <PlayerTank visible={viewMode !== 'gunner'} />
-              {enemyIds.map((id) => (
-                <EnemyTank key={id} id={id} />
-              ))}
-              {allyIds.map((id) => (
-                <AllyTank key={id} id={id} />
-              ))}
-              <GunAimPoint />
-            </>
-          )}
+          <BattleTanks />
+          <TacticalMapLayer />
 
           <ProjectileManager />
           <TrackMarks />
@@ -521,7 +558,7 @@ export function GameScene() {
           <BurningWrecks />
           <EnemyAI />
           <AllyAI />
-          <BattlefieldPostProcessing mapMode={isMapMode} />
+          <ScenePostProcessing />
         </Suspense>
       </Canvas>
     </div>
