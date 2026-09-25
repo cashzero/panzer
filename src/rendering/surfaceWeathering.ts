@@ -17,13 +17,22 @@ const noise = `
   }
 `;
 
-// Minimum strength of the sky reflection on armour paint.
-const ARMOR_SKY_REFLECTION = 0.45;
+// Minimum strength of the sky reflection on armour paint. At 0.45 with a
+// satin finish the tanks read as moulded plastic.
+const ARMOR_SKY_REFLECTION = 0.2;
+// Surface relief of the paint, in metres of height: a fine orange-peel and
+// brush texture (features about 4 cm across) over a broader ripple in the
+// steel beneath it (about 10 cm).
+const PAINT_GRAIN_DEPTH = 0.0013;
+const STEEL_RIPPLE_DEPTH = 0.005;
 
 /**
- * Armour paint: a clean satin coat with only a broad, faint variation in tone and
- * sheen across a plate, so large flat panels do not look like plastic. No
- * chips, grit or speckle; they read as dirt on a vehicle at every range.
+ * Armour paint: a clean, flat-finish coat. Colour varies only broadly and
+ * faintly across a plate; no chips, grit or speckle, which read as dirt on a
+ * vehicle at every range. The rough look lives in the light instead: a fine
+ * relief in the normal and a matching patchiness in the roughness break up
+ * highlights the way brushed or sprayed field paint does, with no change to
+ * the colour. The relief fades out as its features shrink below a pixel.
  * Object space, so it also works on armour polyhedra without UVs.
  */
 export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader) => {
@@ -35,16 +44,33 @@ export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader)
     #include <color_fragment>
     float paintTone = surfaceNoise(vSurfacePosition * 1.6);
     diffuseColor.rgb *= 0.97 + paintTone * 0.06;
+    // Metres of surface per pixel: fade detail before it aliases.
+    float paintFootprint = length(fwidth(vSurfacePosition));
+    float grainFade = 1.0 - smoothstep(0.02, 0.05, paintFootprint);
+    float rippleFade = 1.0 - smoothstep(0.06, 0.15, paintFootprint);
+    float paintGrain = surfaceNoise(vSurfacePosition * 24.0) * 0.6 + surfaceNoise(vSurfacePosition * 51.0 + 17.3) * 0.4;
+    float steelRipple = surfaceNoise(vSurfacePosition * vec3(9.0, 6.0, 9.0) + 5.1);
+    float paintHeight = paintGrain * ${PAINT_GRAIN_DEPTH} * grainFade + steelRipple * ${STEEL_RIPPLE_DEPTH} * rippleFade;
   `);
   shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
     #include <roughnessmap_fragment>
-    roughnessFactor = clamp(roughnessFactor + (paintTone - 0.5) * 0.08, 0.4, 1.0);
+    roughnessFactor = clamp(roughnessFactor + (paintTone - 0.5) * 0.08 + (paintGrain - 0.5) * 0.14 * grainFade, 0.5, 1.0);
   `);
-  // Satin paint picks up the sky. The battlefield keeps its shared sky light
-  // low so grass and walls do not glow, which left armour reflecting almost
-  // nothing: every plate facing away from the sun read as one flat shade.
-  // Armour reflects the sky at no less than ARMOR_SKY_REFLECTION; Fresnel
-  // then brightens plates seen edge-on and picks out the turret's curvature.
+  // Bump from the screen-space derivative of the height, as three's bump map.
+  shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', `
+    #include <normal_fragment_maps>
+    {
+      vec3 paintDx = dFdx(-vViewPosition), paintDy = dFdy(-vViewPosition);
+      vec3 paintR1 = cross(paintDy, normal), paintR2 = cross(normal, paintDx);
+      float paintDet = dot(paintDx, paintR1);
+      vec3 paintGrad = sign(paintDet) * (dFdx(paintHeight) * paintR1 + dFdy(paintHeight) * paintR2);
+      normal = normalize(abs(paintDet) * normal - paintGrad);
+    }
+  `);
+  // The battlefield keeps its shared sky light low so grass and walls do not
+  // glow, which left armour reflecting almost nothing: every plate facing away
+  // from the sun read as one flat shade. Armour reflects the sky at no less
+  // than ARMOR_SKY_REFLECTION, so Fresnel still picks out plates seen edge-on.
   // The reflection is mostly desaturated so grey armour does not turn blue.
   shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_maps>', `
     #include <lights_fragment_maps>

@@ -81,7 +81,7 @@ function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme
     if (pattern) {
       const [colorA = camouflage!.base, colorB = colorA] = camouflage!.colors;
       shared.onBeforeCompile = createCamouflageWeathering(pattern, new THREE.Color(colorA), new THREE.Color(colorB));
-      shared.customProgramCacheKey = () => `armor-camo-${pattern}-v3`;
+      shared.customProgramCacheKey = () => `armor-camo-${pattern}-v4`;
     } else {
       shared.onBeforeCompile = standard.onBeforeCompile;
       shared.customProgramCacheKey = standard.customProgramCacheKey;

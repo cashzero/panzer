@@ -137,16 +137,16 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
           />
         );
       case 'mantlet':
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.66} metalness={0.1} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v3'} color={paintColor} roughness={0.88} metalness={0.1} envMapIntensity={0.65} />;
       case 'barrel':
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.6} metalness={0.12} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v3'} color={paintColor} roughness={0.82} metalness={0.12} envMapIntensity={0.65} />;
       case 'wireframe':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#30322d'} roughness={0.82} metalness={0.28} wireframe={true} />;
       case 'accessory':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#363831'} roughness={0.86} metalness={0.24} />;
       case 'hullPrimary':
       default:
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.64} metalness={0.08} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v3'} color={paintColor} roughness={0.86} metalness={0.08} envMapIntensity={0.65} />;
     }
   };
 
