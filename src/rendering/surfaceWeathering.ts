@@ -17,8 +17,11 @@ const noise = `
   }
 `;
 
+// Minimum strength of the sky reflection on armour paint.
+const ARMOR_SKY_REFLECTION = 0.45;
+
 /**
- * Armour paint: a clean coat with only a broad, faint variation in tone and
+ * Armour paint: a clean satin coat with only a broad, faint variation in tone and
  * sheen across a plate, so large flat panels do not look like plastic. No
  * chips, grit or speckle; they read as dirt on a vehicle at every range.
  * Object space, so it also works on armour polyhedra without UVs.
@@ -36,6 +39,19 @@ export const armorWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader)
   shader.fragmentShader = shader.fragmentShader.replace('#include <roughnessmap_fragment>', `
     #include <roughnessmap_fragment>
     roughnessFactor = clamp(roughnessFactor + (paintTone - 0.5) * 0.08, 0.4, 1.0);
+  `);
+  // Satin paint picks up the sky. The battlefield keeps its shared sky light
+  // low so grass and walls do not glow, which left armour reflecting almost
+  // nothing: every plate facing away from the sun read as one flat shade.
+  // Armour reflects the sky at no less than ARMOR_SKY_REFLECTION; Fresnel
+  // then brightens plates seen edge-on and picks out the turret's curvature.
+  // The reflection is mostly desaturated so grey armour does not turn blue.
+  shader.fragmentShader = shader.fragmentShader.replace('#include <lights_fragment_maps>', `
+    #include <lights_fragment_maps>
+    #ifdef USE_ENVMAP
+      radiance *= max(1.0, ${ARMOR_SKY_REFLECTION.toFixed(2)} / max(envMapIntensity, 1e-3));
+      radiance = mix(vec3(dot(radiance, vec3(0.2126, 0.7152, 0.0722))), radiance, 0.3);
+    #endif
   `);
 };
 
@@ -112,21 +128,3 @@ export function createCamouflageWeathering(pattern: CamouflageShaderPattern, col
       }`);
   };
 }
-
-/** Leafy mottling for instanced hedges: dark hollows and lighter sunlit clumps in world space. */
-export const foliageWeathering: MeshStandardMaterial['onBeforeCompile'] = (shader) => {
-  shader.vertexShader = 'varying vec3 vSurfacePosition;\n' + shader.vertexShader;
-  shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-    #ifdef USE_INSTANCING
-      vSurfacePosition = (modelMatrix * instanceMatrix * vec4(position, 1.0)).xyz;
-    #else
-      vSurfacePosition = (modelMatrix * vec4(position, 1.0)).xyz;
-    #endif`);
-  shader.fragmentShader = noise + shader.fragmentShader;
-  shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
-    #include <color_fragment>
-    float clumps = surfaceNoise(vSurfacePosition * 2.3);
-    float leaves = surfaceNoise(vSurfacePosition * 11.0);
-    diffuseColor.rgb *= 0.62 + clumps * 0.45 + leaves * 0.22;
-  `);
-};

@@ -110,7 +110,7 @@ void main() {
     #ifdef FOG_EXP2
       float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
     #else
-      float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+      float fogFactor = aerialAmount(vFogPosition, fogNear, fogFar);
     #endif
     a *= 1.0 - fogFactor;
   #endif

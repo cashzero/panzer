@@ -8,6 +8,7 @@ import { queueFlashLight } from './rendering/FlashLights';
 import { queueImpactDecal } from './rendering/ImpactDecals';
 import { queueShockwave } from './rendering/shockwaves';
 import { SUN_DIRECTION } from './rendering/BattlefieldLighting';
+import { AERIAL_PERSPECTIVE_GLSL } from './rendering/aerialPerspective';
 
 // --- Textures ---
 const createDustTexture = () => {
@@ -161,8 +162,8 @@ const spriteUniforms = {
   // Slightly warm skylight so brown earth does not turn blue-grey in shade.
   uAmbientColor: { value: new THREE.Color(0.46, 0.44, 0.4) },
   uFogColor: { value: new THREE.Color(0.7, 0.7, 0.66) },
-  uFogNear: { value: 120 },
-  uFogFar: { value: 1400 },
+  uFogNear: { value: 100 },
+  uFogFar: { value: 3000 },
   /** Drawing-buffer height in pixels, for sprite sizes. */
   uViewHeight: { value: 900 },
 };
@@ -216,7 +217,7 @@ uniform float uViewHeight;
 varying float vOpacity;
 varying float vRotation;
 varying float vVariant;
-varying float vFogDepth;
+varying vec3 vFogPosition;
 varying vec3 vColor;
 
 void main() {
@@ -225,7 +226,7 @@ void main() {
   vVariant = aVariant;
   vColor = aColor;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-  vFogDepth = -mvPosition.z;
+  vFogPosition = mvPosition.xyz;
   // Pixels per metre at this depth from the real projection, so sprites keep
   // their size relative to the scene at gunner zoom and at any resolution
   // (the factor matches the old fixed 520 at 60 degrees and 900 px).
@@ -255,8 +256,9 @@ uniform float uFogNear, uFogFar;
 varying float vOpacity;
 varying float vRotation;
 varying float vVariant;
-varying float vFogDepth;
+varying vec3 vFogPosition;
 varying vec3 vColor;
+${AERIAL_PERSPECTIVE_GLSL}
 
 void main() {
   vec2 p = gl_PointCoord - 0.5;
@@ -276,8 +278,8 @@ void main() {
     float sun = clamp(dot(normal, uSunView) * 0.6 + 0.4, 0.0, 1.0);
     color *= uAmbientColor + uLightColor * sun;
   }
-  float fog = smoothstep(uFogNear, uFogFar, vFogDepth);
-  color = uAdditive > 0.5 ? color * (1.0 - fog) : mix(color, uFogColor, fog);
+  float fog = aerialAmount(vFogPosition, uFogNear, uFogFar);
+  color = uAdditive > 0.5 ? color * (1.0 - fog) : mix(color, aerialInscatter(vFogPosition, uFogColor), fog);
   gl_FragColor = vec4(color, alpha);
 }
 `;

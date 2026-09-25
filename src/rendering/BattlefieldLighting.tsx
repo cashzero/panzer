@@ -2,10 +2,14 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Sky as SkyMesh } from 'three/addons/objects/Sky.js';
 import * as THREE from 'three';
+import { installAerialPerspective } from './aerialPerspective';
+import { SUN_DIRECTION } from './sunDirection';
 
-// One direction drives the visible sun, reflections and direct shadows.
-// About 35 degrees up: long enough shadows to model hulls and terrain relief.
-export const SUN_DIRECTION = new THREE.Vector3(-0.62, 0.52, -0.48).normalize();
+export { SUN_DIRECTION };
+
+// Before any battlefield material compiles its fog.
+installAerialPerspective();
+
 const SUN = SUN_DIRECTION;
 const SHADOW_SPAN = 100;
 const SHADOW_SIZE = 4096;
@@ -103,7 +107,7 @@ export function BattlefieldLighting({ mapMode }: { mapMode: boolean }) {
   return <>
     <color attach="background" args={[HAZE]} />
     {/* Zoomed out over a 4 km map the camera looks down from about 11 km: keep the haze off it. */}
-    <fog attach="fog" args={[HAZE, mapMode ? 30000 : 120, mapMode ? 60000 : 1400]} />
+    <fog attach="fog" args={[HAZE, mapMode ? 30000 : 100, mapMode ? 60000 : 3000]} />
     <primitive object={sky} />
     {/* Weak, neutral fill keeps shade readable without tinting grey armour blue. */}
     <hemisphereLight args={['#c7cbc6', '#4a4632', 0.7]} />

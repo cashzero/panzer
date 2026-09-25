@@ -86,6 +86,13 @@ function getPlateEdgeRadius(size: Vec3) {
   return Math.min(0.025, Math.min(...size) * 0.18);
 }
 
+/**
+ * A slight plate-to-plate difference in the paint, keyed to the part id.
+ * Relative, and within about 4% either way: a fixed lightness step of 0.0275
+ * moved dark paints like Olive Drab (lightness 0.25) by a fifth, so two tanks
+ * in the same paint came out visibly different just because their big hull
+ * parts had different names.
+ */
 function varyPaintColor(color: string, surfaceKey: string) {
   let hash = 2166136261;
   for (let index = 0; index < surfaceKey.length; index += 1) {
@@ -93,8 +100,8 @@ function varyPaintColor(color: string, surfaceKey: string) {
     hash = Math.imul(hash, 16777619);
   }
 
-  const variation = ((hash >>> 0) / 0xffffffff - 0.5) * 0.055;
-  return `#${new THREE.Color(color).offsetHSL(0, 0, variation).getHexString()}`;
+  const variation = ((hash >>> 0) / 0xffffffff - 0.5) * 0.08;
+  return `#${new THREE.Color(color).multiplyScalar(1 + variation).getHexString()}`;
 }
 
 function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendererProps) {
@@ -130,16 +137,16 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
           />
         );
       case 'mantlet':
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.84} metalness={0.1} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.66} metalness={0.1} envMapIntensity={0.65} />;
       case 'barrel':
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.78} metalness={0.12} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.6} metalness={0.12} envMapIntensity={0.65} />;
       case 'wireframe':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#30322d'} roughness={0.82} metalness={0.28} wireframe={true} />;
       case 'accessory':
         return <meshStandardMaterial color={destroyed ? destroyedColor : '#363831'} roughness={0.86} metalness={0.24} />;
       case 'hullPrimary':
       default:
-        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v1'} color={paintColor} roughness={0.82} metalness={0.08} envMapIntensity={0.65} />;
+        return <meshStandardMaterial onBeforeCompile={armorWeathering} customProgramCacheKey={() => 'armor-weathering-v2'} color={paintColor} roughness={0.64} metalness={0.08} envMapIntensity={0.65} />;
     }
   };
 

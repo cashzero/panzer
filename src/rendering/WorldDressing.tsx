@@ -7,7 +7,6 @@ import { planFieldBoundaries } from '../fieldBoundaries';
 import { isOnRoadForNetwork } from '../roads';
 import { isPointNearAnyBuilding } from '../buildings';
 import { getTerrainMeshHeight } from '../Terrain';
-import { foliageWeathering } from './surfaceWeathering';
 import { foliageDepthMaterial, patchFoliageMaterial } from './foliageCards';
 import { TREE_SEED_OFFSET } from '../trees';
 
@@ -24,9 +23,8 @@ function mulberry32(seed: number) {
   };
 }
 
-const PROFILE = 7; // vertices around the hedge cross-section
 // Station spacing along a hedge (m). Hundreds of field hedges now line the
-// parcels, so the loft is kept coarse; the leaf mottling carries the detail.
+// parcels; the leaf cards carry the detail.
 const HEDGE_STEP = 1.6;
 
 /** Camera-facing leaf cards over a hedge, laid out like foliageCards (centre + corner offset). */
@@ -56,7 +54,7 @@ interface HedgeCharacter {
   crown: number;
   /** Leaf card size relative to CARD_SIZE; clipped hedges read finer. */
   leaf: number;
-  /** Leaf cards per station: enough to close over the core at this size. */
+  /** Outer leaf cards per station: enough to close the outline at this size. */
   cards: number;
   hue: number;
   lightness: number;
@@ -65,10 +63,14 @@ interface HedgeCharacter {
 function hedgeCharacter(roll: number, tone: number): HedgeCharacter {
   const hue = 0.215 + tone * 0.055;
   const lightness = 0.5 + (1 - tone) * 0.08;
-  if (roll < 0.38) return { height: 1.35, width: 1.3, ragged: 0.35, crown: 0.42, leaf: 0.85, cards: 4, hue, lightness: lightness + 0.02 };
-  if (roll < 0.85) return { height: 1.85, width: 1.6, ragged: 1, crown: 0.7, leaf: 1.1, cards: 5, hue, lightness };
-  return { height: 2.6, width: 2.05, ragged: 1.7, crown: 0.8, leaf: 1.3, cards: 7, hue, lightness: lightness - 0.03 };
+  if (roll < 0.38) return { height: 1.35, width: 1.3, ragged: 0.35, crown: 0.42, leaf: 0.5, cards: 11, hue, lightness: lightness + 0.02 };
+  if (roll < 0.85) return { height: 1.85, width: 1.6, ragged: 1, crown: 0.7, leaf: 0.6, cards: 14, hue, lightness };
+  return { height: 2.6, width: 2.05, ragged: 1.7, crown: 0.8, leaf: 0.72, cards: 18, hue, lightness: lightness - 0.03 };
 }
+
+// Inner cards per outer card. They fill the body so a gap between outer
+// leaves shows shaded foliage further in, never a surface.
+const INNER_CARD_RATIO = 0.4;
 
 function hedgeHash(a: number, b: number) {
   const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453;
@@ -76,20 +78,22 @@ function hedgeHash(a: number, b: number) {
 }
 
 /**
- * One continuous hedge along a run of stations: a dark lofted core, an arch
- * whose height and width wander on a long and a short wave, dressed with leaf
- * cards down to the ground so the outline breaks up into foliage and the core
- * only shows as the shade between leaves.
+ * One continuous hedge along a run of stations, built only from leaf cards:
+ * an arch whose height and width wander on a long and a short wave, with an
+ * outer layer of cards from the ground on one face over the crown to the
+ * ground on the other, and a body of darker cards inside it. A solid core
+ * used to fill the inside; wherever the outer leaves parted it showed as a
+ * dark rubbery tube. Now a gap shows more leaves, deeper in the shade.
  */
 function appendHedgeRun(
   stations: Array<{ x: number; z: number; y: number }>,
   dirX: number, dirZ: number, phase: number, character: HedgeCharacter,
-  positions: number[], colors: number[], indices: number[],
   cards: CardArrays,
 ) {
   const nx = -dirZ, nz = dirX;
-  const base = positions.length / 3;
-  const color = new THREE.Color();
+  const tint = new THREE.Color();
+  const normal = new THREE.Vector3();
+  const inner = Math.round(character.cards * INNER_CARD_RATIO);
   stations.forEach((station, i) => {
     const s = i * HEDGE_STEP + phase;
     // Lumps along the top, and a long swell where the hedge has been cut back or left.
@@ -98,38 +102,35 @@ function appendHedgeRun(
     const endTaper = Math.min(1, i / 2, (stations.length - 1 - i) / 2);
     const height = character.height * (1 + bumps + swell) * (0.35 + 0.65 * endTaper);
     const width = character.width * (1 + Math.sin(s * 0.7 + 2.9) * 0.12 + Math.sin(s * 1.3) * 0.05 + swell * 0.5) * (0.5 + 0.5 * endTaper);
-    // The core sits inside the leaf shell and reads as the shade between leaves.
-    color.setHSL(character.hue + Math.sin(s * 0.31 + phase) * 0.02, 0.28, 0.13 + Math.sin(s * 0.53 + 2 * phase) * 0.015, THREE.SRGBColorSpace);
-    for (let k = 0; k < PROFILE; k++) {
-      const theta = (k / (PROFILE - 1)) * Math.PI;
-      const lateral = Math.cos(theta) * width * 0.38 * (1 + 0.06 * Math.sin(s * 4.7 + k));
-      const up = Math.pow(Math.sin(theta), character.crown) * height * 0.8;
-      positions.push(station.x + nx * lateral, station.y - 0.25 + up, station.z + nz * lateral);
-      colors.push(color.r, color.g, color.b);
-    }
-    // Leaf cards over the arch, right down to the ground on both faces; each
-    // card gets the arch's outward normal, its own shade of green (thorn,
-    // hazel and field maple mixed), and darkens toward the base, where the
-    // hedge shades itself.
-    const tint = new THREE.Color();
-    for (let c = 0; c < character.cards; c++) {
+    for (let c = 0; c < character.cards + inner; c++) {
       const h1 = hedgeHash(station.x + c * 3.1, station.z - c * 1.7);
       const h2 = hedgeHash(station.z + c * 2.3, station.x + c * 5.9);
       const h3 = hedgeHash(station.x - c * 7.7, station.z + c * 4.1);
-      // Alternate faces so both sides are covered evenly, from the foot to the
-      // crown, leaning slightly toward the steep flanks.
-      const fromFoot = Math.pow(h1, 1.2) * 0.47 * Math.PI;
-      const theta = c % 2 === 0 ? 0.03 * Math.PI + fromFoot : 0.97 * Math.PI - fromFoot;
-      const shell = 0.9 + h2 * 0.18;
+      const outer = c < character.cards;
+      // Stratified from the foot on one face over the crown to the foot on
+      // the other, one slot per card with a little jitter, and odd stations
+      // shifted half a slot so the rows interleave. Hashed angles bunched
+      // cards into round clumps with daylight between them.
+      const count = outer ? character.cards : inner;
+      const slot = (outer ? c : c - character.cards) + 0.5 + (i % 2) * 0.5 + (h1 - 0.5) * 0.7;
+      const theta = (0.03 + 0.94 * ((slot / count) % 1)) * Math.PI;
+      // Outer cards sit on the arch; inner ones fill the body behind them.
+      const shell = outer ? 0.9 + h2 * 0.18 : 0.3 + h2 * 0.45;
       const lateral = Math.cos(theta) * width * 0.5 * shell;
       const up = Math.pow(Math.sin(theta), character.crown) * height * shell;
-      tint.setHSL(character.hue + Math.sin(s * 0.23 + phase) * 0.02 + (h3 - 0.5) * 0.03, 0.3 + (h2 - 0.5) * 0.08,
-        character.lightness + (h1 - 0.5) * 0.06, THREE.SRGBColorSpace);
+      // Thorn, hazel and field maple mixed, but only a slight shift card to
+      // card: stronger contrast outlined every card as its own round clump.
+      tint.setHSL(character.hue + Math.sin(s * 0.23 + phase) * 0.02 + (h3 - 0.5) * 0.012, 0.3 + (h2 - 0.5) * 0.04,
+        character.lightness + (h1 - 0.5) * 0.025, THREE.SRGBColorSpace);
       const along = (h3 - 0.5) * HEDGE_STEP;
       const cx = station.x + nx * lateral + dirX * along, cz = station.z + nz * lateral + dirZ * along;
       const cy = station.y - 0.25 + up;
-      const normal = new THREE.Vector3(nx * Math.cos(theta), Math.sin(theta) * 0.9 + 0.2, nz * Math.cos(theta)).normalize();
-      const occlusion = 0.6 + 0.4 * Math.min(1, up / Math.max(0.1, height));
+      // Every card takes the arch's outward normal at its angle, so the hedge
+      // lights as one body with a sunlit and a shaded face. Tipped toward the
+      // sky: leaves on the shaded face still see most of it.
+      normal.set(nx * Math.cos(theta), Math.sin(theta) * 0.9 + 0.45, nz * Math.cos(theta)).normalize();
+      // Darker toward the base, where the hedge shades itself, and inside it.
+      const occlusion = (0.6 + 0.4 * Math.min(1, up / Math.max(0.1, height))) * (outer ? 1 : 0.82);
       const size = (CARD_SIZE[0] + h2 * (CARD_SIZE[1] - CARD_SIZE[0])) * character.leaf;
       const roll = h1 * Math.PI * 2;
       const base = cards.positions.length / 3;
@@ -139,18 +140,13 @@ function appendHedgeRun(
         cards.offsets.push(ox * Math.cos(roll) - oy * Math.sin(roll), ox * Math.sin(roll) + oy * Math.cos(roll));
         cards.normals.push(normal.x, normal.y, normal.z);
         cards.colors.push(tint.r * occlusion, tint.g * occlusion, tint.b * occlusion);
-        cards.uvs.push(u, v);
+        // The dense middle of the leaf texture: its sparse rim drew a round
+        // outline around every card.
+        cards.uvs.push(0.1 + 0.8 * u, 0.1 + 0.8 * v);
       }
       cards.indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
     }
   });
-  for (let i = 0; i < stations.length - 1; i++) {
-    for (let k = 0; k < PROFILE - 1; k++) {
-      const a = base + i * PROFILE + k, b = a + 1, c = a + PROFILE, d = c + 1;
-      // Counter-clockwise seen from outside: normals point up and outward.
-      indices.push(a, c, b, b, c, d);
-    }
-  }
 }
 
 /** Telegraph pole with two crossarms, base at y = 0. */
@@ -167,12 +163,6 @@ function createPoleGeometry() {
 }
 
 const poleGeometry = createPoleGeometry();
-// The core is the deep shade inside the hedge: kept well below the leaf
-// cards so, where it shows between them, it reads as depth, not a surface.
-const hedgeMaterial = new THREE.MeshStandardMaterial({ color: '#8a8a8a', vertexColors: true, roughness: 1, metalness: 0 });
-hedgeMaterial.onBeforeCompile = foliageWeathering;
-hedgeMaterial.customProgramCacheKey = () => 'hedge-foliage-v2';
-
 const hedgeLeafTexture = new THREE.TextureLoader().load('/assets/trees/deciduous-foliage.png');
 hedgeLeafTexture.colorSpace = THREE.SRGBColorSpace;
 hedgeLeafTexture.anisotropy = 4;
@@ -223,9 +213,6 @@ export function WorldDressing() {
 
     // Hedges: continuous runs along the planned boundaries, broken wherever a
     // road or farmyard crosses.
-    const hedgePositions: number[] = [];
-    const hedgeColors: number[] = [];
-    const hedgeIndices: number[] = [];
     const cards: CardArrays = { positions: [], offsets: [], normals: [], colors: [], uvs: [], indices: [] };
     for (const boundary of planFieldBoundaries(farmlands, worldSeed + TREE_SEED_OFFSET)) {
       if (boundary.kind !== 'hedge') continue;
@@ -238,7 +225,7 @@ export function WorldDressing() {
       const character = hedgeCharacter(rng(), rng());
       let run: Array<{ x: number; z: number; y: number }> = [];
       const flush = () => {
-        if (run.length >= 3) appendHedgeRun(run, dirX, dirZ, phase + hedgePositions.length * 0.001, character, hedgePositions, hedgeColors, hedgeIndices, cards);
+        if (run.length >= 3) appendHedgeRun(run, dirX, dirZ, phase + cards.positions.length * 0.001, character, cards);
         run = [];
       };
       for (let d = 0; d <= length; d += HEDGE_STEP) {
@@ -248,12 +235,6 @@ export function WorldDressing() {
       }
       flush();
     }
-    const hedgeGeometry = new THREE.BufferGeometry();
-    hedgeGeometry.setAttribute('position', new THREE.Float32BufferAttribute(hedgePositions, 3));
-    hedgeGeometry.setAttribute('color', new THREE.Float32BufferAttribute(hedgeColors, 3));
-    hedgeGeometry.setIndex(hedgeIndices);
-    hedgeGeometry.computeVertexNormals();
-    hedgeGeometry.computeBoundingSphere();
     const leafGeometry = new THREE.BufferGeometry();
     leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cards.positions, 3));
     leafGeometry.setAttribute('cardOffset', new THREE.Float32BufferAttribute(cards.offsets, 2));
@@ -311,7 +292,7 @@ export function WorldDressing() {
     }
     const wires = new THREE.BufferGeometry();
     wires.setAttribute('position', new THREE.Float32BufferAttribute(wirePoints, 3));
-    return { hedgeGeometry, leafGeometry, poleMatrices, wires };
+    return { leafGeometry, poleMatrices, wires };
   }, [roadNetwork, buildings, farmlands, worldSeed]);
 
   const poles = useMemo(() => {
@@ -328,13 +309,11 @@ export function WorldDressing() {
   useFrame(({ gl, size }) => { wireViewport.value = size.height * gl.getPixelRatio(); });
   useEffect(() => () => {
     dressing.wires.dispose();
-    dressing.hedgeGeometry.dispose();
     dressing.leafGeometry.dispose();
   }, [dressing]);
 
   return (
     <group>
-      <mesh geometry={dressing.hedgeGeometry} material={hedgeMaterial} castShadow receiveShadow />
       <mesh geometry={dressing.leafGeometry} material={hedgeLeafMaterial} customDepthMaterial={hedgeLeafDepthMaterial} castShadow receiveShadow />
       <primitive object={poles} />
       <lineSegments geometry={dressing.wires} material={wireMaterial} />
