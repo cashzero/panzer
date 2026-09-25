@@ -92,6 +92,25 @@ export const GAME_CONFIG = {
     shotsToMaxAccuracy: 4, // shots on the same target to reach best practical precision
     fireTurretThreshold: 0.012, // rad (~0.7°) — require tighter lateral alignment before firing
     fireElevationThreshold: 0.01, // rad (~0.57°) — require tighter elevation alignment before firing
+    // Own line-of-sight re-check cadence per AI tank before it may fire.
+    fireLosIntervalMs: 300,
+    tactics: {
+      minRange: 150, // m — nearest preferred standoff when the gun works at range
+      maxRange: 750, // m — farthest preferred standoff; stays inside detection distance
+      rangeHorizon: 1500, // m — farthest range a matchup is evaluated to
+      penetrationMargin: 1.05, // our penetration must beat effective armour by this factor
+      hullAngleDeg: 30, // front plate angled this far off the enemy when holding
+      movingFireDispersion: 0.005, // rad — extra spread firing at full speed
+      replanIntervalMs: 7000, // re-choose a fighting position this often
+      blindReplanMs: 2500, // re-choose sooner when the target stays out of sight
+      withdrawHealth: 0.35, // fraction of health below which an outgunned tank breaks contact
+      shortHaltMs: 2200, // assault and flank tanks stop this long to fire
+      searchMemoryMs: 90000, // last known enemy positions are hunted for this long
+      probeStandoff: 350, // m — before contact, attackers halt this short of the enemy's deployment
+      goalReached: 6, // m — a fighting position counts as reached this close
+      waypointReached: 15, // m — a default waypoint counts as reached this close
+      stuckMs: 5000, // no headway toward the goal for this long counts as stuck
+    },
   },
   combat: {
     autoRicochetAngle: 70, // degrees

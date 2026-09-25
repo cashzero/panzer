@@ -163,6 +163,10 @@ Toggle with `M`. Provides a top-down tactical view of the battlefield.
 ## AI And Tactical Awareness
 
 - Enemy AI should maneuver toward effective firing positions rather than only driving straight at the player.
+- An AI tank fights each opponent at a range set by the two guns and the two sets of armour: where its own gun defeats the other's front, and outside the other's reach where it can manage that. A tank that out-ranges its opponent holds back in overwatch; one whose gun cannot defeat the front works round to the flank; one that cannot hurt the opponent at all hangs back and spots.
+- AI tanks stop in positions with a clear shot and, where the ground allows, the hull hidden behind a rise; they hold with the front plate angled to the enemy, halt to fire rather than fire on the move, move on after being hit, and pull back out of sight when badly damaged by an enemy that can finish them.
+- A crew fires only at a target it can see itself, even when another tank on its side has spotted it. Without contact, enemy tanks hunt the last reported position of a lost contact, else advance to a default waypoint given at deployment, short of the ground the player's side deployed on, and hold there. Enemy waypoints are not shown to the player.
+- AI tanks drive smoothly: they settle on a heading rather than pivoting back and forth on the spot, and a tank that cannot make headway backs off and chooses again.
 - AI accuracy should reflect movement, dispersion, line of sight, and engagement conditions.
 - Allied units should support player intent through simple command structures rather than full manual micromanagement.
 - Tactical systems should reward concealment, flanking, and terrain usage over static trading.

@@ -71,19 +71,6 @@ Player-facing validation:
 
 ## Sprint 3: AI Behaviors, Difficulty, And Sky
 
-### Feature 3.1: AI Behavior Types [M]
-
-Objective: diversify enemy movement patterns by tank role and doctrine.
-
-Implementation tasks:
-- [ ] Refactor `EnemyAI.tsx` to extract movement into a strategy pattern for aggressive, defensive, and flanking behavior
-- [ ] Add `aiBehavior` to `TankDefinition` in `tanks/types.ts`
-- [ ] Assign Tiger to defensive behavior and Panzer III to aggressive behavior
-- [ ] Add per-behavior tuning data to `config.ts`
-
-Player-facing validation:
-- [ ] Different enemy tank classes feel tactically distinct in movement and engagement style
-
 ### Feature 1.4: Difficulty Levels [S]
 
 Objective: let players tune challenge without changing core rules.
@@ -163,16 +150,6 @@ Implementation tasks:
 
 Player-facing validation:
 - [ ] AI units navigate around clutter with fewer obvious collisions and stalls
-
-### Feature 3.3: Hull-Down Positioning [M]
-
-Objective: let defensive AI exploit terrain for survivability.
-
-Implementation tasks:
-- [ ] Add terrain scanning for turret-exposed and hull-hidden positions in defensive AI behavior
-
-Player-facing validation:
-- [ ] Defensive tanks seek and use partial cover in a recognizable way
 
 ### Feature 4.3: Day/Night Cycle [M]
 

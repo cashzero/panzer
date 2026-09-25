@@ -17,6 +17,9 @@ const NAV_CELL = 8; // m
 const WAYPOINT_REACHED = 12;
 /** Replan when the goal has moved this far since the route was made. */
 const REPLAN_GOAL_SHIFT = 30;
+// The grid never changes during a battle, so a found route stands until the
+// goal moves; a failed search is retried after this long. Replanning on a
+// timer let a new route take the other side of a wood and turn the tank.
 const REPLAN_INTERVAL_MS = 4000;
 // A search gives up after this many cells, so an unreachable goal costs a
 // few milliseconds, not a sweep of the whole map. Weighting the heuristic
@@ -30,14 +33,49 @@ interface NavGrid {
   origin: number;
   size: number;
   blocked: Uint8Array;
+  /** Open-area label per cell (0 for blocked cells), and the largest area's label. */
+  region: Int32Array;
+  mainRegion: number;
 }
 
 let grid: NavGrid | null = null;
 
+// The forest map stops at trees.maxPlacementRadius per km of map, short of
+// the 500 m half-map; the grid runs on to the map edge, where the open band
+// beside a wood is often the only way round it.
+const MAP_HALF_PER_SCALE = 500;
+
+/** Labels 4-connected open areas; the largest is the battlefield proper. */
+function labelRegions(size: number, blocked: Uint8Array) {
+  const region = new Int32Array(size * size);
+  const stack: number[] = [];
+  let label = 0, mainRegion = 0, mainCount = 0;
+  for (let start = 0; start < region.length; start++) {
+    if (blocked[start] || region[start]) continue;
+    label++;
+    let count = 0;
+    region[start] = label;
+    stack.push(start);
+    while (stack.length > 0) {
+      const k = stack.pop()!;
+      count++;
+      const i = k % size, j = Math.floor(k / size);
+      for (const n of [i > 0 ? k - 1 : -1, i < size - 1 ? k + 1 : -1, j > 0 ? k - size : -1, j < size - 1 ? k + size : -1]) {
+        if (n < 0 || blocked[n] || region[n]) continue;
+        region[n] = label;
+        stack.push(n);
+      }
+    }
+    if (count > mainCount) { mainCount = count; mainRegion = label; }
+  }
+  return { region, mainRegion };
+}
+
 function getGrid(forest: ForestMap, buildings: BuildingInstance[]): NavGrid {
   if (grid && grid.forest === forest && grid.buildings === buildings) return grid;
-  const origin = forest.origin;
-  const size = Math.ceil((forest.size * forest.cell) / NAV_CELL);
+  const half = -forest.origin * (MAP_HALF_PER_SCALE / GAME_CONFIG.trees.maxPlacementRadius);
+  const origin = -half;
+  const size = Math.ceil((half * 2) / NAV_CELL);
   const blocked = new Uint8Array(size * size);
   const clearance = GAME_CONFIG.tank.collisionRadius + 1;
   for (let j = 0; j < size; j++) {
@@ -60,8 +98,17 @@ function getGrid(forest: ForestMap, buildings: BuildingInstance[]): NavGrid {
       }
     }
   }
-  grid = { forest, buildings, origin, size, blocked };
+  grid = { forest, buildings, origin, size, blocked, ...labelRegions(size, blocked) };
   return grid;
+}
+
+/**
+ * Whether a tank at (x, z) stands on the battlefield's main open ground,
+ * rather than in a clearing that forest walls off from it.
+ */
+export function isOnMainGround(forest: ForestMap, buildings: BuildingInstance[], x: number, z: number) {
+  const g = getGrid(forest, buildings);
+  return g.region[cellOf(g, x, z)] === g.mainRegion;
 }
 
 const cellOf = (g: NavGrid, x: number, z: number) => {
@@ -265,7 +312,8 @@ export function routeDirection(
   }
 
   let route = routes.get(tankId);
-  if (!route || route.goal.distanceTo(new THREE.Vector2(goal.x, goal.z)) > REPLAN_GOAL_SHIFT || now - route.madeAt > REPLAN_INTERVAL_MS) {
+  if (!route || route.goal.distanceTo(new THREE.Vector2(goal.x, goal.z)) > REPLAN_GOAL_SHIFT
+    || (!route.points && now - route.madeAt > REPLAN_INTERVAL_MS)) {
     const points = findRoute(forest, buildings, from.x, from.z, goal.x, goal.z);
     route = { goal: new THREE.Vector2(goal.x, goal.z), points, next: 1, madeAt: now };
     routes.set(tankId, route);
