@@ -84,6 +84,7 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
 
         {units.map((unit, index) => {
           const isSelected = unit.id === selectedId;
+          const wingman = unit.wingman !== false;
           return (
             <li
               key={unit.id}
@@ -108,8 +109,24 @@ export function OOBTankList({ side, onHoverTank }: OOBTankListProps) {
                 >
                   {tankOptions.map((t) => <option key={t.id} value={t.id}>{t.displayName}</option>)}
                 </select>
-                <SchemeSelect tankType={unit.tankType} value={unit.camouflage}
-                  onChange={(id) => updateOobUnit(unit.id, { camouflage: id })} />
+                <div className="force-row__meta">
+                  <SchemeSelect tankType={unit.tankType} value={unit.camouflage}
+                    onChange={(id) => updateOobUnit(unit.id, { camouflage: id })} />
+                  {side === 'ally' && (
+                    // A wingman takes your orders; a friendly tank fights on its own.
+                    <button
+                      type="button"
+                      className="force-row__command"
+                      aria-pressed={wingman}
+                      title={wingman
+                        ? 'Wingman: takes your orders on the tactical map. Click to make it a friendly tank that fights on its own.'
+                        : 'Friendly tank: advances and fights on its own. Click to make it your wingman.'}
+                      onClick={(e) => { e.stopPropagation(); updateOobUnit(unit.id, { wingman: !wingman }); }}
+                    >
+                      {wingman ? 'Wingman' : 'Friendly'}
+                    </button>
+                  )}
+                </div>
               </div>
               <button
                 type="button"

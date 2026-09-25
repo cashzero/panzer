@@ -3,6 +3,7 @@ import { useGameStore, type AmmoType, type TankData } from './store';
 import { getTankDef } from './tanks/registry';
 import type { TankDefinition } from './tanks/types';
 import { audioManager, toAudioVec3 } from './audio';
+import { weaponClassOf } from './battleStats';
 
 export function randGauss() {
   return (Math.random() - 0.5) + (Math.random() - 0.5);
@@ -61,7 +62,7 @@ function fireOneRound(tank: TankData, def: TankDefinition, ammoType: AmmoType): 
 
   const velocity = dir.clone().multiplyScalar(ammoStats.velocity);
 
-  useGameStore.getState().fireProjectile(pos, velocity, ammoType, ammoStats, ammoStats.damage, 'player', def.caliber);
+  useGameStore.getState().fireProjectile(pos, velocity, ammoType, ammoStats, ammoStats.damage, 'player', def.caliber, weaponClassOf(def));
   const caliberScale = (def.caliber || 75) / 75;
   const rapidFire = !!def.burstCount || !!def.automaticMagazineSize;
   useGameStore.getState().triggerCameraShake((rapidFire ? 0.3 : 0.8) * caliberScale);

@@ -13,6 +13,8 @@ This app is a WW2 tank battle simulator. All visual design - UI, HUD, color pale
 - The player selects a tank, enters the battlefield, maneuvers in real time, engages enemy armor, and survives through positioning, gunnery, and target selection.
 - Combat should emphasize readable armor interactions, ballistic drop, and terrain-aware movement over arcade-style instant lethality.
 - Tactical awareness should come from direct sightlines, the HUD, and map mode rather than omniscient battlefield information.
+- A battle is won when every enemy tank is destroyed and lost when the player's tank is knocked out; losing allies alone does not end it. The end plays out on screen for a few seconds before an after-action report gives the outcome, the player's gunnery (main-gun rounds fired, hits and accuracy; automatic fire such as autocannon and machine guns counted separately and never in accuracy; penetrations, kills, damage dealt and taken) and the fate of every tank on both sides, and offers to fight the same battle again or return to the order of battle.
+- Each battle starts from the world as generated: nothing knocked down, burnt out or churned up in an earlier battle carries over.
 
 ## Movement And Steering
 
@@ -165,10 +167,11 @@ Toggle with `M`. Provides a top-down tactical view of the battlefield.
 - Enemy AI should maneuver toward effective firing positions rather than only driving straight at the player.
 - An AI tank fights each opponent at a range set by the two guns and the two sets of armour: where its own gun defeats the other's front, and outside the other's reach where it can manage that. A tank that out-ranges its opponent holds back in overwatch; one whose gun cannot defeat the front works round to the flank; one that cannot hurt the opponent at all hangs back and spots.
 - AI tanks stop in positions with a clear shot and, where the ground allows, the hull hidden behind a rise; they hold with the front plate angled to the enemy, halt to fire rather than fire on the move, move on after being hit, and pull back out of sight when badly damaged by an enemy that can finish them.
-- A crew fires only at a target it can see itself, even when another tank on its side has spotted it. Without contact, enemy tanks hunt the last reported position of a lost contact, else advance to a default waypoint given at deployment, short of the ground the player's side deployed on, and hold there. Enemy waypoints are not shown to the player.
+- A crew fires only at a target it can see itself, even when another tank on its side has spotted it. Without contact, enemy tanks hunt the last reported position of a lost contact, else advance to a default waypoint given at deployment, short of the ground the player's side deployed on, and hold there. Friendly tanks outside the player's command behave the same way toward the enemy. These waypoints are not shown on the map.
 - AI tanks drive smoothly: they settle on a heading rather than pivoting back and forth on the spot, and a tank that cannot make headway backs off and chooses again.
 - AI accuracy should reflect movement, dispersion, line of sight, and engagement conditions.
 - Allied units should support player intent through simple command structures rather than full manual micromanagement.
+- Allied tanks are of two kinds, chosen per tank in the order of battle: wingmen, who follow the player and take orders on the tactical map, and friendly units, who take no orders and advance and fight on their own like the enemy.
 - Tactical systems should reward concealment, flanking, and terrain usage over static trading.
 
 ## Effects And Feedback

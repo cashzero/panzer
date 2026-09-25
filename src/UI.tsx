@@ -1,4 +1,7 @@
-import { useGameStore } from './store';
+import { useGameStore, isCommandable } from './store';
+import { useShallow } from 'zustand/react/shallow';
+import { BattleDebrief } from './BattleDebrief';
+import { getRecord } from './battleStats';
 import { useEffect, useState } from 'react';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
@@ -259,7 +262,8 @@ function MapScaleBar() {
 }
 
 function MapModeHUD() {
-  const allies = useGameStore((state) => state.allies);
+  // Only wingmen take orders; other friendly tanks fight on their own.
+  const allies = useGameStore(useShallow((state) => state.allies.filter(isCommandable)));
   const selectedAllyId = useGameStore((state) => state.selectedAllyId);
   const selectAlly = useGameStore((state) => state.selectAlly);
   const moveOrders = useGameStore((state) => state.allyBaseMoveOrders);
@@ -412,6 +416,7 @@ function GunnerFireOverlay() {
 }
 
 export function UI() {
+  const kills = useGameStore((state) => getRecord(state.battleStats, state.playerTank.id).kills);
   const health = useGameStore((state) => state.playerTank.health);
   const maxHealth = useGameStore((state) => state.playerTank.maxHealth);
   const destroyed = useGameStore((state) => state.playerTank.destroyed);
@@ -450,6 +455,9 @@ export function UI() {
           <strong className={`ammo-round ${ammoType === 'AP' ? 'is-ap' : ammoType === 'APC' ? 'is-apc' : 'is-he'}`}>{ammoType}</strong>
         </div>
         <ReloadIndicator />
+        <div className="hud-row">
+          <span>Kills</span><strong>{kills}</strong>
+        </div>
       </section>
       {isMapMode && <MapModeHUD />}
 
@@ -476,6 +484,8 @@ export function UI() {
           <div><span>CREW REPORT</span><h2>VEHICLE LOST</h2></div>
         </div>
       )}
+
+      <BattleDebrief />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useGameStore } from './store';
+import { useGameStore, isCommandable } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
 import { GAME_CONFIG } from './config';
@@ -7,15 +7,16 @@ import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings, type BuildingInstance } from './buildings';
 import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
 import { getTankDef } from './tanks/registry';
-import { computeTerrainOrientation, computeTrackMovement, computeBodyRock, computeGravityDrop } from './tankPhysics';
+import { computeTerrainOrientation, computeTrackMovement, computeBodyRock } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
-import { ensureAiAccuracyState, getAiFireDispersion, registerAiShot, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
+import { ensureAiAccuracyState, getAiFireDispersion, layGun, registerAiShot, tankVelocity, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import { clampGunElevation } from './turretAiming';
 import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
 import { routeDirection } from './navigation';
 import { getActiveForest } from './forest';
 import { hasLineOfSight } from './spotting';
+import { weaponClassOf } from './battleStats';
 import { getMatchup } from './aiMatchup';
 import { HOLD, HeadingFilter, angleBetween, angledHullHeading, movingFireDispersion, steerTracks, turnInPlace, type TrackCommand } from './aiTactics';
 
@@ -173,7 +174,8 @@ export function AllyAI() {
     const now = Date.now();
 
     allies.forEach((ally) => {
-      if (ally.destroyed) return;
+      // Friendly tanks outside the player's command fight on their own (ForceAI).
+      if (ally.destroyed || !isCommandable(ally)) return;
 
       const allyDef = getTankDef(ally.tankType);
       const lastRotation = lastRotations.current[ally.id];
@@ -322,27 +324,22 @@ export function AllyAI() {
       let newGunElev = ally.gunElevation;
       let normalizedDiff = 0;
       let elevDiff = 0;
-      const dist = engagementTarget ? ally.position.distanceTo(engagementTarget.position) : Infinity;
 
       if (closestEnemy && !closestEnemy.destroyed) {
-        const dirToTarget = closestEnemy.position.clone().sub(ally.position).normalize();
-        const accuracy = ensureAiAccuracyState(accuracyState.current, aimOffsets.current, ally.id, closestEnemy.id);
+        ensureAiAccuracyState(accuracyState.current, aimOffsets.current, ally.id, closestEnemy.id);
         const aimOff = aimOffsets.current[ally.id];
-
-        const targetRotation = Math.atan2(dirToTarget.x, dirToTarget.z) + aimOff.azimuth;
-        const angleDiff = targetRotation - (ally.rotation + ally.turretRotation);
-        normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-
+        const lay = layGun(
+          { ...ally, position: newPos, rotation: newRot, pitch, roll } as TankData,
+          allyDef, closestEnemy.position, tankVelocity(closestEnemy), aimOff.azimuth, aimOff.elevation,
+        );
+        normalizedDiff = angleBetween(lay.turret, ally.turretRotation, true);
         if (Math.abs(normalizedDiff) > 0.005) {
-          newTurretRot += Math.sign(normalizedDiff) * allyDef.turretSpeed * delta;
+          newTurretRot += Math.sign(normalizedDiff) * Math.min(allyDef.turretSpeed * delta, Math.abs(normalizedDiff));
         }
 
-        const drop = computeGravityDrop(dist, allyDef.weapons.AP.velocity);
-         const targetElev = -Math.atan2(closestEnemy.position.y + 1.5 + drop - (ally.position.y + 1.6), closestDist) + aimOff.elevation;
-
-        elevDiff = targetElev - ally.gunElevation;
+        elevDiff = lay.elevation - ally.gunElevation;
         if (Math.abs(elevDiff) > 0.002) {
-          newGunElev += Math.sign(elevDiff) * allyDef.gunSpeed * delta;
+          newGunElev += Math.sign(elevDiff) * Math.min(allyDef.gunSpeed * delta, Math.abs(elevDiff));
         }
         newGunElev = clampGunElevation(newGunElev, allyDef.minGunElevation, allyDef.maxGunElevation);
       }
@@ -379,7 +376,7 @@ export function AllyAI() {
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(allyDef.weapons.AP.velocity);
-        fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP, allyDef.weapons.AP.damage, ally.id, allyDef.caliber);
+        fireProjectile(pos, velocity, 'AP', allyDef.weapons.AP, allyDef.weapons.AP.damage, ally.id, allyDef.caliber, weaponClassOf(allyDef));
         updateAlly(ally.id, { lastFireTime: now });
         registerAiShot(accuracyState.current, aimOffsets.current, ally.id, engagementTarget.id);
         audioManager.playShot({

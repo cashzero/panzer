@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { useGameStore } from './store';
+import { useGameStore, isCommandable } from './store';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 
@@ -255,7 +255,8 @@ export function MapCameraController() {
     let closestId: string | null = null;
     let closestDist = Infinity;
     for (const ally of allies) {
-      if (ally.destroyed) continue;
+      // Only wingmen take orders.
+      if (ally.destroyed || !isCommandable(ally)) continue;
       const d = Math.sqrt(
         (ally.position.x - worldPoint.x) ** 2 +
         (ally.position.z - worldPoint.z) ** 2

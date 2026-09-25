@@ -9,12 +9,12 @@ This document tracks unfinished work only. Move completed capabilities into `ope
 Objective: replace ad hoc spawning with mission-driven phase flow and authored wave progression.
 
 Implementation tasks:
-- [ ] Add a game phase state machine to `store.ts` with `'menu' | 'briefing' | 'playing' | 'victory' | 'defeat'`
+- [ ] Add mission phases ahead of the battle to `store.ts` (`'menu' | 'briefing'`); victory, defeat and the after-action report already exist (`battleStats`, `BattleDebrief.tsx`)
 - [ ] Create `src/missions.ts` to define wave compositions, spawn positions, and timing
 - [ ] Create `src/WaveManager.tsx` to read mission data and spawn waves under gameplay conditions
 - [ ] Modify `GameScene.tsx` to remove hardcoded `spawnEnemy` usage and delegate spawning to `WaveManager`
-- [ ] Modify `App.tsx` to switch between menu, briefing, gameplay, and result screens
-- [ ] Create `src/screens/MissionSelect.tsx`, `src/screens/MissionBrief.tsx`, and `src/screens/MissionResult.tsx`
+- [ ] Modify `App.tsx` to switch between menu, briefing and gameplay screens
+- [ ] Create `src/screens/MissionSelect.tsx` and `src/screens/MissionBrief.tsx`; give the after-action report the mission's objectives
 
 Player-facing validation:
 - [ ] The game flows cleanly from mission selection through briefing, battle, and result states
@@ -33,18 +33,6 @@ Player-facing validation:
 ---
 
 ## Sprint 2: Scoring And Sound
-
-### Feature 1.2: Scoring / Stats System [S]
-
-Objective: surface mission performance during combat and on mission completion.
-
-Implementation tasks:
-- [ ] Add a `stats` object to `store.ts` for kills, shots fired, accuracy, and damage dealt or received
-- [ ] Add a real-time kill counter in `UI.tsx`
-- [ ] Display detailed mission stats in `src/screens/MissionResult.tsx`
-
-Player-facing validation:
-- [ ] Players can track live combat performance and review a complete mission summary afterward
 
 ### Feature 2.4: Impact / Ricochet Sound Effects [M]
 

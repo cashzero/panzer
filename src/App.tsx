@@ -8,6 +8,7 @@ import { audioManager } from './audio';
 
 export default function App() {
   const gameScreen = useGameStore((s) => s.gameScreen);
+  const battleId = useGameStore((s) => s.battleId);
 
   useEffect(() => {
     audioManager.mount();
@@ -25,7 +26,9 @@ export default function App() {
   }
 
   return (
-    <div className="relative w-full h-screen overflow-hidden bg-black">
+    // Keyed on the deployment, so a new battle mounts a fresh scene instead
+    // of inheriting the last one's wrecks, craters and track marks.
+    <div key={battleId} className="relative w-full h-screen overflow-hidden bg-black">
       <GameScene />
       <UI />
     </div>

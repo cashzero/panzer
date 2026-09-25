@@ -20,7 +20,8 @@ import type { BuildingInstance, FarmlandPlot } from './buildings';
 import { findNearestOpenPosition, isPointNearAnyBuilding, projectBuildingsToTerrain } from './buildings';
 import { generateBuildings, generateFarmlands, type FarmYard } from './landLayout';
 import { isOnMainGround } from './navigation';
-import { planEnemyWaypoints } from './aiWaypoints';
+import { planForceWaypoints } from './aiWaypoints';
+import { createBattleStats, decideOutcome, withHit, withOutcome, withShot, type BattleStats, type HitResult, type WeaponClass } from './battleStats';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
 export type AllyBaseMoveOrder = 'follow' | 'hold';
@@ -55,6 +56,7 @@ export interface Projectile {
   damage: number;
   caliber: number;
   firedBy: string;
+  weapon: WeaponClass;
   ricochet?: boolean;
   createdAt: number;
 }
@@ -104,6 +106,12 @@ export interface TankData {
   trackRepairBlockedUntil: number;
   lastCombatTime: number;
 
+  /**
+   * Allies only: false for a friendly tank that fights on its own and takes
+   * no orders. Unset (the player, enemies, wingmen) takes orders if an ally.
+   */
+  commandable?: boolean;
+
   // Awareness
   alertedBy?: string; // ID of tank that last hit us
   alertedAt?: number; // timestamp of last hit
@@ -127,6 +135,12 @@ export interface OOBUnit {
   camouflage?: string;
   position: [number, number]; // XZ world coords (pre-mapScale)
   rotation: number;
+  /**
+   * Allied units only: a wingman takes the player's orders; otherwise the
+   * tank is a friendly unit fighting on its own, like the enemy. Unset
+   * counts as a wingman.
+   */
+  wingman?: boolean;
 }
 
 const AXIS_NATIONALITIES: Record<string, boolean> = { 'Germany': true };
@@ -160,6 +174,11 @@ function cloneAmmoSpec(ammoSpec: TankAmmoSpec): TankAmmoSpec {
   };
 }
 
+/** Whether an allied tank takes the player's orders (a wingman). */
+export function isCommandable(tank: TankData) {
+  return tank.commandable !== false;
+}
+
 function getAudioSourceRole(allies: TankData[], tankId: string): AudioSource {
   if (tankId === 'player') return 'player';
   return allies.some((ally) => ally.id === tankId) ? 'ally' : 'enemy';
@@ -190,10 +209,12 @@ interface GameState {
   allyEngagementPostures: Record<string, AllyEngagementPosture>;
   allyWaypoints: Record<string, { x: number; y: number; z: number }>;
   /**
-   * Default waypoint of each enemy tank, planned at deployment: where it
-   * advances to before contact. Cleared on arrival. Not shown to the player.
+   * Default waypoint of each tank that fights on its own (enemies and
+   * friendly tanks outside the player's command), planned at deployment:
+   * where it advances to before contact. Cleared on arrival. Not shown on
+   * the map.
    */
-  enemyWaypoints: Record<string, { x: number; y: number; z: number }>;
+  aiWaypoints: Record<string, { x: number; y: number; z: number }>;
   calibrationDistance: number;
   gunnerZoom: number; // index into GUNNER_ZOOM_LEVELS
   trees: TreeInstance[];
@@ -205,8 +226,13 @@ interface GameState {
   cameraYawAbs: number; // absolute camera yaw (hull rotation + mouse yaw)
   playerSideSpotting: Record<string, SpottingContact>;
   enemySideSpotting: Record<string, SpottingContact>;
+  /** Trees as the world was generated, restored at each deployment. */
+  worldTrees: TreeInstance[];
+  /** Bumped at each deployment; the battle scene is keyed on it and mounts afresh. */
+  battleId: number;
+  battleStats: BattleStats;
 
-  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number) => void;
+  fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number, weapon?: WeaponClass) => void;
   removeProjectile: (id: string) => void;
   updateProjectiles: (dt: number) => void;
   updateTrackRepairs: (dt: number) => void;
@@ -214,6 +240,10 @@ interface GameState {
   updateEnemy: (id: string, updates: Partial<TankData>) => void;
   addMessage: (text: string, color: string) => void;
   handleHit: (projectileId: string, hitTankId: string, hitPoint: Vector3, hitNormal: Vector3, plateInfo?: ArmorPlateHitInfo) => void;
+  /** Adds a round striking a tank to the battle record, and ends the battle once a side is beaten. */
+  recordHit: (shooterId: string, targetId: string, result: HitResult) => void;
+  /** Leaves the battle for the order-of-battle screen. */
+  leaveBattle: () => void;
   spawnEnemy: (position: Vector3, tankType?: string) => void;
   spawnAlly: (position: Vector3, tankType?: string) => void;
   updateAlly: (id: string, updates: Partial<TankData>) => void;
@@ -228,7 +258,7 @@ interface GameState {
   setAllyEngagementPosture: (allyId: string, posture: AllyEngagementPosture) => void;
   issueAllyMoveOrder: (allyId: string, position: { x: number; y: number; z: number }) => void;
   clearAllyWaypoint: (allyId: string) => void;
-  clearEnemyWaypoint: (enemyId: string) => void;
+  clearAiWaypoint: (tankId: string) => void;
   setCalibrationDistance: (dist: number) => void;
   zoomGunnerIn: () => void;
   zoomGunnerOut: () => void;
@@ -565,10 +595,13 @@ export const useGameStore = create<GameState>((set, get) => ({
   allyFireOrders: {},
   allyEngagementPostures: {},
   allyWaypoints: {},
-  enemyWaypoints: {},
+  aiWaypoints: {},
   calibrationDistance: 0,
   gunnerZoom: 1,
   trees: initialWorld.trees,
+  worldTrees: initialWorld.trees,
+  battleId: 0,
+  battleStats: createBattleStats(0),
   cameraShake: 0,
   playerBurstRemaining: 0,
   playerBurstNextFireTime: 0,
@@ -673,12 +706,19 @@ export const useGameStore = create<GameState>((set, get) => ({
       const az = uz * mapScale;
       t.position = new Vector3(ax, 0, az);
       t.rotation = u.rotation;
+      t.commandable = u.wingman !== false;
       return t;
     });
 
-    // Each enemy gets a default waypoint: the ground its advance aims at.
-    const planned = planEnemyWaypoints(enemies, [player, ...allies], player, MAP_SIZE_VALUES[state.mapSize] / 2);
-    const enemyWaypoints = Object.fromEntries(Object.entries(planned).map(([id, [x, z]]) => {
+    // Every tank that fights on its own gets a default waypoint: the ground
+    // its advance aims at. Wingmen follow the player instead.
+    const halfMap = MAP_SIZE_VALUES[state.mapSize] / 2;
+    const independents = allies.filter((ally) => !isCommandable(ally));
+    const planned = {
+      ...planForceWaypoints(enemies, [player, ...allies], player, halfMap),
+      ...(enemies.length > 0 ? planForceWaypoints(independents, enemies, enemies[0], halfMap) : {}),
+    };
+    const aiWaypoints = Object.fromEntries(Object.entries(planned).map(([id, [x, z]]) => {
       const [ox, oz] = nearestOpenGround(x, z, state.buildings);
       return [id, { x: ox, y: 0, z: oz }];
     }));
@@ -697,7 +737,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         allyFireOrders,
         allyEngagementPostures,
       allyWaypoints: {},
-      enemyWaypoints,
+      aiWaypoints,
+      trees: state.worldTrees,
+      battleId: state.battleId + 1,
+      battleStats: createBattleStats(Date.now()),
+      isMapMode: false,
+      viewMode: 'third-person',
+      cameraShake: 0,
       selectedAllyId: null,
       gameScreen: 'playing',
       ammoType: 'AP',
@@ -717,21 +763,21 @@ export const useGameStore = create<GameState>((set, get) => ({
     const { worldSeed, oobPlayerPosition, oobEnemies, oobAllies } = get();
     const world = generateWorld(size, worldSeed);
     const sanitized = sanitizeOobLayout(size, world.buildings, oobPlayerPosition, oobEnemies, oobAllies);
-    set({ mapSize: size, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, yards: world.yards, ...sanitized });
+    set({ mapSize: size, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, worldTrees: world.trees, yards: world.yards, ...sanitized });
   },
 
   setWorldSeed: (seed) => {
     const state = get();
     const world = generateWorld(state.mapSize, seed);
     const sanitized = sanitizeOobLayout(state.mapSize, world.buildings, state.oobPlayerPosition, state.oobEnemies, state.oobAllies);
-    set({ worldSeed: seed, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, yards: world.yards, ...sanitized });
+    set({ worldSeed: seed, roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, worldTrees: world.trees, yards: world.yards, ...sanitized });
   },
 
   regenerateWorld: () => {
     const state = get();
     const world = generateWorld(state.mapSize, state.worldSeed);
     const sanitized = sanitizeOobLayout(state.mapSize, world.buildings, state.oobPlayerPosition, state.oobEnemies, state.oobAllies);
-    set({ roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, yards: world.yards, ...sanitized });
+    set({ roadNetwork: world.roadNetwork, buildings: world.buildings, farmlands: world.farmlands, trees: world.trees, worldTrees: world.trees, yards: world.yards, ...sanitized });
   },
 
   selectPlayerTank: (tankType) => {
@@ -797,7 +843,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   toggleViewMode: () => set((state) => ({ viewMode: state.viewMode === 'third-person' ? 'gunner' : 'third-person' })),
   toggleMapMode: () => set((state) => ({ isMapMode: !state.isMapMode })),
-  selectAlly: (id) => set({ selectedAllyId: id }),
+  selectAlly: (id) => set((state) => {
+    if (id === null) return { selectedAllyId: null };
+    const ally = state.allies.find((a) => a.id === id);
+    return ally && isCommandable(ally) ? { selectedAllyId: id } : {};
+  }),
   setAllyBaseMoveOrder: (allyId, order) => set((state) => {
     const { [allyId]: _, ...restWaypoints } = state.allyWaypoints;
     return {
@@ -812,13 +862,15 @@ export const useGameStore = create<GameState>((set, get) => ({
     allyEngagementPostures: { ...state.allyEngagementPostures, [allyId]: posture },
   })),
   issueAllyMoveOrder: (allyId, position) => set((state) => {
+    const ally = state.allies.find((a) => a.id === allyId);
+    if (!ally || !isCommandable(ally)) return {};
     // An order into a forest goes to the open ground at its edge.
     const [x, z] = nearestOpenGround(position.x, position.z, state.buildings);
     return { allyWaypoints: { ...state.allyWaypoints, [allyId]: { x, y: position.y, z } } };
   }),
-  clearEnemyWaypoint: (enemyId) => set((state) => {
-    const { [enemyId]: _, ...rest } = state.enemyWaypoints;
-    return { enemyWaypoints: rest };
+  clearAiWaypoint: (tankId) => set((state) => {
+    const { [tankId]: _, ...rest } = state.aiWaypoints;
+    return { aiWaypoints: rest };
   }),
   clearAllyWaypoint: (allyId) => set((state) => {
     const { [allyId]: _, ...rest } = state.allyWaypoints;
@@ -833,9 +885,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   })),
   setLastFireTime: (time) => set({ lastFireTime: time }),
 
-  fireProjectile: (pos, vel, type, ammoSpec, dmg, firedBy, caliber) => {
+  fireProjectile: (pos, vel, type, ammoSpec, dmg, firedBy, caliber, weapon = 'gun') => {
     const scale = caliber / 75;
     const now = Date.now();
+    set((state) => ({ battleStats: withShot(state.battleStats, firedBy, weapon) }));
     set((state) => {
       const projectile = {
         id: uuidv4(),
@@ -847,6 +900,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         damage: dmg,
         caliber,
         firedBy,
+        weapon,
         createdAt: now,
       };
 
@@ -1027,6 +1081,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (isAutoRicochet) {
       get().spawnParticle('ricochet_impact', hitPoint.clone(), hitNormal, scale);
       get().addMessage(`Ricochet! (${Math.round(angleDeg)}° on ${faceName})`, '#ffaa00');
+      get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: false, damage: 0, killed: false });
       if (hitTankId === 'player') get().triggerCameraShake(0.4 * scale);
       audioManager.playImpact({
         position: toAudioVec3(hitPoint),
@@ -1045,7 +1100,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         projectiles: [...s.projectiles, {
           id: uuidv4(), origin: projectile.position.clone(), position: projectile.position.clone(), velocity: reflected,
           type: projectile.type, ammoSpec: projectile.ammoSpec, damage: 0, caliber: projectile.caliber,
-          firedBy: projectile.firedBy, ricochet: true, createdAt: Date.now(),
+          firedBy: projectile.firedBy, weapon: projectile.weapon, ricochet: true, createdAt: Date.now(),
         }],
       }));
       return;
@@ -1074,6 +1129,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (isTrackHit && trackSide) {
         // Track hit — damage track HP, not main HP
         const { updates, newTrackHealth, trackDead } = applyTrackDamageToTank(target, trackSide, projectile.damage, now);
+        get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: true, damage: 0, killed: false });
 
         if (hitTankId === 'player') {
           get().updatePlayer(updates);
@@ -1107,6 +1163,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         get().addMessage(`Penetration! ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#00ff00');
+        get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: true, damage: target.health - newHealth, killed: destroyed });
         if (destroyed) {
           spawnTankDestructionEffect(get().spawnParticle, target.position);
           const distance = state.playerTank.position.distanceTo(target.position);
@@ -1138,6 +1195,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         // HE splash on track
         const splashDamage = computeHESplashDamage(projectile.damage);
         const { updates, trackDead } = applyTrackDamageToTank(target, trackSide, splashDamage, now);
+        get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: false, damage: 0, killed: false });
 
         if (hitTankId === 'player') {
           get().updatePlayer(updates);
@@ -1168,6 +1226,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           get().updateEnemy(hitTankId, splashUpdates);
         }
         get().addMessage(`HE Splash! ${faceName} (-${Math.round(splashDamage)} HP)`, '#ffaa00');
+        get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: false, damage: target.health - newHealth, killed: destroyed });
         if (destroyed) {
           spawnTankDestructionEffect(get().spawnParticle, target.position);
           const distance = state.playerTank.position.distanceTo(target.position);
@@ -1180,10 +1239,25 @@ export const useGameStore = create<GameState>((set, get) => ({
           });
         }
       } else {
+        get().recordHit(projectile.firedBy, hitTankId, { weapon: projectile.weapon, penetrated: false, damage: 0, killed: false });
         get().addMessage(`Armor not pierced. ${faceName} (${Math.round(actualPen)}mm vs ${Math.round(effectiveArmor)}mm at ${Math.round(angleDeg)}°)`, '#aaaaaa');
       }
     }
   },
+
+  recordHit: (shooterId, targetId, result) => {
+    const now = Date.now();
+    set((state) => {
+      const shooterIsEnemy = state.enemies.some((enemy) => enemy.id === shooterId);
+      const targetIsEnemy = state.enemies.some((enemy) => enemy.id === targetId);
+      const battleStats = withHit(state.battleStats, shooterId, targetId, shooterIsEnemy !== targetIsEnemy, result, now);
+      const ended = withOutcome(battleStats, decideOutcome(state.playerTank, state.enemies), now);
+      // The report takes the screen and the mouse: close the tactical map.
+      return ended.outcome && !battleStats.outcome ? { battleStats: ended, isMapMode: false } : { battleStats: ended };
+    });
+  },
+
+  leaveBattle: () => set({ gameScreen: 'oob-editor', isMapMode: false, projectiles: [], particles: [], messages: [] }),
 
   spawnEnemy: (position, tankType = 'tiger') => {
     const enemy = createTankData(tankType, false);

@@ -109,7 +109,10 @@ export function useInput(onFire: () => void): InputRefs {
       }
     };
     const handleMouseDown = (e: MouseEvent) => {
-      if (useGameStore.getState().isMapMode) return;
+      // Map mode has its own mouse handling; once the battle is over the
+      // mouse belongs to the after-action report.
+      const store = useGameStore.getState();
+      if (store.isMapMode || store.battleStats.outcome) return;
       if (document.pointerLockElement !== document.body) {
         document.body.requestPointerLock().catch(() => {});
       }

@@ -11,7 +11,7 @@ import { Particles } from './Particles';
 import { FlashLights } from './rendering/FlashLights';
 import { ImpactDecals } from './rendering/ImpactDecals';
 import { TrackMarks } from './rendering/TrackMarks';
-import { EnemyAI } from './EnemyAI';
+import { EnemyAI, IndependentAllyAI } from './EnemyAI';
 import { AllyAI } from './AllyAI';
 import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
@@ -459,6 +459,8 @@ function BattleTanks() {
   const enemyIds = useGameStore(useShallow((state) => state.enemies.map(e => e.id)));
   const allyIds = useGameStore(useShallow((state) => state.allies.map(a => a.id)));
   const isMapMode = useGameStore((state) => state.isMapMode);
+  // The aim marker floats above the whole HUD; the after-action report must not sit under it.
+  const battleOver = useGameStore((state) => state.battleStats.outcome !== null);
   const viewMode = useGameStore((state) => state.viewMode);
   return (
     <>
@@ -471,7 +473,7 @@ function BattleTanks() {
           <AllyTank key={id} id={id} />
         ))}
       </group>
-      {!isMapMode && <GunAimPoint />}
+      {!isMapMode && !battleOver && <GunAimPoint />}
     </>
   );
 }
@@ -558,6 +560,7 @@ export function GameScene() {
           <BurningWrecks />
           <EnemyAI />
           <AllyAI />
+          <IndependentAllyAI />
           <ScenePostProcessing />
         </Suspense>
       </Canvas>

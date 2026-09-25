@@ -63,7 +63,7 @@ The game needs no API keys or environment variables.
 - `landLayout.ts` + `landUse.ts` — villages along the roads out of each junction, farmsteads, rectangular field parcels squared to the roads, land-use zones (farmland, open grazing, forest)
 - `buildings.ts` + `BuildingRenderer.tsx` — building shapes and footprints, wall/roof impacts, farmland plot helpers. Building `rotation` is a three.js Y rotation: use `buildingLocalToWorld` / `worldToBuildingLocal`, never the math-convention formula
 
-**AI**: `EnemyAI.tsx` and `AllyAI.tsx` each drive their tanks (approach/retreat, gravity-compensated aim, dispersion drift, steady-aim zero after stillness). Allies also accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`). Movement goals go through `navigation.ts` (`routeDirection`: A* around forests, direct when the line is clear) before local obstacle steering.
+**AI**: `EnemyAI.tsx` exports `ForceAI`, which drives every tank that fights on its own (the enemy, and friendly tanks that are not the player's wingmen): matchup-driven roles and fighting positions (`aiMatchup.ts`, `aiTactics.ts`), default waypoints planned at deployment (`aiWaypoints.ts`), hull-aware gun laying (`layGun` in `aiAccuracy.ts`). `AllyAI.tsx` drives the wingmen (`isCommandable`), which accept stance + fire-control orders and waypoints (see `WaypointMarker.tsx`). Movement goals go through `navigation.ts` (`routeDirection`: A* around forests, direct when the line is clear) before local obstacle steering.
 
 **Rendering & views**:
 - `Tank.tsx` / `TankModel.tsx` — legacy procedural tank geometry + animation
