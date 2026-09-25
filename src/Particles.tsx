@@ -978,6 +978,9 @@ export function Particles() {
 
   // Debris InstancedMesh setup
   const debrisRef = useRef<THREE.InstancedMesh>(null);
+  // Allocated up front: setColorAt would add it on the first impact, switching
+  // the material to its instance-colour variant and stalling on the compile.
+  const debrisColors = useMemo(() => new Float32Array(MAX_DEBRIS * 3), []);
 
   // State refs
   const subsRef = useRef<SubState[]>([]);
@@ -1273,7 +1276,9 @@ export function Particles() {
         args={[debrisGeometry, debrisMaterial, MAX_DEBRIS]}
         frustumCulled={false}
         castShadow
-      />
+      >
+        <instancedBufferAttribute attach="instanceColor" args={[debrisColors, 3]} />
+      </instancedMesh>
     </group>
   );
 }

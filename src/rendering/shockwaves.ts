@@ -93,8 +93,13 @@ export function createShockwavePass() {
 
 const view = new THREE.Vector3();
 const clip = new THREE.Vector3();
+const compiled = new WeakSet<ShaderPass>();
 
-/** Advances the waves and loads them into the pass; the pass stays off while none are live. */
+/**
+ * Advances the waves and loads them into the pass; the pass stays off while none are live.
+ * The first frame draws it once with no waves, so its shader compiles while the battle
+ * loads instead of stalling the first gun that fires.
+ */
 export function updateShockwavePass(pass: ShaderPass, camera: THREE.Camera, width: number, height: number) {
   const now = performance.now();
   for (let i = waves.length - 1; i >= 0; i--) {
@@ -125,5 +130,6 @@ export function updateShockwavePass(pass: ShaderPass, camera: THREE.Camera, widt
     uniforms.uAmplitude.value[i] = amplitude;
     live++;
   }
-  pass.enabled = live > 0;
+  pass.enabled = live > 0 || !compiled.has(pass);
+  compiled.add(pass);
 }
