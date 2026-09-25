@@ -3,7 +3,6 @@ import { useGameStore } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
 import { GAME_CONFIG } from './config';
-import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings, type BuildingInstance } from './buildings';
 import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
@@ -16,101 +15,88 @@ import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, Tank
 import { audioManager, toAudioVec3 } from './audio';
 import { routeDirection } from './navigation';
 import { getActiveForest } from './forest';
+import { hasLineOfSight } from './spotting';
+import { getMatchup } from './aiMatchup';
+import { HOLD, HeadingFilter, angleBetween, angledHullHeading, movingFireDispersion, steerTracks, turnInPlace, type TrackCommand } from './aiTactics';
+
+type Trees = ReturnType<typeof useGameStore.getState>['trees'];
+
+/** Per-ally steering memory, so a drive heading does not flicker between answers. */
+interface Steering {
+  heading: HeadingFilter;
+  now: number;
+  /** Measured hull turn rate (rad/s), damping the steering. */
+  yawRate: number;
+}
+
+/**
+ * Track command to drive toward `goal` around forests, buildings and other
+ * tanks. The pivot rate and the turn while driving both fall off with the
+ * remaining angle, so the hull settles on its heading rather than pivoting,
+ * lunging off-line and pivoting again.
+ */
+function driveToward(
+  ally: TankData,
+  goal: THREE.Vector3,
+  speed: number,
+  allyDef: ReturnType<typeof getTankDef>,
+  buildings: BuildingInstance[],
+  trees: Trees,
+  allTanks: TankData[],
+  steering: Steering,
+  ignoreTankIds: string[] = [],
+): TrackCommand {
+  // Drive around forests rather than into them.
+  const routeDir = routeDirection(ally.id, ally.position, goal, getActiveForest(), buildings);
+  const moveDir = chooseAvoidanceDirection(
+    ally.position,
+    steerDirectionAroundBuildings(ally.position, routeDir, buildings, 85, 14),
+    ally.id,
+    allTanks,
+    trees,
+    buildings,
+    { ignoreTankIds },
+  );
+  const heading = steering.heading.update(Math.atan2(moveDir.x, moveDir.z), steering.now);
+  return steerTracks(ally.rotation, heading, speed, allyDef.trackWidth, false, steering.yawRate);
+}
 
 function computeEngagementMovement(
   ally: TankData,
   target: TankData,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
-  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  trees: Trees,
   allTanks: TankData[],
-) {
-  // Drive around forests rather than into them.
-  const routeDir = routeDirection(ally.id, ally.position, target.position, getActiveForest(), buildings);
-  const moveDir = chooseAvoidanceDirection(
-    ally.position,
-    steerDirectionAroundBuildings(ally.position, routeDir, buildings, 90, 14),
-    ally.id,
-    allTanks,
-    trees,
-    buildings,
-    { ignoreTankIds: [target.id] },
-  );
-  const playerDef = getTankDef(target.tankType);
-  const allyPen = getAmmoDisplayPenetration(allyDef.weapons.AP, 'AP', allyDef.caliber);
-  const targetPen = getAmmoDisplayPenetration(playerDef.weapons.AP, 'AP', playerDef.caliber);
-  const penRatio = allyPen / target.armor.front;
-  const armorRatio = allyDef.armor.front / Math.max(1, targetPen);
-  const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
+  steering: Steering,
+): TrackCommand {
+  // Close to where our gun defeats the target, not to point-blank range.
+  const preferredRange = getMatchup(ally.id, ally.tankType, target.tankType).preferredRange;
   const rangeDeadzone = preferredRange * 0.15;
+  const distance = ally.position.distanceTo(target.position);
+  const bearing = Math.atan2(target.position.x - ally.position.x, target.position.z - ally.position.z);
 
-  let forwardSpeed = 0;
-  let rotationSpeed = 0;
-  let leftSpeed = 0;
-  let rightSpeed = 0;
-
-  if (ally.position.distanceTo(target.position) > preferredRange + rangeDeadzone) {
-    const angleToEnemy = Math.atan2(moveDir.x, moveDir.z);
-    let rotDiff = angleToEnemy - ally.rotation;
-    rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-
-    if (Math.abs(rotDiff) > 0.1) {
-      rotationSpeed = Math.sign(rotDiff) * 1.0;
-      leftSpeed = -rotationSpeed * allyDef.trackWidth / 2;
-      rightSpeed = rotationSpeed * allyDef.trackWidth / 2;
-    } else {
-      forwardSpeed = allyDef.maxSpeed * 0.5;
-      leftSpeed = forwardSpeed;
-      rightSpeed = forwardSpeed;
-    }
-  } else if (ally.position.distanceTo(target.position) < preferredRange - rangeDeadzone) {
-    const retreatDir = chooseAvoidanceDirection(
-      ally.position,
-      steerDirectionAroundBuildings(ally.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14),
-      ally.id,
-      allTanks,
-      trees,
-      buildings,
-    );
-    const retreatAngle = Math.atan2(retreatDir.x, retreatDir.z);
-    let retreatDiff = retreatAngle - ally.rotation;
-    retreatDiff = Math.atan2(Math.sin(retreatDiff), Math.cos(retreatDiff));
-
-    if (Math.abs(retreatDiff) > 0.16) {
-      rotationSpeed = Math.sign(retreatDiff) * 1.0;
-      leftSpeed = -rotationSpeed * allyDef.trackWidth / 2;
-      rightSpeed = rotationSpeed * allyDef.trackWidth / 2;
-    } else {
-      forwardSpeed = -allyDef.maxReverseSpeed * 0.5;
-      leftSpeed = forwardSpeed;
-      rightSpeed = forwardSpeed;
-    }
+  if (distance > preferredRange + rangeDeadzone) {
+    return driveToward(ally, target.position, allyDef.maxSpeed * 0.5, allyDef, buildings, trees, allTanks, steering, [target.id]);
   }
-
-  return { forwardSpeed, rotationSpeed, leftSpeed, rightSpeed };
+  if (distance < preferredRange - rangeDeadzone) {
+    // Back away with the front still toward the enemy.
+    steering.heading.reset();
+    return steerTracks(ally.rotation, bearing + Math.PI, allyDef.maxReverseSpeed * 0.5, allyDef.trackWidth, true, steering.yawRate);
+  }
+  steering.heading.reset();
+  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation), allyDef.trackWidth, steering.yawRate);
 }
 
 function computeFireFromPositionMovement(
   ally: TankData,
   target: TankData,
-  allyDef: ReturnType<typeof getTankDef>
+  allyDef: ReturnType<typeof getTankDef>,
+  steering: Steering,
 ) {
-  const dirToEnemy = target.position.clone().sub(ally.position).normalize();
-  const angleToEnemy = Math.atan2(dirToEnemy.x, dirToEnemy.z);
-  let rotDiff = angleToEnemy - ally.rotation;
-  rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-
-  if (Math.abs(rotDiff) <= 0.1) {
-    return { forwardSpeed: 0, rotationSpeed: 0, leftSpeed: 0, rightSpeed: 0 };
-  }
-
-  const rotationSpeed = Math.sign(rotDiff) * 1.0;
-  return {
-    forwardSpeed: 0,
-    rotationSpeed,
-    leftSpeed: -rotationSpeed * allyDef.trackWidth / 2,
-    rightSpeed: rotationSpeed * allyDef.trackWidth / 2,
-  };
+  // Hold with the front plate angled to the enemy.
+  const bearing = Math.atan2(target.position.x - ally.position.x, target.position.z - ally.position.z);
+  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation), allyDef.trackWidth, steering.yawRate);
 }
 
 function computeMoveToPoint(
@@ -118,79 +104,39 @@ function computeMoveToPoint(
   destination: THREE.Vector3,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
-  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  trees: Trees,
   allTanks: TankData[],
-) {
+  steering: Steering,
+): TrackCommand & { arrived: boolean } {
   const distToWp = ally.position.distanceTo(destination);
   if (distToWp <= GAME_CONFIG.ai.moveArrivalDistance) {
-    return { forwardSpeed: 0, rotationSpeed: 0, leftSpeed: 0, rightSpeed: 0, arrived: true };
+    steering.heading.reset();
+    return { ...HOLD, arrived: true };
   }
-
-  const dirToWp = chooseAvoidanceDirection(
-    ally.position,
-    steerDirectionAroundBuildings(ally.position, routeDirection(ally.id, ally.position, destination, getActiveForest(), buildings), buildings, 85, 14),
-    ally.id,
-    allTanks,
-    trees,
-    buildings,
-  );
-  const angleToWp = Math.atan2(dirToWp.x, dirToWp.z);
-  let rotDiff = angleToWp - ally.rotation;
-  rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-
-  if (Math.abs(rotDiff) > 0.1) {
-    const rotationSpeed = Math.sign(rotDiff) * 1.0;
-    return {
-      forwardSpeed: 0,
-      rotationSpeed,
-      leftSpeed: -rotationSpeed * allyDef.trackWidth / 2,
-      rightSpeed: rotationSpeed * allyDef.trackWidth / 2,
-      arrived: false,
-    };
-  }
-
-  const forwardSpeed = allyDef.maxSpeed * 0.5;
-  return { forwardSpeed, rotationSpeed: 0, leftSpeed: forwardSpeed, rightSpeed: forwardSpeed, arrived: false };
+  return { ...driveToward(ally, destination, allyDef.maxSpeed * 0.5, allyDef, buildings, trees, allTanks, steering), arrived: false };
 }
+
+// Following allies close up beyond the outer distance and stop inside the
+// inner one, so a player creeping about does not start and stop them.
+const FOLLOW_STOP = 40;
+const FOLLOW_RESUME = 60;
 
 function computeFollowMovement(
   ally: TankData,
   player: TankData,
   allyDef: ReturnType<typeof getTankDef>,
   buildings: BuildingInstance[],
-  trees: ReturnType<typeof useGameStore.getState>['trees'],
+  trees: Trees,
   allTanks: TankData[],
-) {
+  steering: Steering,
+): TrackCommand {
   const distToPlayer = ally.position.distanceTo(player.position);
-  if (distToPlayer <= 50) {
-    return { forwardSpeed: 0, rotationSpeed: 0, leftSpeed: 0, rightSpeed: 0 };
+  const moving = Math.abs(ally.speed) > 0.5;
+  if (distToPlayer <= (moving ? FOLLOW_STOP : FOLLOW_RESUME)) {
+    steering.heading.reset();
+    return HOLD;
   }
-
-  const dirToPlayer = chooseAvoidanceDirection(
-    ally.position,
-    steerDirectionAroundBuildings(ally.position, routeDirection(ally.id, ally.position, player.position, getActiveForest(), buildings), buildings, 85, 14),
-    ally.id,
-    allTanks,
-    trees,
-    buildings,
-    { ignoreTankIds: [player.id] },
-  );
-  const angleToPlayer = Math.atan2(dirToPlayer.x, dirToPlayer.z);
-  let rotDiff = angleToPlayer - ally.rotation;
-  rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-
-  if (Math.abs(rotDiff) > 0.1) {
-    const rotationSpeed = Math.sign(rotDiff) * 1.0;
-    return {
-      forwardSpeed: 0,
-      rotationSpeed,
-      leftSpeed: -rotationSpeed * allyDef.trackWidth / 2,
-      rightSpeed: rotationSpeed * allyDef.trackWidth / 2,
-    };
-  }
-
-  const forwardSpeed = allyDef.maxSpeed * 0.5;
-  return { forwardSpeed, rotationSpeed: 0, leftSpeed: forwardSpeed, rightSpeed: forwardSpeed };
+  return driveToward(ally, player.position, allyDef.maxSpeed * 0.5, allyDef, buildings, trees, allTanks, steering, [player.id]);
 }
 
 export function AllyAI() {
@@ -199,6 +145,11 @@ export function AllyAI() {
   const accuracyState = useRef<Record<string, AiAccuracyState>>({});
   const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
   const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
+  // Own line of sight to the engagement target, re-checked on a cadence.
+  const sight = useRef<Record<string, { targetId: string; visible: boolean; checkedAt: number }>>({});
+  const headings = useRef<Record<string, HeadingFilter>>({});
+  const lastRotations = useRef<Record<string, number>>({});
+  const targets = useRef<Record<string, string | null>>({});
 
   useFrame((state, delta) => {
     const store = useGameStore.getState();
@@ -225,23 +176,30 @@ export function AllyAI() {
       if (ally.destroyed) return;
 
       const allyDef = getTankDef(ally.tankType);
+      const lastRotation = lastRotations.current[ally.id];
+      const yawRate = lastRotation === undefined || delta <= 0 ? 0 : angleBetween(ally.rotation, lastRotation, true) / delta;
+      lastRotations.current[ally.id] = ally.rotation;
+      const steering: Steering = { heading: headings.current[ally.id] ??= new HeadingFilter(), now, yawRate };
       const waypoint = allyWaypoints[ally.id];
       const moveOrder: AllyEffectiveMoveOrder = waypoint ? 'move' : (allyBaseMoveOrders[ally.id] ?? 'follow');
       const fireOrder: AllyFireOrder = allyFireOrders[ally.id] ?? 'fire-at-will';
       const engagementPosture: AllyEngagementPosture = store.allyEngagementPostures[ally.id] ?? 'fire-from-position';
 
-      // Find closest living enemy
+      // Closest spotted enemy. The current target is kept unless another is
+      // clearly nearer, so the hull does not swing between two of them.
       let closestEnemy: typeof enemies[0] | null = null;
       let closestDist = Infinity;
       for (const enemy of enemies) {
         if (enemy.destroyed) continue;
         if (!playerSideSpotting[enemy.id]?.spotted) continue;
-        const d = ally.position.distanceTo(enemy.position);
+        const d = ally.position.distanceTo(enemy.position) * (enemy.id === targets.current[ally.id] ? 0.8 : 1);
         if (d < closestDist) {
           closestDist = d;
           closestEnemy = enemy;
         }
       }
+      if (closestEnemy) closestDist = ally.position.distanceTo(closestEnemy.position);
+      targets.current[ally.id] = closestEnemy?.id ?? null;
 
       // Check if alerted by a hit — prioritize attacker
       const alertActive = ally.alertedBy && ally.alertedAt &&
@@ -275,7 +233,7 @@ export function AllyAI() {
       const allTanks = [player, ...enemies, ...allies];
 
       if (moveOrder === 'move' && waypoint) {
-          const moveResult = computeMoveToPoint(ally, new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z), allyDef, buildings, trees, allTanks);
+          const moveResult = computeMoveToPoint(ally, new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z), allyDef, buildings, trees, allTanks, steering);
         forwardSpeed = moveResult.forwardSpeed;
         rotationSpeed = moveResult.rotationSpeed;
         leftSpeed = moveResult.leftSpeed;
@@ -285,7 +243,7 @@ export function AllyAI() {
           clearAllyWaypoint(ally.id);
         }
       } else if (moveOrder === 'follow') {
-        const followResult = computeFollowMovement(ally, player, allyDef, buildings, trees, allTanks);
+        const followResult = computeFollowMovement(ally, player, allyDef, buildings, trees, allTanks, steering);
         forwardSpeed = followResult.forwardSpeed;
         rotationSpeed = followResult.rotationSpeed;
         leftSpeed = followResult.leftSpeed;
@@ -294,14 +252,14 @@ export function AllyAI() {
 
       if (engagementTarget && moveOrder !== 'move' && fireOrder === 'fire-at-will') {
         const combatMove = engagementPosture === 'advance-and-fire'
-          ? computeEngagementMovement(ally, engagementTarget, allyDef, buildings, trees, allTanks)
-          : computeFireFromPositionMovement(ally, engagementTarget, allyDef);
+          ? computeEngagementMovement(ally, engagementTarget, allyDef, buildings, trees, allTanks, steering)
+          : computeFireFromPositionMovement(ally, engagementTarget, allyDef, steering);
         forwardSpeed = combatMove.forwardSpeed;
         rotationSpeed = combatMove.rotationSpeed;
         leftSpeed = combatMove.leftSpeed;
         rightSpeed = combatMove.rightSpeed;
       } else if (engagementTarget && moveOrder !== 'move' && fireOrder === 'return-fire' && engagementPosture === 'fire-from-position') {
-        const combatMove = computeFireFromPositionMovement(ally, engagementTarget, allyDef);
+        const combatMove = computeFireFromPositionMovement(ally, engagementTarget, allyDef, steering);
         forwardSpeed = combatMove.forwardSpeed;
         rotationSpeed = combatMove.rotationSpeed;
         leftSpeed = combatMove.leftSpeed;
@@ -403,13 +361,21 @@ export function AllyAI() {
 
       if (!engagementTarget || engagementTarget.destroyed || fireOrder === 'hold-fire') return;
 
+      // Fire only at a target this crew can see for itself.
+      let los = sight.current[ally.id];
+      if (!los || los.targetId !== engagementTarget.id || now - los.checkedAt > GAME_CONFIG.ai.fireLosIntervalMs) {
+        los = { targetId: engagementTarget.id, visible: hasLineOfSight(ally, engagementTarget, trees, buildings).visible, checkedAt: now };
+        sight.current[ally.id] = los;
+      }
+      if (!los.visible) return;
+
       // Fire logic
       const fireAllyRound = () => {
         const aiTank = { position: newPos, rotation: newRot, pitch, roll, turretRotation: newTurretRot, gunElevation: newGunElev } as TankData;
         const { pos, dir } = computeMuzzleAndDirection(aiTank, allyDef, { turretSwayOffset: 0, gunSwayOffset: 0 });
         const shotsOnTarget = engagementTarget ? ensureAiAccuracyState(accuracyState.current, aimOffsets.current, ally.id, engagementTarget.id).shotsOnTarget : 0;
         const gunDisp = allyDef.weapons.AP.dispersion || 0;
-        const fireDisp = getAiFireDispersion(shotsOnTarget) + gunDisp;
+        const fireDisp = getAiFireDispersion(shotsOnTarget) + gunDisp + movingFireDispersion(forwardSpeed, allyDef.maxSpeed);
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(allyDef.weapons.AP.velocity);

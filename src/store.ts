@@ -19,6 +19,8 @@ import { generateRoadNetwork } from './roads';
 import type { BuildingInstance, FarmlandPlot } from './buildings';
 import { findNearestOpenPosition, isPointNearAnyBuilding, projectBuildingsToTerrain } from './buildings';
 import { generateBuildings, generateFarmlands, type FarmYard } from './landLayout';
+import { isOnMainGround } from './navigation';
+import { planEnemyWaypoints } from './aiWaypoints';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
 export type AllyBaseMoveOrder = 'follow' | 'hold';
@@ -187,6 +189,11 @@ interface GameState {
   allyFireOrders: Record<string, AllyFireOrder>;
   allyEngagementPostures: Record<string, AllyEngagementPosture>;
   allyWaypoints: Record<string, { x: number; y: number; z: number }>;
+  /**
+   * Default waypoint of each enemy tank, planned at deployment: where it
+   * advances to before contact. Cleared on arrival. Not shown to the player.
+   */
+  enemyWaypoints: Record<string, { x: number; y: number; z: number }>;
   calibrationDistance: number;
   gunnerZoom: number; // index into GUNNER_ZOOM_LEVELS
   trees: TreeInstance[];
@@ -221,6 +228,7 @@ interface GameState {
   setAllyEngagementPosture: (allyId: string, posture: AllyEngagementPosture) => void;
   issueAllyMoveOrder: (allyId: string, position: { x: number; y: number; z: number }) => void;
   clearAllyWaypoint: (allyId: string) => void;
+  clearEnemyWaypoint: (enemyId: string) => void;
   setCalibrationDistance: (dist: number) => void;
   zoomGunnerIn: () => void;
   zoomGunnerOut: () => void;
@@ -286,7 +294,9 @@ function nearestOpenGround(worldX: number, worldZ: number, buildings: BuildingIn
   const margin = GAME_CONFIG.tank.collisionRadius + 2;
   const position = findNearestOpenPosition(worldX, worldZ, buildings, margin);
   const forest = getActiveForest();
-  const open = (x: number, z: number) => !forest || forestDepthAt(forest, x, z) < -margin;
+  // Not in a clearing that forest walls off: a tank there could never leave.
+  const open = (x: number, z: number) => !forest
+    || (forestDepthAt(forest, x, z) < -margin && isOnMainGround(forest, buildings, x, z));
   if (open(position[0], position[1])) return position;
   for (let radius = 8; radius <= 400; radius += 8) {
     for (let i = 0; i < 32; i++) {
@@ -555,6 +565,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   allyFireOrders: {},
   allyEngagementPostures: {},
   allyWaypoints: {},
+  enemyWaypoints: {},
   calibrationDistance: 0,
   gunnerZoom: 1,
   trees: initialWorld.trees,
@@ -665,6 +676,13 @@ export const useGameStore = create<GameState>((set, get) => ({
       return t;
     });
 
+    // Each enemy gets a default waypoint: the ground its advance aims at.
+    const planned = planEnemyWaypoints(enemies, [player, ...allies], player, MAP_SIZE_VALUES[state.mapSize] / 2);
+    const enemyWaypoints = Object.fromEntries(Object.entries(planned).map(([id, [x, z]]) => {
+      const [ox, oz] = nearestOpenGround(x, z, state.buildings);
+      return [id, { x: ox, y: 0, z: oz }];
+    }));
+
     const allyBaseMoveOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'follow' as AllyBaseMoveOrder]));
     const allyFireOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-at-will' as AllyFireOrder]));
     const allyEngagementPostures = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-from-position' as AllyEngagementPosture]));
@@ -679,6 +697,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         allyFireOrders,
         allyEngagementPostures,
       allyWaypoints: {},
+      enemyWaypoints,
       selectedAllyId: null,
       gameScreen: 'playing',
       ammoType: 'AP',
@@ -796,6 +815,10 @@ export const useGameStore = create<GameState>((set, get) => ({
     // An order into a forest goes to the open ground at its edge.
     const [x, z] = nearestOpenGround(position.x, position.z, state.buildings);
     return { allyWaypoints: { ...state.allyWaypoints, [allyId]: { x, y: position.y, z } } };
+  }),
+  clearEnemyWaypoint: (enemyId) => set((state) => {
+    const { [enemyId]: _, ...rest } = state.enemyWaypoints;
+    return { enemyWaypoints: rest };
   }),
   clearAllyWaypoint: (allyId) => set((state) => {
     const { [allyId]: _, ...rest } = state.allyWaypoints;

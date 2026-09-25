@@ -1,9 +1,8 @@
 import { useFrame } from '@react-three/fiber';
-import { useGameStore } from './store';
+import { useGameStore, MAP_SIZE_VALUES } from './store';
 import * as THREE from 'three';
 import { useRef } from 'react';
 import { GAME_CONFIG } from './config';
-import { getAmmoDisplayPenetration } from './penetrationModel';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings } from './buildings';
 import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
@@ -15,8 +14,86 @@ import { clampGunElevation } from './turretAiming';
 import type { TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
 import { routeDirection } from './navigation';
-import { FOREST, forestLengthAlong, getActiveForest } from './forest';
-import { getTerrainMeshHeight } from './Terrain';
+import { getActiveForest } from './forest';
+import { hasLineOfSight } from './spotting';
+import { canHurtAt, getMatchup } from './aiMatchup';
+import {
+  HOLD,
+  HeadingFilter,
+  angleBetween,
+  angledHullHeading,
+  chooseFightingPosition,
+  movingFireDispersion,
+  steerTracks,
+  turnInPlace,
+  type PositionIntent,
+  type TrackCommand,
+} from './aiTactics';
+
+/** What one enemy crew is doing and has seen, kept between frames. */
+interface EnemyMind {
+  targetId: string | null;
+  /** Where the tank is driving to fight from or hide in. */
+  goal: THREE.Vector3 | null;
+  intent: PositionIntent | 'search' | null;
+  plannedAt: number;
+  /** Own line of sight to the target (the side's spotting may come from another tank). */
+  seesTarget: boolean;
+  losCheckedAt: number;
+  lastSeenTargetAt: number;
+  /** Stopped to fire until this time. */
+  haltUntil: number;
+  /** alertedAt as last seen, to notice a fresh hit. */
+  lastAlertAt: number;
+  /** The leg being driven: its end, and whether it is driven in reverse (decided once per leg). */
+  leg: { goal: THREE.Vector3; reverse: boolean } | null;
+  heading: HeadingFilter;
+  /**
+   * Headway, to notice a tank that is stuck or turning on the spot: the
+   * nearest it has come to the leg's end, where it stood, and when either
+   * last improved. A detour round a wood moves the tank without bringing
+   * it closer, so moving counts as well.
+   */
+  progressDistance: number;
+  progressPos: THREE.Vector3;
+  progressAt: number;
+  stuckCount: number;
+  /** Backing off an obstacle until this time. */
+  unstickUntil: number;
+  /** Hull heading last frame, to measure the turn rate. */
+  lastRotation: number | null;
+}
+
+interface KnownPosition {
+  position: THREE.Vector3;
+  at: number;
+}
+
+const createMind = (): EnemyMind => ({
+  targetId: null,
+  goal: null,
+  intent: null,
+  plannedAt: 0,
+  seesTarget: false,
+  losCheckedAt: 0,
+  lastSeenTargetAt: 0,
+  haltUntil: 0,
+  lastAlertAt: 0,
+  leg: null,
+  heading: new HeadingFilter(),
+  progressDistance: Infinity,
+  progressPos: new THREE.Vector3(),
+  progressAt: 0,
+  stuckCount: 0,
+  unstickUntil: 0,
+  lastRotation: null,
+});
+
+const xzDistance = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
+const bearing = (from: { x: number; z: number }, to: { x: number; z: number }) => Math.atan2(to.x - from.x, to.z - from.z);
+/** A leg this short and pointing more than this far from the enemy is backed down, front to the gun. */
+const REVERSE_LEG_MAX = 80;
+const REVERSE_LEG_ANGLE = THREE.MathUtils.degToRad(110);
 
 export function EnemyAI() {
   const lastFireTimes = useRef<{ [id: string]: number }>({});
@@ -24,6 +101,10 @@ export function EnemyAI() {
   const accuracyState = useRef<Record<string, AiAccuracyState>>({});
   const burstStates = useRef<{ [id: string]: { remaining: number; nextFireTime: number } }>({});
   const automaticStates = useRef<{ [id: string]: { magazineRounds: number; nextFireTime: number } }>({});
+  const minds = useRef<Record<string, EnemyMind>>({});
+  // Last reported position of each of our enemies, shared by the whole side.
+  const lastKnown = useRef<Record<string, KnownPosition>>({});
+  const battle = useRef('');
 
   useFrame((state, delta) => {
     const {
@@ -32,129 +113,244 @@ export function EnemyAI() {
       allies,
       buildings,
       trees,
+      mapSize,
       enemySideSpotting,
+      enemyWaypoints,
+      clearEnemyWaypoint,
       updateEnemy,
       fireProjectile,
     } = useGameStore.getState();
 
     const now = Date.now();
+    const tactics = GAME_CONFIG.ai.tactics;
+    const halfMap = MAP_SIZE_VALUES[mapSize] / 2;
+    const forest = getActiveForest();
+    const friendlyTargets = [player, ...allies].filter((t) => !t.destroyed);
+    const allTanks = [player, ...enemies, ...allies];
+    // Choosing a position casts a few dozen terrain rays: one tank per frame.
+    let planBudget = 1;
+
+    const battleKey = enemies.map((e) => e.id).join();
+    if (battle.current !== battleKey) {
+      battle.current = battleKey;
+      minds.current = {};
+      lastKnown.current = {};
+    }
+
+    for (const friendly of friendlyTargets) {
+      if (enemySideSpotting[friendly.id]?.spotted) {
+        lastKnown.current[friendly.id] = { position: friendly.position.clone(), at: now };
+      }
+    }
 
     enemies.forEach((enemy) => {
       if (enemy.destroyed) return;
 
-      // Find closest friendly target (player + allies)
-      const friendlyTargets = [player, ...allies].filter(t => !t.destroyed);
-      let target: typeof player | null = null;
-      let dist = Infinity;
-      for (const t of friendlyTargets) {
-        if (!enemySideSpotting[t.id]?.spotted) continue;
-        const d = enemy.position.distanceTo(t.position);
-        if (d < dist) {
-          dist = d;
-          target = t;
-        }
-      }
-
-      // Check if alerted by a hit (overrides detection range)
-      const alertActive = enemy.alertedBy && enemy.alertedAt &&
-        (now - enemy.alertedAt) < GAME_CONFIG.ai.alertDecayTime;
-      let alerted = false;
-
-      if (alertActive) {
-        // Prioritize the tank that hit us
-        const attacker = friendlyTargets.find(t => t.id === enemy.alertedBy);
-        if (attacker) {
-          target = attacker;
-          dist = enemy.position.distanceTo(attacker.position);
-          alerted = true;
-        }
-      }
-
-      if (!target) return;
-
-      // Only engage if within detection range or alerted
-      if (dist > GAME_CONFIG.ai.detectionDistance && !alerted) return;
-
-      const allTanks = [player, ...enemies, ...allies];
-
-      // Aim at target
-      const dirToPlayer = target.position.clone().sub(enemy.position).normalize();
-      // Drive around forests rather than into them.
-      const forest = getActiveForest();
-      const routeDir = routeDirection(enemy.id, enemy.position, target.position, forest, buildings);
-      const moveDir = chooseAvoidanceDirection(
-        enemy.position,
-        steerDirectionAroundBuildings(enemy.position, routeDir, buildings, 90, 14),
-        enemy.id,
-        allTanks,
-        trees,
-        buildings,
-        { ignoreTankIds: [target.id] },
-      );
-
-      // Movement logic
-      let forwardSpeed = 0;
-      let rotationSpeed = 0;
-      let newRot = enemy.rotation;
-      let newPos = enemy.position.clone();
-      let leftSpeed = 0;
-      let rightSpeed = 0;
-
-      // Dynamic engagement range based on both tanks' characteristics
+      const mind = minds.current[enemy.id] ??= createMind();
       const enemyDef = getTankDef(enemy.tankType);
-      const targetDef = getTankDef(target.tankType);
-      const enemyPen = getAmmoDisplayPenetration(enemyDef.weapons.AP, 'AP', enemyDef.caliber);
-      const targetPen = getAmmoDisplayPenetration(targetDef.weapons.AP, 'AP', targetDef.caliber);
-      const penRatio = enemyPen / target.armor.front;
-      const armorRatio = enemyDef.armor.front / Math.max(1, targetPen);
-      const preferredRange = Math.max(40, Math.min(170, 70 * penRatio + 40 * armorRatio));
-      const rangeDeadzone = preferredRange * 0.15; // 15% deadzone to avoid jitter
+      const yawRate = mind.lastRotation === null || delta <= 0 ? 0 : angleBetween(enemy.rotation, mind.lastRotation, true) / delta;
+      mind.lastRotation = enemy.rotation;
 
-      // A target screened by forest cannot be shot from here: keep moving.
-      const screened = forest !== null && forestLengthAlong(forest,
-        enemy.position.x, enemy.position.y + 2.5, enemy.position.z,
-        target.position.x, target.position.y + 2, target.position.z,
-        getTerrainMeshHeight, FOREST.sightDepth) >= FOREST.sightDepth;
-
-      if (dist > preferredRange + rangeDeadzone || screened) {
-        // Too far (or screened) — advance towards target
-        const angleToPlayer = Math.atan2(moveDir.x, moveDir.z);
-        let rotDiff = angleToPlayer - enemy.rotation;
-        rotDiff = Math.atan2(Math.sin(rotDiff), Math.cos(rotDiff));
-
-        if (Math.abs(rotDiff) > 0.1) {
-          rotationSpeed = Math.sign(rotDiff) * 1.0;
-          leftSpeed = -rotationSpeed * enemyDef.trackWidth / 2;
-          rightSpeed = rotationSpeed * enemyDef.trackWidth / 2;
-        } else {
-          forwardSpeed = enemyDef.maxSpeed * 0.5;
-          leftSpeed = forwardSpeed;
-          rightSpeed = forwardSpeed;
+      /**
+       * Track command to drive toward `goal`. Whether the leg is driven in
+       * reverse (a short move away from the enemy at `enemyBearing`) is
+       * settled when the leg starts, and the heading is filtered, so the
+       * tank does not swing between two answers on the spot. Returns null
+       * once the tank has made no headway toward the goal for a while.
+       */
+      const driveTo = (goal: THREE.Vector3, speed: number, enemyBearing: number | null, ignoreTankIds: string[] = []): TrackCommand | null => {
+        const goalDistance = xzDistance(enemy.position, goal);
+        if (!mind.leg || xzDistance(mind.leg.goal, goal) > 2) {
+          const bearingToGoal = bearing(enemy.position, goal);
+          mind.leg = {
+            goal: goal.clone(),
+            // Only when the hull already has its back to the goal: a tank
+            // facing the goal would first swing a half turn on the spot.
+            reverse: enemyBearing !== null && goalDistance < REVERSE_LEG_MAX
+              && angleBetween(bearingToGoal, enemyBearing) > REVERSE_LEG_ANGLE
+              && angleBetween(bearingToGoal, enemy.rotation) > Math.PI / 2,
+          };
+          mind.heading.reset();
+          mind.progressDistance = goalDistance;
+          mind.progressPos.copy(enemy.position);
+          mind.progressAt = now;
         }
-      } else if (dist < preferredRange - rangeDeadzone) {
-        // Too close — reverse away
-        const retreatDir = chooseAvoidanceDirection(
+        if (goalDistance < mind.progressDistance - 3 || xzDistance(enemy.position, mind.progressPos) > 8 || now < mind.haltUntil) {
+          mind.progressDistance = Math.min(mind.progressDistance, goalDistance);
+          mind.progressPos.copy(enemy.position);
+          mind.progressAt = now;
+        } else if (now - mind.progressAt > tactics.stuckMs) {
+          mind.stuckCount++;
+          mind.unstickUntil = now + 2500;
+          mind.leg = null;
+          return null;
+        }
+        if (mind.leg.reverse) {
+          const heading = mind.heading.update(bearing(enemy.position, goal), now);
+          return steerTracks(enemy.rotation, heading, enemyDef.maxReverseSpeed * 0.8, enemyDef.trackWidth, true, yawRate);
+        }
+        const routeDir = routeDirection(enemy.id, enemy.position, goal, forest, buildings);
+        const moveDir = chooseAvoidanceDirection(
           enemy.position,
-          steerDirectionAroundBuildings(enemy.position, moveDir.clone().multiplyScalar(-1), buildings, 65, 14),
+          steerDirectionAroundBuildings(enemy.position, routeDir, buildings, 90, 14),
           enemy.id,
           allTanks,
           trees,
           buildings,
+          { ignoreTankIds },
         );
-        const retreatAngle = Math.atan2(retreatDir.x, retreatDir.z);
-        let retreatDiff = retreatAngle - enemy.rotation;
-        retreatDiff = Math.atan2(Math.sin(retreatDiff), Math.cos(retreatDiff));
+        const heading = mind.heading.update(Math.atan2(moveDir.x, moveDir.z), now);
+        return steerTracks(enemy.rotation, heading, speed, enemyDef.trackWidth, false, yawRate);
+      };
+      const stopDriving = () => {
+        mind.leg = null;
+      };
 
-        if (Math.abs(retreatDiff) > 0.16) {
-          rotationSpeed = Math.sign(retreatDiff) * 1.0;
-          leftSpeed = -rotationSpeed * enemyDef.trackWidth / 2;
-          rightSpeed = rotationSpeed * enemyDef.trackWidth / 2;
-        } else {
-          forwardSpeed = -enemyDef.maxReverseSpeed * 0.5;
-          leftSpeed = forwardSpeed;
-          rightSpeed = forwardSpeed;
+      // A fresh hit: the crew saw roughly where it came from.
+      const wasHit = !!enemy.alertedAt && enemy.alertedAt !== mind.lastAlertAt;
+      mind.lastAlertAt = enemy.alertedAt ?? 0;
+      const alertActive = !!enemy.alertedBy && !!enemy.alertedAt &&
+        (now - enemy.alertedAt) < GAME_CONFIG.ai.alertDecayTime;
+      const attacker = alertActive ? friendlyTargets.find((t) => t.id === enemy.alertedBy) : undefined;
+      if (wasHit && attacker) lastKnown.current[attacker.id] = { position: attacker.position.clone(), at: now };
+
+      // Pick the target that matters most: near for our gun, able to kill
+      // us, the one that just hit us, or the one we are already fighting.
+      let target: TankData | null = null;
+      let dist = Infinity;
+      let bestScore = Infinity;
+      for (const friendly of friendlyTargets) {
+        const isAttacker = friendly === attacker;
+        if (!enemySideSpotting[friendly.id]?.spotted && !isAttacker) continue;
+        const d = enemy.position.distanceTo(friendly.position);
+        if (d > GAME_CONFIG.ai.detectionDistance && !isAttacker) continue;
+        const m = getMatchup(enemy.id, enemy.tankType, friendly.tankType);
+        let score = d / m.preferredRange;
+        if (!canHurtAt(m, d)) score += 1;
+        if (d < m.threatRange) score -= 0.4;
+        if (isAttacker) score -= 0.6;
+        if (friendly.id === mind.targetId) score -= 0.3;
+        if (score < bestScore) {
+          bestScore = score;
+          target = friendly;
+          dist = d;
         }
       }
+
+      let command: TrackCommand = HOLD;
+      let aimAt: THREE.Vector3 | null = null;
+      const matchup = target ? getMatchup(enemy.id, enemy.tankType, target.tankType) : null;
+
+      if (target && matchup) {
+        aimAt = target.position;
+        if (mind.targetId !== target.id) {
+          mind.targetId = target.id;
+          mind.goal = null;
+          mind.losCheckedAt = 0;
+          mind.lastSeenTargetAt = now;
+        }
+        if (now - mind.losCheckedAt > GAME_CONFIG.ai.fireLosIntervalMs) {
+          mind.seesTarget = hasLineOfSight(enemy, target, trees, buildings).visible;
+          mind.losCheckedAt = now;
+          if (mind.seesTarget) mind.lastSeenTargetAt = now;
+        }
+
+        // Badly hurt by an enemy that can finish us from here: break contact.
+        const withdraw = enemy.health / enemy.maxHealth < tactics.withdrawHealth && dist < matchup.threatRange * 1.1;
+        const intent: PositionIntent = withdraw ? 'withdraw' : 'engage';
+        const atGoal = mind.goal !== null && xzDistance(enemy.position, mind.goal) < tactics.goalReached;
+        const sincePlan = now - mind.plannedAt;
+        const blind = now - mind.lastSeenTargetAt > tactics.blindReplanMs;
+        const needPlan = mind.goal === null
+          || mind.intent !== intent
+          || (wasHit && intent === 'engage' && matchup.role !== 'assault')
+          || (intent === 'engage' && atGoal && blind && sincePlan > tactics.blindReplanMs)
+          || (intent === 'engage' && sincePlan > tactics.replanIntervalMs * (atGoal ? 1 : 2));
+        if (needPlan && planBudget > 0) {
+          planBudget--;
+          mind.goal = chooseFightingPosition({
+            self: enemy,
+            target,
+            matchup,
+            intent,
+            trees,
+            buildings,
+            halfMap,
+            // Shoot and scoot: a tank that has been hit where it stands moves on.
+            leaveCurrent: wasHit || (blind && atGoal),
+          });
+          mind.intent = intent;
+          mind.plannedAt = now;
+        }
+
+        const bearingToTarget = bearing(enemy.position, target.position);
+        if (dist < 45) {
+          // Far too close for a gun duel: back off, front still to the enemy.
+          stopDriving();
+          command = steerTracks(enemy.rotation, bearingToTarget + Math.PI, enemyDef.maxReverseSpeed * 0.8, enemyDef.trackWidth, true, yawRate);
+        } else if (mind.goal && xzDistance(enemy.position, mind.goal) > tactics.goalReached) {
+          const speed = enemyDef.maxSpeed * (intent === 'withdraw' ? 0.85 : 0.65);
+          const drive = driveTo(mind.goal, speed, bearingToTarget, [target.id]);
+          if (drive === null) mind.goal = null; // cannot get there: choose again
+          else command = now < mind.haltUntil ? HOLD : drive;
+        } else {
+          // In position: angle the front plate to the enemy.
+          stopDriving();
+          command = turnInPlace(enemy.rotation, angledHullHeading(bearingToTarget, enemy.rotation), enemyDef.trackWidth, yawRate);
+        }
+      } else {
+        mind.targetId = null;
+        mind.seesTarget = false;
+        // Nothing in sight: hunt where the enemy was last reported, else
+        // carry on to the waypoint given at deployment, else hold.
+        let memoryId: string | null = null;
+        let memory: KnownPosition | null = null;
+        for (const [id, known] of Object.entries(lastKnown.current)) {
+          if (now - known.at > tactics.searchMemoryMs) continue;
+          if (!memory || enemy.position.distanceTo(known.position) < enemy.position.distanceTo(memory.position)) {
+            memory = known;
+            memoryId = id;
+          }
+        }
+        if (memory && memoryId && xzDistance(enemy.position, memory.position) < 60) {
+          // Nobody here any more.
+          delete lastKnown.current[memoryId];
+          memory = null;
+        }
+        const role = getMatchup(enemy.id, enemy.tankType, player.tankType).role;
+        const waypoint = enemyWaypoints[enemy.id];
+        if (memory && memoryId && (role !== 'overwatch' || wasHit)) {
+          aimAt = memory.position;
+          mind.intent = 'search';
+          const drive = driveTo(memory.position, enemyDef.maxSpeed * 0.5, null);
+          if (drive === null) delete lastKnown.current[memoryId];
+          else command = drive;
+        } else if (waypoint) {
+          const point = new THREE.Vector3(waypoint.x, waypoint.y, waypoint.z);
+          if (xzDistance(enemy.position, point) < tactics.waypointReached) {
+            clearEnemyWaypoint(enemy.id);
+            stopDriving();
+          } else {
+            mind.intent = 'search';
+            const drive = driveTo(point, enemyDef.maxSpeed * 0.45, null);
+            // A waypoint the tank keeps failing to reach is given up.
+            if (drive === null && mind.stuckCount >= 3) clearEnemyWaypoint(enemy.id);
+            else if (drive) command = drive;
+          }
+        } else {
+          stopDriving();
+          if (memory) aimAt = memory.position;
+        }
+      }
+
+      // Stuck: back off at an angle before trying again.
+      if (now < mind.unstickUntil) {
+        command = steerTracks(enemy.rotation, enemy.rotation + Math.PI + 0.6, enemyDef.maxReverseSpeed, enemyDef.trackWidth, true);
+      }
+
+      let { forwardSpeed, rotationSpeed, leftSpeed, rightSpeed } = command;
+      let newRot = enemy.rotation;
+      let newPos = enemy.position.clone();
 
       // Track damage: destroyed tracks cannot move
       if (enemy.trackDestroyed?.left) leftSpeed = 0;
@@ -189,7 +385,7 @@ export function EnemyAI() {
 
       // Tank-tank collision
       resolveTankCollision(enemy.id, newPos, allTanks);
-      resolveBuildingCollision(newPos, useGameStore.getState().buildings);
+      resolveBuildingCollision(newPos, buildings);
       resolveForestCollision(newPos);
 
       // Tree collision
@@ -211,33 +407,30 @@ export function EnemyAI() {
       const roll = orientation.roll + bodyRock.rollOffset;
       newPos.y = orientation.adjustedY + bodyRock.yOffset;
 
-      const accuracy = ensureAiAccuracyState(accuracyState.current, aimOffsets.current, enemy.id, target.id);
-      const aimOff = aimOffsets.current[enemy.id];
-
-      // Simple aiming: rotate hull towards player slowly, turret faster
-      const targetRotation = Math.atan2(dirToPlayer.x, dirToPlayer.z) + aimOff.azimuth;
-      
-      // Rotate turret
+      // Lay the gun on the target, or on where the enemy was last reported.
       let newTurretRot = enemy.turretRotation;
-      const angleDiff = targetRotation - (enemy.rotation + enemy.turretRotation);
-      
-      // Normalize angle
-      let normalizedDiff = Math.atan2(Math.sin(angleDiff), Math.cos(angleDiff));
-      
-      if (Math.abs(normalizedDiff) > 0.005) {
-        newTurretRot += Math.sign(normalizedDiff) * enemyDef.turretSpeed * delta;
-      }
-
-      // Gun elevation with gravity compensation
-      const drop = computeGravityDrop(dist, enemyDef.weapons.AP.velocity);
-      const targetElev = -Math.atan2(target.position.y + 1.5 + drop - (enemy.position.y + 1.6), dist) + aimOff.elevation;
-      
       let newGunElev = enemy.gunElevation;
-      const elevDiff = targetElev - enemy.gunElevation;
-      if (Math.abs(elevDiff) > 0.002) {
-        newGunElev += Math.sign(elevDiff) * enemyDef.gunSpeed * delta;
+      let normalizedDiff = Infinity;
+      let elevDiff = Infinity;
+      const accuracy = target ? ensureAiAccuracyState(accuracyState.current, aimOffsets.current, enemy.id, target.id) : null;
+      if (aimAt) {
+        const aimOff = target ? aimOffsets.current[enemy.id] : { azimuth: 0, elevation: 0 };
+        const aimDistance = enemy.position.distanceTo(aimAt);
+        const targetRotation = Math.atan2(aimAt.x - enemy.position.x, aimAt.z - enemy.position.z) + aimOff.azimuth;
+        normalizedDiff = Math.atan2(Math.sin(targetRotation - (newRot + enemy.turretRotation)), Math.cos(targetRotation - (newRot + enemy.turretRotation)));
+        if (Math.abs(normalizedDiff) > 0.005) {
+          newTurretRot += Math.sign(normalizedDiff) * Math.min(enemyDef.turretSpeed * delta, Math.abs(normalizedDiff));
+        }
+
+        // Gun elevation with gravity compensation
+        const drop = computeGravityDrop(aimDistance, enemyDef.weapons.AP.velocity);
+        const targetElev = -Math.atan2(aimAt.y + 1.5 + drop - (enemy.position.y + 1.6), aimDistance) + aimOff.elevation;
+        elevDiff = targetElev - enemy.gunElevation;
+        if (Math.abs(elevDiff) > 0.002) {
+          newGunElev += Math.sign(elevDiff) * Math.min(enemyDef.gunSpeed * delta, Math.abs(elevDiff));
+        }
+        newGunElev = clampGunElevation(newGunElev, enemyDef.minGunElevation, enemyDef.maxGunElevation);
       }
-      newGunElev = clampGunElevation(newGunElev, enemyDef.minGunElevation, enemyDef.maxGunElevation);
 
       updateEnemy(enemy.id, {
         position: newPos,
@@ -251,12 +444,27 @@ export function EnemyAI() {
         rightTrackSpeed: rightSpeed,
       });
 
+      // Fire only at a target this crew can see for itself.
+      if (!target || !accuracy || !mind.seesTarget) return;
+      if (
+        Math.abs(normalizedDiff) >= GAME_CONFIG.ai.fireTurretThreshold ||
+        Math.abs(elevDiff) >= GAME_CONFIG.ai.fireElevationThreshold
+      ) return;
+
+      const firesSingly = !enemyDef.automaticMagazineSize && !(enemyDef.burstCount && enemyDef.burstCount > 1);
+      if (firesSingly && matchup && matchup.role !== 'overwatch' && Math.abs(forwardSpeed) > 1) {
+        // Short halt: stop, then fire, rather than waste the round on the move.
+        const reloaded = now - (lastFireTimes.current[enemy.id] || 0) > enemyDef.reloadTime;
+        if (reloaded && now >= mind.haltUntil) mind.haltUntil = now + tactics.shortHaltMs;
+        if (now < mind.haltUntil) return;
+      }
+
       // Helper: fire one round from this enemy
       const fireEnemyRound = () => {
         const aiTank = { position: newPos, rotation: newRot, pitch, roll, turretRotation: newTurretRot, gunElevation: newGunElev } as TankData;
         const { pos, dir } = computeMuzzleAndDirection(aiTank, enemyDef, { turretSwayOffset: 0, gunSwayOffset: 0 });
         const gunDisp = enemyDef.weapons.AP.dispersion || 0;
-        const fireDisp = getAiFireDispersion(accuracy.shotsOnTarget) + gunDisp;
+        const fireDisp = getAiFireDispersion(accuracy.shotsOnTarget) + gunDisp + movingFireDispersion(forwardSpeed, enemyDef.maxSpeed);
         applyDispersion(dir, fireDisp);
 
         const velocity = dir.clone().multiplyScalar(enemyDef.weapons.AP.velocity);
@@ -269,61 +477,56 @@ export function EnemyAI() {
           caliber: enemyDef.caliber,
           burst: !!enemyDef.burstCount || !!enemyDef.automaticMagazineSize,
         });
-
       };
 
-      if (
-        Math.abs(normalizedDiff) < GAME_CONFIG.ai.fireTurretThreshold &&
-        Math.abs(elevDiff) < GAME_CONFIG.ai.fireElevationThreshold
-      ) {
-        if (enemyDef.automaticMagazineSize && enemyDef.automaticFireInterval) {
-          const automatic = automaticStates.current[enemy.id] ?? {
-            magazineRounds: enemyDef.automaticMagazineSize,
-            nextFireTime: 0,
-          };
-          automaticStates.current[enemy.id] = automatic;
+      if (enemyDef.automaticMagazineSize && enemyDef.automaticFireInterval) {
+        const automatic = automaticStates.current[enemy.id] ?? {
+          magazineRounds: enemyDef.automaticMagazineSize,
+          nextFireTime: 0,
+        };
+        automaticStates.current[enemy.id] = automatic;
 
-          if (automatic.magazineRounds <= 0) {
-            const reloadStartedAt = lastFireTimes.current[enemy.id] || 0;
-            if (now - reloadStartedAt <= enemyDef.reloadTime) return;
-            automatic.magazineRounds = enemyDef.automaticMagazineSize;
-          }
+        if (automatic.magazineRounds <= 0) {
+          const reloadStartedAt = lastFireTimes.current[enemy.id] || 0;
+          if (now - reloadStartedAt <= enemyDef.reloadTime) return;
+          automatic.magazineRounds = enemyDef.automaticMagazineSize;
+        }
 
-          if (now < automatic.nextFireTime) return;
+        if (now < automatic.nextFireTime) return;
 
-          fireEnemyRound();
-          automatic.magazineRounds--;
-          if (automatic.magazineRounds > 0) {
-            automatic.nextFireTime = now + enemyDef.automaticFireInterval;
-          } else {
-            automatic.nextFireTime = 0;
-            lastFireTimes.current[enemy.id] = now;
+        fireEnemyRound();
+        automatic.magazineRounds--;
+        if (automatic.magazineRounds > 0) {
+          automatic.nextFireTime = now + enemyDef.automaticFireInterval;
+        } else {
+          automatic.nextFireTime = 0;
+          lastFireTimes.current[enemy.id] = now;
+        }
+      } else {
+        const burst = burstStates.current[enemy.id];
+        if (burst && burst.remaining > 0) {
+          if (now >= burst.nextFireTime) {
+            fireEnemyRound();
+            burst.remaining--;
+            if (burst.remaining > 0) {
+              burst.nextFireTime = now + (enemyDef.burstInterval || 125);
+            } else {
+              lastFireTimes.current[enemy.id] = now;
+            }
           }
         } else {
-          const burst = burstStates.current[enemy.id];
-          if (burst && burst.remaining > 0) {
-            if (now >= burst.nextFireTime) {
-              fireEnemyRound();
-              burst.remaining--;
-              if (burst.remaining > 0) {
-                burst.nextFireTime = now + (enemyDef.burstInterval || 125);
-              } else {
-                lastFireTimes.current[enemy.id] = now;
-              }
-            }
-          } else {
-            const lastFire = lastFireTimes.current[enemy.id] || 0;
-            if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
-              fireEnemyRound();
+          const lastFire = lastFireTimes.current[enemy.id] || 0;
+          if (now - lastFire > enemyDef.reloadTime + Math.random() * 3000) {
+            fireEnemyRound();
+            mind.haltUntil = Math.min(mind.haltUntil, now + 600);
 
-              if (enemyDef.burstCount && enemyDef.burstCount > 1 && enemyDef.burstInterval) {
-                burstStates.current[enemy.id] = {
-                  remaining: enemyDef.burstCount - 1,
-                  nextFireTime: now + enemyDef.burstInterval,
-                };
-              } else {
-                lastFireTimes.current[enemy.id] = now;
-              }
+            if (enemyDef.burstCount && enemyDef.burstCount > 1 && enemyDef.burstInterval) {
+              burstStates.current[enemy.id] = {
+                remaining: enemyDef.burstCount - 1,
+                nextFireTime: now + enemyDef.burstInterval,
+              };
+            } else {
+              lastFireTimes.current[enemy.id] = now;
             }
           }
         }
