@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { computeBallisticAngle } from './tankPhysics';
+import { clampTraverse } from './traverseLimit';
 
 export const MIN_GUN_ELEVATION = -Math.PI / 6;
 export const MAX_GUN_ELEVATION = Math.PI / 12;
@@ -26,6 +27,7 @@ export interface TurretAimingInput {
   calibrationDistance: number;
   ammoVelocity: number;
   turretSpeed: number;
+  traverseLimit?: number;
   gunSpeed: number;
   minGunElevation?: number;
   maxGunElevation?: number;
@@ -120,7 +122,7 @@ export function computeTurretAiming(input: TurretAimingInput): TurretAimingResul
   newGunElev = clampGunElevation(newGunElev, minGunElevation, maxGunElevation);
 
   return {
-    turretRotation: newTurretRot,
+    turretRotation: clampTraverse(newTurretRot, input.traverseLimit),
     gunElevation: newGunElev,
     sightPitch: currentSightPitch,
   };

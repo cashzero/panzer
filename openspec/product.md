@@ -34,6 +34,7 @@ There are three distinct aim points in the game:
    - Controlled by the Arrow Keys.
    - The Gunner Sight is physically locked to the turret. Moving the Gunner Sight with arrow keys directly rotates the turret (yaw) and the gun (pitch).
    - Arrow-key manual aiming ramps from a slow fine-adjustment speed to full traverse/elevation speed while the key is held.
+   - Turretless vehicles (assault guns such as the StuG III) traverse the gun only within their historical arc each side of the hull centreline. Arrow keys and right-click pursuit stop the gun at the traverse stop; the driver brings the hull round for anything outside the arc. AI crews of such vehicles hold the hull while the target is well inside the arc and otherwise swing the front square on to it, and fire only once the gun bears.
 
 2. Gun Aim Point
    - Identical to the Gunner Sight Aim Point in terms of yaw.

@@ -93,7 +93,7 @@ function getPlateEdgeRadius(size: Vec3) {
  * in the same paint came out visibly different just because their big hull
  * parts had different names.
  */
-function varyPaintColor(color: string, surfaceKey: string) {
+function varyPaintColor(color: string, surfaceKey: string, shade = 1) {
   let hash = 2166136261;
   for (let index = 0; index < surfaceKey.length; index += 1) {
     hash ^= surfaceKey.charCodeAt(index);
@@ -101,7 +101,7 @@ function varyPaintColor(color: string, surfaceKey: string) {
   }
 
   const variation = ((hash >>> 0) / 0xffffffff - 0.5) * 0.08;
-  return `#${new THREE.Color(color).multiplyScalar(1 + variation).getHexString()}`;
+  return `#${new THREE.Color(color).multiplyScalar((1 + variation) * shade).getHexString()}`;
 }
 
 function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendererProps) {
@@ -109,9 +109,9 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
   const destroyedColor = geoProps?.destroyedColor ?? trackProps?.destroyedColor ?? gunProps?.destroyedColor ?? '#555';
   const baseColor = geoProps?.color ?? gunProps?.color ?? '#444444';
 
-  const resolveMaterial = (requestedRole?: TankMaterialRole, surfaceKey = requestedRole ?? slot) => {
+  const resolveMaterial = (requestedRole?: TankMaterialRole, surfaceKey = requestedRole ?? slot, shade?: number) => {
     const role = requestedRole ?? (slot === 'tracks' ? 'track' : slot === 'gun' ? 'barrel' : 'hullPrimary');
-    const paintColor = destroyed ? destroyedColor : varyPaintColor(baseColor, surfaceKey);
+    const paintColor = destroyed ? destroyedColor : varyPaintColor(baseColor, surfaceKey, shade);
 
     switch (role) {
       case 'track':
@@ -181,7 +181,7 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
             castShadow
             receiveShadow
           >
-            {resolveMaterial(node.materialRole, node.id)}
+            {resolveMaterial(node.materialRole, node.id, node.shade)}
           </RoundedBox>,
         );
       case 'cylinder':
@@ -189,7 +189,7 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
           node,
           keyPrefix,
           <Cylinder args={[node.radiusTop, node.radiusBottom, node.height, Math.max(16, node.radialSegments ?? 20)]} castShadow receiveShadow>
-            {resolveMaterial(node.materialRole, node.id)}
+            {resolveMaterial(node.materialRole, node.id, node.shade)}
           </Cylinder>,
         );
       case 'sphere':
@@ -197,17 +197,17 @@ function SlotRenderer({slot, nodes, geoProps, trackProps, gunProps}: SlotRendere
           node,
           keyPrefix,
           <Sphere args={[node.radius, node.widthSegments ?? 32, node.heightSegments ?? 16]} castShadow receiveShadow>
-            {resolveMaterial(node.materialRole, node.id)}
+            {resolveMaterial(node.materialRole, node.id, node.shade)}
           </Sphere>,
         );
       case 'polyhedron':
         return wrapNode(
           node,
           keyPrefix,
-          <PolyhedronNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id)} />,
+          <PolyhedronNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id, node.shade)} />,
         );
       case 'extrude':
-        return wrapNode(node, keyPrefix, <ExtrudedNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id)} />);
+        return wrapNode(node, keyPrefix, <ExtrudedNodeMesh node={node} material={resolveMaterial(node.materialRole, node.id, node.shade)} />);
       case 'repeat': {
         const repeated = Array.from({length: node.count}, (_value, index) => {
           const position: Vec3 = [node.step[0] * index, node.step[1] * index, node.step[2] * index];

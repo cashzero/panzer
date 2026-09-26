@@ -88,7 +88,7 @@ Tank definitions are **folder-based JSON modules** under `src/tanks/<tankid>/`:
 
 Registry at `src/tanks/core/registry.ts` **auto-discovers** `../*/index.ts` (folder-based, priority 20) and legacy `../*.tsx` files (priority 10) via `import.meta.glob`. No manual registration. Sort order comes from `tank.json` `catalog.sortOrder`.
 
-Currently registered: Sherman, Sherman A2 (76), Tiger I, Panzer III, Panzer IV, Panzer II, T-34, M10 GMC (open-topped tank destroyer), Panther Ausf. A.
+Currently registered: Sherman, Sherman A2 (76), Tiger I, Panzer III, Panzer IV, Panzer II, T-34, M10 GMC (open-topped tank destroyer), Panther Ausf. A, StuG III Ausf. G (turretless assault gun: `traverse.limitDeg`, `src/traverseLimit.ts`).
 
 **When adding or editing a tank, follow `src/tanks/CLAUDE.md`** — it is the authoritative step-by-step with required schemas, coordinate conventions (+Z forward, +Y up, meters), armor coverage checklist, and helper/material role lists.
 

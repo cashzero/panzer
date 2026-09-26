@@ -11,6 +11,7 @@ import { computeTerrainOrientation, computeTrackMovement, computeBodyRock } from
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, layGun, registerAiShot, tankVelocity, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import { clampGunElevation } from './turretAiming';
+import { clampTraverse } from './traverseLimit';
 import type { TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
 import { routeDirection } from './navigation';
@@ -313,7 +314,7 @@ export function ForceAI({ force }: { force: AutonomousForce }) {
         } else {
           // In position: angle the front plate to the enemy.
           stopDriving();
-          command = turnInPlace(tank.rotation, angledHullHeading(bearingToTarget, tank.rotation), def.trackWidth, yawRate);
+          command = turnInPlace(tank.rotation, angledHullHeading(bearingToTarget, tank.rotation, def.traverseLimit), def.trackWidth, yawRate);
         }
       } else {
         mind.targetId = null;
@@ -436,10 +437,13 @@ export function ForceAI({ force }: { force: AutonomousForce }) {
           { ...tank, position: newPos, rotation: newRot, pitch, roll } as TankData,
           def, aimAt, target ? tankVelocity(target) : null, aimOff.azimuth, aimOff.elevation,
         );
+        // The error to the lay decides firing; the gun only travels as far as its arc allows.
         normalizedDiff = angleBetween(lay.turret, tank.turretRotation, true);
-        if (Math.abs(normalizedDiff) > 0.005) {
-          newTurretRot += Math.sign(normalizedDiff) * Math.min(def.turretSpeed * delta, Math.abs(normalizedDiff));
+        const travel = angleBetween(clampTraverse(lay.turret, def.traverseLimit), tank.turretRotation, true);
+        if (Math.abs(travel) > 0.005) {
+          newTurretRot += Math.sign(travel) * Math.min(def.turretSpeed * delta, Math.abs(travel));
         }
+        newTurretRot = clampTraverse(newTurretRot, def.traverseLimit);
         elevDiff = lay.elevation - tank.gunElevation;
         if (Math.abs(elevDiff) > 0.002) {
           newGunElev += Math.sign(elevDiff) * Math.min(def.gunSpeed * delta, Math.abs(elevDiff));

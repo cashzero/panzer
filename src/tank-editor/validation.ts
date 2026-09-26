@@ -15,6 +15,9 @@ function parentContainerKey(path: JsonPath) {
 }
 
 function validateNode(node: ModelNode, path: JsonPath, issues: ValidationIssue[]) {
+  if (node.shade !== undefined && (!Number.isFinite(node.shade) || node.shade < 0.3 || node.shade > 1.5)) {
+    pushIssue(issues, 'error', 'model', `Node '${node.id}' has shade ${node.shade}; use 0.3-1.5 (1 is the plain paint).`);
+  }
   const pathLabel = path.join('.');
 
   if (node.position && node.position.some((value) => !Number.isFinite(value))) {
@@ -93,6 +96,11 @@ export function validateTankDraft(spec: TankSpec | null, model: TankModelSpec | 
 
   if (folderName && folderName !== spec.id) {
     pushIssue(issues, 'warning', 'spec', `Folder '${folderName}' does not match tank id '${spec.id}'.`);
+  }
+
+  const limit = spec.traverse.limitDeg;
+  if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0 || limit >= 180)) {
+    pushIssue(issues, 'error', 'spec', `Traverse limit ${limit} must be between 0 and 180 degrees each side; omit it for a full turret.`);
   }
 
   if (!spec.weapons.ammo.AP) {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GAME_CONFIG } from './config';
+import { casemateHullHeading } from './traverseLimit';
 import { getTerrainMeshHeight, raycastTerrain } from './Terrain';
 import { FOREST, forestDepthAt, forestLengthAlong, getActiveForest } from './forest';
 import { isPointNearAnyBuilding, type BuildingInstance } from './buildings';
@@ -171,7 +172,9 @@ export function chooseFightingPosition(query: PositionQuery): THREE.Vector3 {
  * a tank at "ten-thirty": whichever side of the bearing is nearer the
  * current heading, so the tank does not swing through the whole arc.
  */
-export function angledHullHeading(bearingToTarget: number, currentRotation: number) {
+export function angledHullHeading(bearingToTarget: number, currentRotation: number, traverseLimit?: number) {
+  // A casemate gun bears only inside its traverse arc.
+  if (traverseLimit !== undefined) return casemateHullHeading(bearingToTarget, currentRotation, traverseLimit);
   const angle = THREE.MathUtils.degToRad(GAME_CONFIG.ai.tactics.hullAngleDeg);
   const a = bearingToTarget + angle, b = bearingToTarget - angle;
   const diff = (h: number) => Math.abs(Math.atan2(Math.sin(h - currentRotation), Math.cos(h - currentRotation)));
