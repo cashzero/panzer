@@ -175,7 +175,7 @@ export const DEFAULT_OOB_SETTINGS: OobGeneratorSettings = {
   enemyMix: 'historical',
 };
 
-export const OOB_YEARS = [1939, 1940, 1941, 1942, 1943, 1944, 1945];
+export const OOB_YEARS = [1941, 1942, 1943, 1944, 1945];
 export const MAX_ALLIED_TANKS = 9;
 const MAX_ENEMY_TANKS = 12;
 
@@ -223,8 +223,10 @@ interface Composition {
 function composeForces(rng: Rng, input: OobGeneratorInput): Composition {
   const settings = input.settings;
   const playerDef = getTankDef(input.playerTankType);
+  // Battles are fought from 1941 on, whatever the year the tank entered service.
+  const firstYear = Math.max(OOB_YEARS[0], playerDef.year);
   const year = settings.year
-    ?? Math.min(1945, playerDef.year + randInt(rng, 0, Math.max(0, Math.min(2, 1945 - playerDef.year))));
+    ?? Math.min(1945, firstYear + randInt(rng, 0, Math.max(0, Math.min(2, 1945 - firstYear))));
   const winter = settings.season === 'winter' || (settings.season === 'random' && rng() < 0.2);
 
   // The player's own army where it has tanks of the period; otherwise any allied tank.
