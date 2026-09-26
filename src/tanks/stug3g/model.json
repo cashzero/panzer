@@ -16,7 +16,23 @@
       {"id":"right-front-tow-bracket","type":"box","size":[0.06,0.26,0.24],"position":[0.72,1.02,2.608],"materialRole":"hullPrimary"},
       {"id":"right-brake-access-hatch","type":"box","size":[0.52,0.03,0.46],"position":[0.45,1.365,2.0545],"materialRole":"hullPrimary"},
       {"id":"nose-appliqué-plate","type":"box","size":[1.88,0.297,0.03],"position":[0,1.055,2.6585],"rotation":[-0.176919,0,0],"materialRole":"hullPrimary"},
-      {"id":"driver-vision-visor","type":"box","size":[0.34,0.09,0.05],"position":[0.52,1.5,1.606968],"rotation":[-0.157529,0,0],"materialRole":"hullPrimary"},
+      {"id":"casemate-front-applique-left","type":"box","size":[0.723,0.280473,0.03],"position":[0.5935,1.495853,1.602814],"rotation":[-0.157529,0,0],"materialRole":"hullPrimary"},
+      {"id":"casemate-front-applique-right","type":"box","size":[0.51,0.280473,0.03],"position":[-0.7,1.495853,1.602814],"rotation":[-0.157529,0,0],"materialRole":"hullPrimary"},
+      {"id":"driver-visor-housing","type":"box","size":[0.53,0.24,0.07],"position":[0.61,1.440197,1.662282],"rotation":[-0.157529,0,0],"materialRole":"hullPrimary"},
+      {"id":"driver-vision-visor-slit","type":"box","size":[0.26,0.03,0.01],"position":[0.61,1.436002,1.700412],"rotation":[-0.157529,0,0],"materialRole":"darkMetal"},
+      {"id":"casemate-front-bolt-0","type":"cylinder","radiusTop":0.022,"radiusBottom":0.022,"height":0.025,"position":[0.303,1.591589,1.614946],"rotation":[1.413268,0,0],"materialRole":"steel","radialSegments":10},
+      {"id":"casemate-front-bolt-1","type":"cylinder","radiusTop":0.022,"radiusBottom":0.022,"height":0.025,"position":[0.465,1.591589,1.614946],"rotation":[1.413268,0,0],"materialRole":"steel","radialSegments":10},
+      {"id":"casemate-front-bolt-2","type":"cylinder","radiusTop":0.022,"radiusBottom":0.022,"height":0.025,"position":[0.606,1.591589,1.614946],"rotation":[1.413268,0,0],"materialRole":"steel","radialSegments":10},
+      {"id":"casemate-front-bolt-3","type":"cylinder","radiusTop":0.022,"radiusBottom":0.022,"height":0.025,"position":[0.755,1.591589,1.614946],"rotation":[1.413268,0,0],"materialRole":"steel","radialSegments":10},
+      {"id":"casemate-front-bolt-4","type":"cylinder","radiusTop":0.022,"radiusBottom":0.022,"height":0.025,"position":[0.91,1.591589,1.614946],"rotation":[1.413268,0,0],"materialRole":"steel","radialSegments":10},
+      {"id":"gun-travel-lock-post","type":"box","size":[0.06,0.38,0.05],"position":[-0.11,1.31,2.62],"materialRole":"steel"},
+      {"id":"gun-travel-lock-clamp","type":"box","size":[0.14,0.06,0.08],"position":[-0.11,1.52,2.62],"materialRole":"steel"},
+      {"id":"notek-lamp","type":"box","size":[0.09,0.12,0.08],"position":[0.01,1.16,2.66],"materialRole":"lamp"},
+      {"id":"nose-crowbar","type":"cylinder","radiusTop":0.014,"radiusBottom":0.014,"height":0.332566,"position":[-0.515,1.195,2.64],"rotation":[-0.207496,0,-0.947347],"materialRole":"steel","radialSegments":8},
+      {"id":"left-lifting-hook-back","type":"box","size":[0.03,0.1,0.03],"position":[-1.035,1.52,1.633791],"materialRole":"steel"},
+      {"id":"left-lifting-hook-top","type":"box","size":[0.03,0.03,0.08],"position":[-1.035,1.56,1.673791],"materialRole":"steel"},
+      {"id":"right-lifting-hook-back","type":"box","size":[0.03,0.1,0.03],"position":[1.035,1.52,1.633791],"materialRole":"steel"},
+      {"id":"right-lifting-hook-top","type":"box","size":[0.03,0.03,0.08],"position":[1.035,1.56,1.673791],"materialRole":"steel"},
       {"id":"commander-cupola","type":"cylinder","radiusTop":0.3,"radiusBottom":0.32,"height":0.19,"position":[0.62,2.135,-0.168],"materialRole":"hullPrimary","radialSegments":28},
       {"id":"commander-cupola-hatch","type":"cylinder","radiusTop":0.25,"radiusBottom":0.26,"height":0.04,"position":[0.62,2.25,-0.168],"materialRole":"hullPrimary","radialSegments":24},
       {"id":"cupola-periscope-0","type":"box","size":[0.1,0.06,0.05],"position":[0.345204,2.17,-0.035665],"rotation":[0,-1.121997,0],"materialRole":"darkMetal"},
@@ -205,7 +221,9 @@
       {"id":"stuk40-muzzle-brake","type":"cylinder","radiusTop":0.125,"radiusBottom":0.1,"height":0.37,"position":[0,0,2.454],"rotation":[1.570796,0,0],"materialRole":"barrel","radialSegments":18},
       {"id":"stuk40-muzzle-brake-baffle-front","type":"cylinder","radiusTop":0.135,"radiusBottom":0.135,"height":0.05,"position":[0,0,2.614],"rotation":[1.570796,0,0],"materialRole":"barrel","radialSegments":18},
       {"id":"stuk40-muzzle-brake-baffle-rear","type":"cylinder","radiusTop":0.135,"radiusBottom":0.135,"height":0.05,"position":[0,0,2.369],"rotation":[1.570796,0,0],"materialRole":"barrel","radialSegments":18},
-      {"id":"stuk40-breech","type":"box","size":[0.34,0.3,0.6],"position":[0,0,-0.25],"materialRole":"steel"}
+      {"id":"stuk40-breech","type":"box","size":[0.34,0.3,0.6],"position":[0,0,-0.25],"materialRole":"steel"},
+      {"id":"saukopf-coax-mg-port","type":"cylinder","radiusTop":0.032,"radiusBottom":0.032,"height":0.1,"position":[0.2,0.24,0.42],"rotation":[1.570796,0,0],"materialRole":"darkMetal","radialSegments":12},
+      {"id":"stuk40-bore","type":"cylinder","radiusTop":0.038,"radiusBottom":0.038,"height":0.01,"position":[0,0,2.642],"rotation":[1.570796,0,0],"materialRole":"darkMetal","radialSegments":16}
     ]
   }
 }

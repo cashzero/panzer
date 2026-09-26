@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const LATEST_PASS = 2;
+const LATEST_PASS = 3;
 const out = process.argv[2] ?? 'src/tanks/stug3g';
 const PASS = Number(process.argv[3] ?? LATEST_PASS);
 if (!Number.isInteger(PASS) || PASS < 0 || PASS > LATEST_PASS) throw Error(`Pass must be 0..${LATEST_PASS}`);
@@ -62,6 +62,7 @@ const P = {
     spareWheels: [[0.66, -2.00], [-0.66, -2.00]],
     muffler: 'cylinder',
     hangerFromY: null, // null: level hangers at the rail height
+    frontFittings: false,
   },
 };
 
@@ -80,6 +81,17 @@ if (PASS >= 2) {
   // Pass 2 (after-pass-1 obliques): the level hangers floated above the sloped
   // pannier tops. Run them as brackets from the pannier wall up to the rail.
   P.detail.hangerFromY = 1.74;
+}
+if (PASS >= 3) {
+  // Pass 3 (front view read at 4x after review: "the front looks like it is
+  // missing something"): the casemate front carries the bolted 30 mm appliqué
+  // blocks either side of the Saukopf (x 208..287 and 392..505, y 1760..1812),
+  // the driver's armoured visor housing with five bolts above it (x 410..492,
+  // y 1776..1815), the barrel travel lock on the nose (front x 336..345, side
+  // x 300..307 up to y 292), the Notek lamp, C-shaped lifting hooks at the
+  // pannier corners (x 195 and 515, y 1780), a crowbar on the nose, the
+  // coaxial MG port in the Saukopf (x 371, y 1726) and the dark bore of the brake.
+  P.detail.frontFittings = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -284,7 +296,37 @@ function hullDetails() {
   }
   nodes.push(box('nose-appliqué-plate', [H.half * 2 - 0.02, (ny2 - ny1) * 0.9, 0.03], [0, (ny1 + ny2) / 2, (nz1 + nz2) / 2 + 0.03], 'hullPrimary', [Math.atan2(nz2 - nz1, ny2 - ny1), 0, 0]));
   // Driver's visor on the casemate front plate (vehicle left, +X).
-  nodes.push(box('driver-vision-visor', [0.34, 0.09, 0.05], [0.52, 1.50, casemateFrontZ(1.50) + 0.02], 'hullPrimary', [-Math.atan(lowerFrontRun), 0, 0]));
+  const plateTilt = [-Math.atan(lowerFrontRun), 0, 0];
+  // Point on the driver's plate, lifted `lift` metres along its normal.
+  const onFront = (x, y, lift) => addv([x, y, casemateFrontZ(y)], mul(lowerFrontNormal, lift));
+  if (!P.detail.frontFittings) {
+    nodes.push(box('driver-vision-visor', [0.34, 0.09, 0.05], [0.52, 1.50, casemateFrontZ(1.50) + 0.02], 'hullPrimary', plateTilt));
+  } else {
+    // Bolted 30 mm appliqué either side of the gun opening.
+    const ym = (H.topY + C.kneeY) / 2, ph = (C.kneeY - H.topY) * Math.hypot(1, lowerFrontRun);
+    for (const [tag, x0, x1] of [['left', 0.232, C.roofHalf], ['right', -C.roofHalf, -0.445]]) {
+      nodes.push(box(`casemate-front-applique-${tag}`, [x1 - x0, ph, 0.03], onFront((x0 + x1) / 2, ym, 0.015), 'hullPrimary', plateTilt));
+    }
+    // Driver's armoured visor housing (vehicle left) with its slit and the bolt row above.
+    const visorY = 1.43;
+    nodes.push(box('driver-visor-housing', [0.53, 0.24, 0.07], onFront(0.61, visorY, 0.03 + 0.035), 'hullPrimary', plateTilt));
+    nodes.push(box('driver-vision-visor-slit', [0.26, 0.03, 0.01], onFront(0.61, visorY - 0.01, 0.03 + 0.072), 'darkMetal', plateTilt));
+    [0.303, 0.465, 0.606, 0.755, 0.910].forEach((x, i) => nodes.push(cyl(`casemate-front-bolt-${i}`, 0.022, 0.022, 0.025, onFront(x, 1.585, 0.03 + 0.012), eulerFromYAxis(lowerFrontNormal), 'steel', 10)));
+    // Barrel travel lock on the nose, folded down under the gun.
+    const lockZ = 2.62, lockTop = 1.50;
+    nodes.push(box('gun-travel-lock-post', [0.06, lockTop - 1.12, 0.05], [-0.11, (lockTop + 1.12) / 2, lockZ], 'steel'));
+    nodes.push(box('gun-travel-lock-clamp', [0.14, 0.06, 0.08], [-0.11, lockTop + 0.02, lockZ], 'steel'));
+    // Notek blackout lamp and a crowbar stowed across the upper nose plate.
+    nodes.push(box('notek-lamp', [0.09, 0.12, 0.08], [0.01, 1.16, 2.66], 'lamp'));
+    const rodA = [-0.65, 1.10, 2.66], rodB = [-0.38, 1.29, 2.62], rod = sub(rodB, rodA);
+    nodes.push(cyl('nose-crowbar', 0.014, 0.014, len(rod), mul(addv(rodA, rodB), 0.5), eulerFromYAxis(rod), 'steel', 8));
+    // C-shaped lifting hooks at the pannier front corners.
+    for (const [side, s] of sides) {
+      const hookZ = casemateFrontZ(1.52) + 0.05;
+      nodes.push(box(`${side}-lifting-hook-back`, [0.03, 0.10, 0.03], [s * 1.035, 1.52, hookZ], 'steel'));
+      nodes.push(box(`${side}-lifting-hook-top`, [0.03, 0.03, 0.08], [s * 1.035, 1.56, hookZ + 0.04], 'steel'));
+    }
+  }
   // Roof: commander's cupola (left), loader's hatch and MG shield (right), periscopes.
   const cu = P.detail.cupola, roof = C.roofY;
   nodes.push(cyl('commander-cupola', cu.r, cu.r + 0.02, cu.height, [cu.x, roof + cu.height / 2, cu.z], undefined, 'hullPrimary', 28));
@@ -486,6 +528,10 @@ function gunSlot() {
     cyl('stuk40-muzzle-brake-baffle-front', G.brakeR + 0.01, G.brakeR + 0.01, 0.05, [0, 0, G.muzzle - 0.025], AXIS_Z, 'barrel', 18),
     cyl('stuk40-muzzle-brake-baffle-rear', G.brakeR + 0.01, G.brakeR + 0.01, 0.05, [0, 0, G.muzzle - G.brakeLength + 0.10], AXIS_Z, 'barrel', 18),
     box('stuk40-breech', [0.34, 0.30, 0.60], [0, 0, -0.25], 'steel'),
+    ...(P.detail.frontFittings ? [
+      cyl('saukopf-coax-mg-port', 0.032, 0.032, 0.10, [0.20, 0.24, 0.42], AXIS_Z, 'darkMetal', 12),
+      cyl('stuk40-bore', 0.038, 0.038, 0.01, [0, 0, G.muzzle + 0.003], AXIS_Z, 'darkMetal', 16),
+    ] : []),
   ];
 }
 

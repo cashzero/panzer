@@ -2,7 +2,8 @@
 
 The model is a late StuG III Ausf. G (from late 1943): Pz.Kpfw. III chassis with
 six pairs of rubber-tyred road wheels, three return rollers, front sprocket and
-rear idler; 50 + 30 mm nose and casemate front; the widened casemate with
+rear idler; 50 + 30 mm nose and casemate front with the bolted appliqué blocks,
+the driver's armoured visor housing and the barrel travel lock on the nose; the widened casemate with
 sloped-top panniers; the cast Saukopf mantlet and 7.5 cm StuK 40 L/48 with its
 double-baffle muzzle brake; commander's cupola; loader's MG 34 behind a shield;
 Schurzen; spare road wheels and a stowage rack on the engine deck. It follows the
