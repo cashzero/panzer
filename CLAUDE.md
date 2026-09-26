@@ -30,7 +30,7 @@ The game needs no API keys or environment variables.
 
 **App screen routing**: `App.tsx` reads `gameScreen` from the store and renders one of:
 - `tank-select` — `screens/TankSelect.tsx` (3D preview, brass data plate, paint chips, armour tooltips); shared pieces in `screens/menuParts.tsx`
-- `oob-editor` — `screens/OOBEditor.tsx` + `OOBMiniMap.tsx` + `OOBTankList.tsx` (order-of-battle: allies, enemies, map size, seed)
+- `oob-editor` — `screens/OOBEditor.tsx` + `OOBMiniMap.tsx` + `OOBTankList.tsx` (order-of-battle: allies, enemies, map size, seed); `OOBRandomPanel.tsx` + `oobGenerator.ts` draw up a balanced random order of battle from adjustable settings
 - default — `GameScene.tsx` + `UI.tsx` (live battle)
 
 **State**: A single Zustand store (`src/store.ts`, ~1300 LOC) owns all runtime game state — player tank, enemies, allies, projectiles, particles, trees, buildings, waypoints, messages, and screen routing. All mutation goes through store actions. Hit detection, armor penetration math, particle spawning, and destruction flow live here.

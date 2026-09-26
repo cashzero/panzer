@@ -176,6 +176,7 @@ Toggle with `M`. Provides a top-down tactical view of the battlefield.
 - AI accuracy should reflect movement, dispersion, line of sight, and engagement conditions.
 - Allied units should support player intent through simple command structures rather than full manual micromanagement.
 - Allied tanks are of two kinds, chosen per tank in the order of battle: wingmen, who follow the player and take orders on the tactical map, and friendly units, who take no orders and advance and fight on their own like the enemy.
+- The order of battle can be generated at random for the player's chosen tank, with settings for force size, wingmen, odds, enemy mix, year, season and starting range. Both sides field tanks of the same period, balanced by how their guns and armour match up, and deploy in period formations at the chosen range.
 - Tactical systems should reward concealment, flanking, and terrain usage over static trading.
 
 ## Effects And Feedback

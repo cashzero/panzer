@@ -7,6 +7,7 @@ import { TankPreview, PlateTooltip, vehicleRows, vehicleSubtitle } from './TankS
 import { DataPlate } from './menuParts';
 import { OOBTankList } from './OOBTankList';
 import { OOBMiniMap } from './OOBMiniMap';
+import { OOBRandomPanel } from './OOBRandomPanel';
 import { PreviewStudio } from './PreviewStudio';
 import * as THREE from 'three';
 import { getCamouflageScheme } from '../tanks/core/camouflage';
@@ -31,6 +32,7 @@ export function OOBEditor() {
   const setWorldSeed = useGameStore((s) => s.setWorldSeed);
   const regenerateWorld = useGameStore((s) => s.regenerateWorld);
   const deployOob = useGameStore((s) => s.deployOob);
+  const [randomOpen, setRandomOpen] = useState(false);
   const setGameScreen = useGameStore((s) => s.setGameScreen);
 
   const [hoveredPlate, setHoveredPlate] = useState<PlateHoverInfo | null>(null);
@@ -93,7 +95,12 @@ export function OOBEditor() {
               Rebuild
             </button>
           </form>
+          <button type="button" className="plain-button" aria-pressed={randomOpen} aria-expanded={randomOpen}
+            onClick={() => setRandomOpen(!randomOpen)}>
+            Random forces
+          </button>
         </div>
+        {randomOpen && <OOBRandomPanel />}
       </header>
 
       <div className="orders__table">

@@ -515,6 +515,58 @@ select:focus-visible {
   gap: 8px 12px;
 }
 
+.random-orders {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 22px;
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--steel-edge);
+}
+
+.random-orders__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.random-orders__field {
+  display: grid;
+  gap: 3px;
+}
+
+.random-orders__field span {
+  color: var(--chalk-dim);
+  font-size: 13px;
+}
+
+.random-orders__field select {
+  padding: 5px 8px;
+  border: 0;
+  border-bottom: 2px solid var(--steel-edge);
+  background: var(--steel-raised);
+  font-size: 15px;
+}
+
+.random-orders__field select option {
+  color: var(--chalk);
+  background: var(--steel);
+}
+
+.random-orders__draw {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.random-orders__briefing {
+  color: var(--chalk-dim);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+}
+
 .orders__seed label {
   color: var(--chalk-dim);
   font-size: 14px;
@@ -710,6 +762,9 @@ select:focus-visible {
 .orders__map {
   position: relative;
   min-width: 0;
+  /* The map canvas shrinks when the header grows (random forces panel). */
+  min-height: 0;
+  overflow: hidden;
   padding: 10px;
   background: #22261f;
 }

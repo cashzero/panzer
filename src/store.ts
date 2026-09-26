@@ -21,6 +21,7 @@ import { findNearestOpenPosition, isPointNearAnyBuilding, projectBuildingsToTerr
 import { generateBuildings, generateFarmlands, type FarmYard } from './landLayout';
 import { isOnMainGround } from './navigation';
 import { planForceWaypoints } from './aiWaypoints';
+import { generateRandomOob, DEFAULT_OOB_SETTINGS, type OobGeneratorSettings } from './oobGenerator';
 import { createBattleStats, decideOutcome, withHit, withOutcome, withShot, type BattleStats, type HitResult, type WeaponClass } from './battleStats';
 
 export type AmmoType = 'AP' | 'APC' | 'HE';
@@ -280,6 +281,10 @@ interface GameState {
   oobEnemyCountry: string;
   oobSelectedUnitId: string | null;
   oobPlacementMode: 'enemy' | 'ally' | null;
+  /** Briefing line for a randomly generated order of battle; cleared by any edit. */
+  oobBriefing: string | null;
+  /** Settings for the random order of battle. */
+  oobRandomSettings: OobGeneratorSettings;
 
   // OOB Editor actions
   setOobPlayerTankType: (tankType: string) => void;
@@ -292,6 +297,9 @@ interface GameState {
   setOobPlacementMode: (mode: 'enemy' | 'ally' | null) => void;
   setOobAllyCountry: (country: string) => void;
   setOobEnemyCountry: (country: string) => void;
+  /** Replaces both forces with a balanced random order of battle on the current map. */
+  randomizeOob: () => void;
+  setOobRandomSettings: (settings: Partial<OobGeneratorSettings>) => void;
   setGameScreen: (screen: GameScreen) => void;
   deployOob: () => void;
   triggerCameraShake: (intensity: number) => void;
@@ -629,11 +637,14 @@ export const useGameStore = create<GameState>((set, get) => ({
   oobEnemyCountry: 'Germany',
   oobSelectedUnitId: null,
   oobPlacementMode: null,
+  oobBriefing: null,
+  oobRandomSettings: DEFAULT_OOB_SETTINGS,
 
   // OOB Editor actions
   // A different tank keeps the chosen scheme only if it can wear it.
   setOobPlayerTankType: (tankType) => set((state) => ({
     oobPlayerTankType: tankType,
+    oobBriefing: null,
     oobPlayerCamouflage: getTankDef(tankType).camouflage.some((scheme) => scheme.id === state.oobPlayerCamouflage)
       ? state.oobPlayerCamouflage : null,
   })),
@@ -642,18 +653,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   addOobUnit: (side, tankType, position) => {
     const unit: OOBUnit = { id: uuidv4(), tankType, position, rotation: side === 'enemy' ? Math.PI : 0 };
     set((state) => side === 'enemy'
-      ? { oobEnemies: [...state.oobEnemies, unit] }
-      : { oobAllies: [...state.oobAllies, unit] }
+      ? { oobEnemies: [...state.oobEnemies, unit], oobBriefing: null }
+      : { oobAllies: [...state.oobAllies, unit], oobBriefing: null }
     );
   },
   removeOobUnit: (id) => set((state) => ({
     oobEnemies: state.oobEnemies.filter((u) => u.id !== id),
     oobAllies: state.oobAllies.filter((u) => u.id !== id),
     oobSelectedUnitId: state.oobSelectedUnitId === id ? null : state.oobSelectedUnitId,
+    oobBriefing: null,
   })),
   updateOobUnit: (id, updates) => set((state) => ({
     oobEnemies: state.oobEnemies.map((u) => u.id === id ? { ...u, ...updates } : u),
     oobAllies: state.oobAllies.map((u) => u.id === id ? { ...u, ...updates } : u),
+    // Moving or turning a tank keeps the briefing; changing the forces does not.
+    ...('tankType' in updates || 'wingman' in updates ? { oobBriefing: null } : {}),
   })),
   setOobSelectedUnit: (id) => set({ oobSelectedUnitId: id, oobPlacementMode: null }),
   setOobPlacementMode: (mode) => set({ oobPlacementMode: mode, oobSelectedUnitId: null }),
@@ -673,6 +687,29 @@ export const useGameStore = create<GameState>((set, get) => ({
       oobEnemies: state.oobEnemies.map((u) => ({ ...u, tankType: firstTank.id })),
     }));
   },
+  randomizeOob: () => {
+    const state = get();
+    const allTanks = getAllTankDefs();
+    const generated = generateRandomOob({
+      seed: Math.floor(Math.random() * 0x7fffffff),
+      mapSize: MAP_SIZE_VALUES[state.mapSize],
+      playerTankType: state.oobPlayerTankType,
+      settings: state.oobRandomSettings,
+      alliedPool: allTanks.filter((def) => !isAxisNationality(def.nationality)),
+      enemyPool: allTanks.filter((def) => isAxisNationality(def.nationality)),
+      open: (x, z) => nearestOpenGround(x, z, state.buildings),
+    });
+    const toOob = (position: [number, number]) => toOobPosition(position, state.mapSize);
+    set({
+      oobPlayerPosition: toOob(generated.playerPosition),
+      oobAllies: generated.allies.map((unit) => ({ ...unit, position: toOob(unit.position) })),
+      oobEnemies: generated.enemies.map((unit) => ({ ...unit, position: toOob(unit.position) })),
+      oobSelectedUnitId: null,
+      oobPlacementMode: null,
+      oobBriefing: generated.summary,
+    });
+  },
+  setOobRandomSettings: (settings) => set((state) => ({ oobRandomSettings: { ...state.oobRandomSettings, ...settings } })),
   setGameScreen: (screen) => set({ gameScreen: screen }),
   deployOob: () => {
     const state = get();
