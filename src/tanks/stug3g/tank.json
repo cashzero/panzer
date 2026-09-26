@@ -1,0 +1,2119 @@
+{
+  "schemaVersion": 1,
+  "id": "stug3g",
+  "renderMode": "parametric",
+  "catalog": {
+    "sortOrder": 9
+  },
+  "meta": {
+    "displayName": "StuG III Ausf. G",
+    "description": "Turretless assault gun on the Panzer III chassis and the most numerous German armoured vehicle of the war. Its low casemate carries the same 7.5 cm L/48 gun as the Panzer IV behind 80 mm of front armour, but the gun traverses only 10 degrees each side: the whole vehicle must turn to engage. Late production with the cast Saukopf mantlet and Schurzen.",
+    "nationality": "Germany",
+    "year": 1943
+  },
+  "appearance": {
+    "baseColor": "#857853",
+    "camouflage": [
+      "dunkelgelb",
+      "dreifarben",
+      "hinterhalt",
+      "wintertarnung"
+    ],
+    "zimmerit": "ribbed"
+  },
+  "durability": {
+    "health": 230,
+    "trackHealth": 80,
+    "armorSummary": {
+      "front": 80,
+      "side": 30,
+      "rear": 50,
+      "turret": 80
+    }
+  },
+  "mounts": {
+    "turretOffset": [
+      -0.113,
+      1.36,
+      1.4
+    ],
+    "gunPivotOffset": [
+      0,
+      0.232,
+      0
+    ],
+    "muzzleDistance": 2.639,
+    "broadPhaseRadius": 4.6
+  },
+  "mobility": {
+    "horsepower": 300,
+    "weight": 23.9,
+    "maxSpeed": 10,
+    "maxReverseSpeed": 3,
+    "acceleration": 4.55,
+    "deceleration": 9,
+    "trackWidth": 2.94,
+    "turnRateLimit": 0.58,
+    "rotationalInertia": 3.1
+  },
+  "traverse": {
+    "turretSpeed": 0.05,
+    "gunSpeed": 0.08,
+    "maxElevationDeg": 20,
+    "maxDepressionDeg": 6,
+    "limitDeg": 10
+  },
+  "weapons": {
+    "caliber": 75,
+    "reloadTime": 5000,
+    "ammo": {
+      "AP": {
+        "penetration": 99,
+        "velocity": 740,
+        "damage": 350,
+        "drop": 0.1,
+        "dispersion": 0.0018
+      },
+      "APC": {
+        "penetration": 126,
+        "velocity": 930,
+        "damage": 250,
+        "drop": 0.08,
+        "dispersion": 0.0015
+      },
+      "HE": {
+        "penetration": 25,
+        "velocity": 550,
+        "damage": 500,
+        "drop": 0.3,
+        "dispersion": 0.0025
+      }
+    }
+  },
+  "armorModel": {
+    "plates": [
+      {
+        "id": "hull-lower-nose",
+        "name": "Lower Nose",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.288512
+        ],
+        "position": [
+          0,
+          0.643043,
+          2.527688
+        ],
+        "rotation": [
+          -1.156947,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 50,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-upper-nose",
+        "name": "Upper Nose",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.177616
+        ],
+        "position": [
+          0,
+          1.05148,
+          2.608812
+        ],
+        "rotation": [
+          -1.747715,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-glacis",
+        "name": "Hull Glacis",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.459596
+        ],
+        "position": [
+          0,
+          1.267727,
+          2.151497
+        ],
+        "rotation": [
+          -2.990888,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 25,
+        "parent": "hull"
+      },
+      {
+        "id": "casemate-front-lower",
+        "name": "Casemate Front Plate",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.965,
+          0.150236
+        ],
+        "position": [
+          0,
+          1.490362,
+          1.568248
+        ],
+        "rotation": [
+          -1.728325,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "hull"
+      },
+      {
+        "id": "casemate-front-upper",
+        "name": "Casemate Upper Front",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.965,
+          0.258271
+        ],
+        "position": [
+          0,
+          1.824601,
+          1.408066
+        ],
+        "rotation": [
+          -2.177233,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 50,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-front-lower-left",
+        "name": "Pannier Front left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.2875,
+          0.150236
+        ],
+        "position": [
+          -1.2325,
+          1.490362,
+          1.568248
+        ],
+        "rotation": [
+          1.413268,
+          0,
+          1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-front-upper-left",
+        "name": "Pannier Upper Front left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.2875,
+          0.112229
+        ],
+        "position": [
+          -1.2325,
+          1.704601,
+          1.491302
+        ],
+        "rotation": [
+          0.96436,
+          0,
+          1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-wall-left",
+        "name": "Pannier Wall left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.108389,
+          0.2325
+        ],
+        "position": [
+          -1.49,
+          1.5775,
+          0.351082
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-wall-front-left",
+        "name": "Pannier Wall Front left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.0536,
+          0.2225
+        ],
+        "position": [
+          -1.49,
+          1.5675,
+          1.493071
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-top-left",
+        "name": "Pannier Top left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.039444,
+          0.312335
+        ],
+        "position": [
+          -1.224562,
+          1.901643,
+          0.336791
+        ],
+        "rotation": [
+          1.570796,
+          -1.162647,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "side-box-wall-left",
+        "name": "Side Box Wall left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.45496,
+          0.2075
+        ],
+        "position": [
+          -1.49,
+          1.5525,
+          -1.19504
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "engine-side-left",
+        "name": "Engine Side left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.4975,
+          0.1925
+        ],
+        "position": [
+          -0.93,
+          1.5375,
+          -2.0775
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-lower-side-left",
+        "name": "Lower Hull Side left",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.542,
+          0.4975
+        ],
+        "position": [
+          -0.93,
+          0.8675,
+          -0.098
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-front-lower-right",
+        "name": "Pannier Front right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.2875,
+          0.150236
+        ],
+        "position": [
+          1.2325,
+          1.490362,
+          1.568248
+        ],
+        "rotation": [
+          -1.728325,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-front-upper-right",
+        "name": "Pannier Upper Front right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.2875,
+          0.112229
+        ],
+        "position": [
+          1.2325,
+          1.704601,
+          1.491302
+        ],
+        "rotation": [
+          -2.177233,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-wall-right",
+        "name": "Pannier Wall right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.108389,
+          0.2325
+        ],
+        "position": [
+          1.49,
+          1.5775,
+          0.351082
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-wall-front-right",
+        "name": "Pannier Wall Front right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.0536,
+          0.2225
+        ],
+        "position": [
+          1.49,
+          1.5675,
+          1.493071
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "pannier-top-right",
+        "name": "Pannier Top right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          1.039444,
+          0.312335
+        ],
+        "position": [
+          1.224562,
+          1.901643,
+          0.336791
+        ],
+        "rotation": [
+          -1.570796,
+          -1.162647,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "side-box-wall-right",
+        "name": "Side Box Wall right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.45496,
+          0.2075
+        ],
+        "position": [
+          1.49,
+          1.5525,
+          -1.19504
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "engine-side-right",
+        "name": "Engine Side right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.4975,
+          0.1925
+        ],
+        "position": [
+          0.93,
+          1.5375,
+          -2.0775
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-lower-side-right",
+        "name": "Lower Hull Side right",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          2.542,
+          0.4975
+        ],
+        "position": [
+          0.93,
+          0.8675,
+          -0.098
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "casemate-roof",
+        "name": "Casemate Roof",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.965,
+          0.9705
+        ],
+        "position": [
+          0,
+          2.02,
+          0.3225
+        ],
+        "rotation": [
+          -3.141593,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 17,
+        "parent": "hull"
+      },
+      {
+        "id": "engine-deck",
+        "name": "Engine Deck",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.86
+        ],
+        "position": [
+          0,
+          1.7,
+          -1.65
+        ],
+        "rotation": [
+          -3.141593,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 16,
+        "parent": "hull"
+      },
+      {
+        "id": "casemate-rear",
+        "name": "Casemate Rear",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.965,
+          0.185813
+        ],
+        "position": [
+          0,
+          1.87171,
+          -0.69267
+        ],
+        "rotation": [
+          1.99817,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-upper",
+        "name": "Upper Rear Plate",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.20373
+        ],
+        "position": [
+          0,
+          1.53079,
+          -2.546159
+        ],
+        "rotation": [
+          1.912952,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "hull-rear-lower",
+        "name": "Lower Rear Plate",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.96,
+          0.4975
+        ],
+        "position": [
+          0,
+          0.8675,
+          -2.61
+        ],
+        "rotation": [
+          1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 50,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-0",
+        "name": "Schurzen left 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.5105,
+          0.415566
+        ],
+        "position": [
+          -1.544095,
+          1.046525,
+          1.5495
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-0-upper-0",
+        "name": "Schurzen left 1 upper 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.033443
+        ],
+        "position": [
+          -1.602024,
+          1.483713,
+          1.929375
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-0-upper-1",
+        "name": "Schurzen left 1 upper 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.092328
+        ],
+        "position": [
+          -1.609758,
+          1.542088,
+          1.676125
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-0-upper-2",
+        "name": "Schurzen left 1 upper 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.151213
+        ],
+        "position": [
+          -1.617493,
+          1.600463,
+          1.422875
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-0-upper-3",
+        "name": "Schurzen left 1 upper 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.210098
+        ],
+        "position": [
+          -1.625228,
+          1.658838,
+          1.169625
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-1",
+        "name": "Schurzen left 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.514,
+          0.651107
+        ],
+        "position": [
+          -1.575035,
+          1.280025,
+          0.533
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-2",
+        "name": "Schurzen left 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.514,
+          0.651107
+        ],
+        "position": [
+          -1.575035,
+          1.280025,
+          -0.487
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-left-3",
+        "name": "Schurzen left 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.5105,
+          0.651107
+        ],
+        "position": [
+          -1.575035,
+          1.280025,
+          -1.5035
+        ],
+        "rotation": [
+          1.570796,
+          0.131735,
+          -3.141593
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-0",
+        "name": "Schurzen right 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.5105,
+          0.415566
+        ],
+        "position": [
+          1.544095,
+          1.046525,
+          1.5495
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-0-upper-0",
+        "name": "Schurzen right 1 upper 1",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.033443
+        ],
+        "position": [
+          1.602024,
+          1.483713,
+          1.929375
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-0-upper-1",
+        "name": "Schurzen right 1 upper 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.092328
+        ],
+        "position": [
+          1.609758,
+          1.542088,
+          1.676125
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-0-upper-2",
+        "name": "Schurzen right 1 upper 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.151213
+        ],
+        "position": [
+          1.617493,
+          1.600463,
+          1.422875
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-0-upper-3",
+        "name": "Schurzen right 1 upper 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.130625,
+          0.210098
+        ],
+        "position": [
+          1.625228,
+          1.658838,
+          1.169625
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-1",
+        "name": "Schurzen right 2",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.514,
+          0.651107
+        ],
+        "position": [
+          1.575035,
+          1.280025,
+          0.533
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-2",
+        "name": "Schurzen right 3",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.514,
+          0.651107
+        ],
+        "position": [
+          1.575035,
+          1.280025,
+          -0.487
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "schurzen-right-3",
+        "name": "Schurzen right 4",
+        "zone": "hull",
+        "halfExtents": [
+          0.004,
+          0.5105,
+          0.651107
+        ],
+        "position": [
+          1.575035,
+          1.280025,
+          -1.5035
+        ],
+        "rotation": [
+          -1.570796,
+          0.131735,
+          0
+        ],
+        "armorThickness": 5,
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-0",
+        "name": "Left Track 1",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.327768,
+          0.137851
+        ],
+        "position": [
+          -1.45,
+          0.808742,
+          -2.425959
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-1",
+        "name": "Left Track 2",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.475314,
+          0.137851
+        ],
+        "position": [
+          -1.45,
+          0.789909,
+          -2.150256
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-2",
+        "name": "Left Track 3",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.542674,
+          0.137851
+        ],
+        "position": [
+          -1.45,
+          0.714793,
+          -1.874554
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-3",
+        "name": "Left Track 4",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.605973,
+          0.137851
+        ],
+        "position": [
+          -1.45,
+          0.637696,
+          -1.598851
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-4",
+        "name": "Left Track 5",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.609445,
+          1.454
+        ],
+        "position": [
+          -1.45,
+          0.609445,
+          -0.007
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-5",
+        "name": "Left Track 6",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.601771,
+          0.133573
+        ],
+        "position": [
+          -1.45,
+          0.625935,
+          1.580573
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-6",
+        "name": "Left Track 7",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.576229,
+          0.133573
+        ],
+        "position": [
+          -1.45,
+          0.664308,
+          1.847719
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-7",
+        "name": "Left Track 8",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.550686,
+          0.133573
+        ],
+        "position": [
+          -1.45,
+          0.70268,
+          2.114865
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-8",
+        "name": "Left Track 9",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.512827,
+          0.133573
+        ],
+        "position": [
+          -1.45,
+          0.729261,
+          2.382011
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-left-9",
+        "name": "Left Track 10",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.350348,
+          0.133573
+        ],
+        "position": [
+          -1.45,
+          0.7311,
+          2.649157
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "left",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-0",
+        "name": "Right Track 1",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.327768,
+          0.137851
+        ],
+        "position": [
+          1.45,
+          0.808742,
+          -2.425959
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-1",
+        "name": "Right Track 2",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.475314,
+          0.137851
+        ],
+        "position": [
+          1.45,
+          0.789909,
+          -2.150256
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-2",
+        "name": "Right Track 3",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.542674,
+          0.137851
+        ],
+        "position": [
+          1.45,
+          0.714793,
+          -1.874554
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-3",
+        "name": "Right Track 4",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.605973,
+          0.137851
+        ],
+        "position": [
+          1.45,
+          0.637696,
+          -1.598851
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-4",
+        "name": "Right Track 5",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.609445,
+          1.454
+        ],
+        "position": [
+          1.45,
+          0.609445,
+          -0.007
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-5",
+        "name": "Right Track 6",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.601771,
+          0.133573
+        ],
+        "position": [
+          1.45,
+          0.625935,
+          1.580573
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-6",
+        "name": "Right Track 7",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.576229,
+          0.133573
+        ],
+        "position": [
+          1.45,
+          0.664308,
+          1.847719
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-7",
+        "name": "Right Track 8",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.550686,
+          0.133573
+        ],
+        "position": [
+          1.45,
+          0.70268,
+          2.114865
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-8",
+        "name": "Right Track 9",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.512827,
+          0.133573
+        ],
+        "position": [
+          1.45,
+          0.729261,
+          2.382011
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "track-right-9",
+        "name": "Right Track 10",
+        "zone": "track",
+        "halfExtents": [
+          0.02,
+          0.350348,
+          0.133573
+        ],
+        "position": [
+          1.45,
+          0.7311,
+          2.649157
+        ],
+        "rotation": [
+          0,
+          0,
+          0
+        ],
+        "armorThickness": 20,
+        "isTrack": "right",
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-0",
+        "name": "Cupola 1/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.62,
+          2.135,
+          0.112
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-1",
+        "name": "Cupola 2/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.81799,
+          2.135,
+          0.02999
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -0.785398
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-2",
+        "name": "Cupola 3/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.9,
+          2.135,
+          -0.168
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-3",
+        "name": "Cupola 4/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.81799,
+          2.135,
+          -0.36599
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          0.785398
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-4",
+        "name": "Cupola 5/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.62,
+          2.135,
+          -0.448
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          1.570796
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-5",
+        "name": "Cupola 6/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.42201,
+          2.135,
+          -0.36599
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          2.356194
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-6",
+        "name": "Cupola 7/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.34,
+          2.135,
+          -0.168
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -3.141593
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "cupola-7",
+        "name": "Cupola 8/8",
+        "zone": "hull",
+        "halfExtents": [
+          0.02,
+          0.129264,
+          0.1
+        ],
+        "position": [
+          0.42201,
+          2.135,
+          0.02999
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -2.356194
+        ],
+        "armorThickness": 30,
+        "parent": "hull"
+      },
+      {
+        "id": "saukopf-face",
+        "name": "Saukopf Face",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.115,
+          0.087
+        ],
+        "position": [
+          0,
+          0.01,
+          0.85
+        ],
+        "rotation": [
+          -1.570796,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-pos-0",
+        "name": "Saukopf side pos 1",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.055563,
+          0.063852
+        ],
+        "position": [
+          0.11143,
+          -0.035437,
+          0.812572
+        ],
+        "rotation": [
+          0,
+          -0.380506,
+          0
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-neg-0",
+        "name": "Saukopf side neg 1",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.055563,
+          0.063852
+        ],
+        "position": [
+          -0.11143,
+          -0.035437,
+          0.812572
+        ],
+        "rotation": [
+          -3.141593,
+          -0.380506,
+          -3.141593
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-bottom-0",
+        "name": "Saukopf bottom 1",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.14,
+          0.060804
+        ],
+        "position": [
+          0,
+          -0.061316,
+          0.816457
+        ],
+        "rotation": [
+          -0.178093,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-pos-0",
+        "name": "Saukopf shoulder pos 1",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.095593,
+          0.06418
+        ],
+        "position": [
+          0.052992,
+          0.051796,
+          0.812297
+        ],
+        "rotation": [
+          0.306938,
+          -0.253294,
+          0.901794
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-neg-0",
+        "name": "Saukopf shoulder neg 1",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.095593,
+          0.06418
+        ],
+        "position": [
+          -0.052992,
+          0.051796,
+          0.812297
+        ],
+        "rotation": [
+          -2.834654,
+          -0.253294,
+          -2.239798
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-pos-1",
+        "name": "Saukopf side pos 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.080313,
+          0.114062
+        ],
+        "position": [
+          0.166165,
+          -0.056687,
+          0.665273
+        ],
+        "rotation": [
+          0,
+          -0.343024,
+          0
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-neg-1",
+        "name": "Saukopf side neg 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.080313,
+          0.114062
+        ],
+        "position": [
+          -0.166165,
+          -0.056687,
+          0.665273
+        ],
+        "rotation": [
+          -3.141593,
+          -0.343024,
+          -3.141593
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-bottom-1",
+        "name": "Saukopf bottom 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.195,
+          0.114752
+        ],
+        "position": [
+          0,
+          -0.108289,
+          0.664936
+        ],
+        "rotation": [
+          -0.361005,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-pos-1",
+        "name": "Saukopf shoulder pos 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.13626,
+          0.110613
+        ],
+        "position": [
+          0.079241,
+          0.085291,
+          0.667471
+        ],
+        "rotation": [
+          0.168688,
+          -0.154732,
+          0.835267
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-neg-1",
+        "name": "Saukopf shoulder neg 2",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.13626,
+          0.110613
+        ],
+        "position": [
+          -0.079241,
+          0.085291,
+          0.667471
+        ],
+        "rotation": [
+          -2.972904,
+          -0.154732,
+          -2.306326
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-pos-2",
+        "name": "Saukopf side pos 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.108325,
+          0.177213
+        ],
+        "position": [
+          0.230325,
+          -0.083675,
+          0.405912
+        ],
+        "rotation": [
+          0,
+          -0.180388,
+          0
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-neg-2",
+        "name": "Saukopf side neg 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.108325,
+          0.177213
+        ],
+        "position": [
+          -0.230325,
+          -0.083675,
+          0.405912
+        ],
+        "rotation": [
+          -3.141593,
+          -0.180388,
+          -3.141593
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-bottom-2",
+        "name": "Saukopf bottom 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.26,
+          0.175482
+        ],
+        "position": [
+          0,
+          -0.162119,
+          0.407325
+        ],
+        "rotation": [
+          -0.108989,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-pos-2",
+        "name": "Saukopf shoulder pos 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.183398,
+          0.176407
+        ],
+        "position": [
+          0.111298,
+          0.120573,
+          0.406481
+        ],
+        "rotation": [
+          0.109641,
+          -0.104812,
+          0.810832
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-neg-2",
+        "name": "Saukopf shoulder neg 3",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.183398,
+          0.176407
+        ],
+        "position": [
+          -0.111298,
+          0.120573,
+          0.406481
+        ],
+        "rotation": [
+          -3.031952,
+          -0.104812,
+          -2.33076
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-pos-3",
+        "name": "Saukopf side pos 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.133188,
+          0.08357
+        ],
+        "position": [
+          0.272791,
+          -0.091813,
+          0.169102
+        ],
+        "rotation": [
+          0,
+          -0.170735,
+          0
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-side-neg-3",
+        "name": "Saukopf side neg 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.133188,
+          0.08357
+        ],
+        "position": [
+          -0.272791,
+          -0.091813,
+          0.169102
+        ],
+        "rotation": [
+          -3.141593,
+          -0.170735,
+          -3.141593
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-bottom-3",
+        "name": "Saukopf bottom 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.3025,
+          0.084035
+        ],
+        "position": [
+          0,
+          -0.195415,
+          0.168448
+        ],
+        "rotation": [
+          -0.204018,
+          0,
+          -1.570796
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-pos-3",
+        "name": "Saukopf shoulder pos 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.2199,
+          0.086084
+        ],
+        "position": [
+          0.13258,
+          0.168659,
+          0.166434
+        ],
+        "rotation": [
+          0.218257,
+          -0.219327,
+          0.794996
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      },
+      {
+        "id": "saukopf-shoulder-neg-3",
+        "name": "Saukopf shoulder neg 4",
+        "zone": "gun",
+        "halfExtents": [
+          0.02,
+          0.2199,
+          0.086084
+        ],
+        "position": [
+          -0.13258,
+          0.168659,
+          0.166434
+        ],
+        "rotation": [
+          -2.923336,
+          -0.219327,
+          -2.346597
+        ],
+        "armorThickness": 80,
+        "parent": "gunGroup"
+      }
+    ]
+  }
+}
