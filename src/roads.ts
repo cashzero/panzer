@@ -14,7 +14,6 @@ export interface RoadNetwork {
 }
 
 const MAP_METERS_BY_SIZE: Record<MapSize, number> = {
-  small: 1000,
   medium: 2000,
   large: 4000,
 };

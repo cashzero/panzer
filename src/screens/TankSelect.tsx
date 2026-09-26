@@ -318,7 +318,7 @@ export function TankSelect() {
         <fieldset className="depot__field">
           <legend>Battlefield</legend>
           <div className="map-size">
-            {(['small', 'medium', 'large'] as MapSize[]).map((size) => (
+            {(['medium', 'large'] as MapSize[]).map((size) => (
               <button key={size} type="button" aria-pressed={mapSize === size} onClick={() => setMapSize(size)}>
                 {MAP_SIZE_VALUES[size] / 1000} km
               </button>

@@ -126,8 +126,8 @@ export interface TankData {
 }
 
 export type GameScreen = 'oob-editor' | 'tank-select' | 'playing';
-export type MapSize = 'small' | 'medium' | 'large';
-export const MAP_SIZE_VALUES: Record<MapSize, number> = { small: 1000, medium: 2000, large: 4000 };
+export type MapSize = 'medium' | 'large';
+export const MAP_SIZE_VALUES: Record<MapSize, number> = { medium: 2000, large: 4000 };
 
 export interface OOBUnit {
   id: string;

@@ -25,7 +25,7 @@ import { getRoadInfluence } from './roads';
  * reads as surveyed land rather than a scatter.
  */
 
-const MAP_METERS_BY_SIZE: Record<MapSize, number> = { small: 1000, medium: 2000, large: 4000 };
+const MAP_METERS_BY_SIZE: Record<MapSize, number> = { medium: 2000, large: 4000 };
 
 function mulberry32(seed: number) {
   return () => {

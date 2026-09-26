@@ -244,7 +244,7 @@ const RANGE_SEPARATIONS: Record<Exclude<OobRange, 'random'>, [number, number]> =
   long: [1200, 1600],
 };
 
-const ALLIED_SIZES: [number, [number, number]][] = [[1000, [1, 3]], [2000, [2, 4]], [4000, [3, 6]]];
+const ALLIED_SIZES: [number, [number, number]][] = [[2000, [2, 4]], [4000, [3, 6]]];
 
 function alliedSizeFor(mapSize: number): [number, number] {
   return ALLIED_SIZES.reduce((best, entry) =>

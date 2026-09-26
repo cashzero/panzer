@@ -72,7 +72,7 @@ export function OOBEditor() {
         <h1>Order of battle</h1>
         <div className="orders__settings">
           <div className="map-size" role="group" aria-label="Battlefield size">
-            {(['small', 'medium', 'large'] as MapSize[]).map((size) => (
+            {(['medium', 'large'] as MapSize[]).map((size) => (
               <button key={size} type="button" aria-pressed={mapSize === size} onClick={() => setMapSize(size)}>
                 {MAP_SIZE_VALUES[size] / 1000} km
               </button>
