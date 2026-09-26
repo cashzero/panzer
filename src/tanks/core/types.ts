@@ -196,6 +196,12 @@ export interface ModelNodeBase {
   scale?: Vec3;
   visible?: boolean;
   materialRole?: TankMaterialRole;
+  /**
+   * Paint brightness multiplier for painted roles (hullPrimary, mantlet, barrel),
+   * e.g. 0.85 for a recessed plate or a separately fitted part, so faces that
+   * light the same way still read apart. Defaults to 1.
+   */
+  shade?: number;
 }
 
 export interface GroupNode extends ModelNodeBase {

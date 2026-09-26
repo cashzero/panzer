@@ -25,7 +25,11 @@ The casemate belongs to the hull. The `turret` slot holds only the gun's
 traversing cradle, hidden inside the casemate; `mounts.turretOffset` is its
 pivot, under the trunnions, and the Saukopf, barrel and brake sit in the `gun`
 slot so they traverse and elevate with the gun. No armour plate has `turret` as
-its parent. `traverse.limitDeg: 10` limits the gun to 10 degrees each side of
+its parent.
+
+The front faces all light the same way, so parts that sit in shadow or were
+fitted separately carry a `shade` below 1 (lower hull and nose, fenders,
+Saukopf, visor housing, appliqué blocks, cupola) to keep the front readable. `traverse.limitDeg: 10` limits the gun to 10 degrees each side of
 the centreline: player aiming and both AIs clamp to it (`src/traverseLimit.ts`),
 and AI crews turn the hull to bring the gun to bear.
 

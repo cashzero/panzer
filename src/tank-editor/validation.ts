@@ -15,6 +15,9 @@ function parentContainerKey(path: JsonPath) {
 }
 
 function validateNode(node: ModelNode, path: JsonPath, issues: ValidationIssue[]) {
+  if (node.shade !== undefined && (!Number.isFinite(node.shade) || node.shade < 0.3 || node.shade > 1.5)) {
+    pushIssue(issues, 'error', 'model', `Node '${node.id}' has shade ${node.shade}; use 0.3-1.5 (1 is the plain paint).`);
+  }
   const pathLabel = path.join('.');
 
   if (node.position && node.position.some((value) => !Number.isFinite(value))) {

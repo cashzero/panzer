@@ -202,6 +202,8 @@ Each slot contains model nodes. Supported node types are:
 - `mirror`
 - `helper`
 
+Any node may carry `shade` (0.3-1.5, default 1): a paint brightness multiplier for the painted roles (`hullPrimary`, `mantlet`, `barrel`). Use it where parts facing the same way would otherwise merge into one flat colour, e.g. a nose in the shadow of an overhang, a cast mantlet or a bolted-on visor housing (see `src/tanks/stug3g/`). It is baked into the merged battlefield batches too.
+
 Useful material roles:
 - `hullPrimary`
 - `darkMetal`

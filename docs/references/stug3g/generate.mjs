@@ -7,7 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const LATEST_PASS = 3;
+const LATEST_PASS = 4;
 const out = process.argv[2] ?? 'src/tanks/stug3g';
 const PASS = Number(process.argv[3] ?? LATEST_PASS);
 if (!Number.isInteger(PASS) || PASS < 0 || PASS > LATEST_PASS) throw Error(`Pass must be 0..${LATEST_PASS}`);
@@ -63,6 +63,7 @@ const P = {
     muffler: 'cylinder',
     hangerFromY: null, // null: level hangers at the rail height
     frontFittings: false,
+    shades: {},
   },
 };
 
@@ -92,6 +93,20 @@ if (PASS >= 3) {
   // pannier corners (x 195 and 515, y 1780), a crowbar on the nose, the
   // coaxial MG port in the Saukopf (x 371, y 1726) and the dark bore of the brake.
   P.detail.frontFittings = true;
+}
+if (PASS >= 4) {
+  // Pass 4 (tank select, front view, after review: "the whole front is one
+  // colour"): every front face lights the same way, so plates, fittings and the
+  // cast mantlet merged into one flat tan. Darken the parts that sit in shadow
+  // or were fitted separately: the nose under the overhanging casemate and
+  // fenders, the bolted appliqué and visor housing, and the cast Saukopf.
+  P.detail.shades = {
+    'stug-lower-hull': 0.72, 'nose-appliqué-plate': 0.8, 'left-brake-access-hatch': 0.84, 'right-brake-access-hatch': 0.84,
+    'left-front-tow-bracket': 0.76, 'right-front-tow-bracket': 0.76, 'left-front-fender': 0.8, 'right-front-fender': 0.8,
+    'left-track-fender': 0.8, 'right-track-fender': 0.8,
+    'casemate-front-applique-left': 0.86, 'casemate-front-applique-right': 0.86, 'driver-visor-housing': 0.76,
+    'saukopf-mantlet': 0.8, 'commander-cupola': 0.88, 'loader-mg-shield': 0.84,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -683,6 +698,11 @@ const model = {
 };
 hullArmor();
 gunArmor();
+// Paint shading per part (pass 4 on).
+for (const nodes of Object.values(model.slots)) for (const node of nodes) {
+  const shade = P.detail.shades[node.id];
+  if (shade !== undefined) node.shade = shade;
+}
 
 const tank = {
   schemaVersion: 1,
