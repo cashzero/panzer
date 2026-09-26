@@ -367,6 +367,7 @@ function PlayerController() {
       calibrationDistance: useGameStore.getState().calibrationDistance,
       ammoVelocity: ammoStats.velocity,
       turretSpeed: playerDef.turretSpeed,
+      traverseLimit: playerDef.traverseLimit,
       gunSpeed: playerDef.gunSpeed,
       minGunElevation: playerDef.minGunElevation,
       maxGunElevation: playerDef.maxGunElevation,

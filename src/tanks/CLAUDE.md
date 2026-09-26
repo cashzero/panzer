@@ -129,6 +129,7 @@ Notes:
 - `appearance.zimmerit` (optional, `ribbed` or `waffle`) gives the tank Zimmerit paste under its 1943-45 schemes (those marked `zimmeritEra`). Only large painted parts of hull and turret are coated; parts whose id names a fitting (skirts, tools, hinges, lamps, exhausts and so on, see `ZIMMERIT_BARE_PART` in `MergedSlot.tsx`) and the gun stay bare.
 - `mobility.acceleration` is stored directly now; it is not derived automatically in the JSON pipeline.
 - `traverse.maxElevationDeg` and `traverse.maxDepressionDeg` define the historical gun arc in degrees.
+- `traverse.limitDeg` (optional) is the gun's traverse each side of the hull centreline in degrees, for turretless vehicles; leave it out for a full turret. Put the casemate in the hull, only the gun's traversing cradle in the `turret` slot (with `mounts.turretOffset` at its pivot) and the mantlet and barrel in the `gun` slot; see `src/tanks/stug3g/`.
 - `traverse.turretSpeed` is the full traverse rate in rad/s, `2π / (seconds for 360°)`. Take the time from the vehicle's manual or a reputable reference, not a game wiki. Hand-traversed turrets (Panzer II, Panzer III, M10) use a sustained cranking time; the engine-driven traverses of the Tiger I and Panther use a mid-rpm figure.
 - `weapons.ammo.AP` is required. `APC` and `HE` are optional.
 - `weapons.burst` is optional and used for burst-fire tanks such as autocannons.

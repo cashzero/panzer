@@ -11,6 +11,7 @@ import { computeTerrainOrientation, computeTrackMovement, computeBodyRock } from
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
 import { ensureAiAccuracyState, getAiFireDispersion, layGun, registerAiShot, tankVelocity, type AiAccuracyState, type AiAimOffset } from './aiAccuracy';
 import { clampGunElevation } from './turretAiming';
+import { clampTraverse } from './traverseLimit';
 import type { AllyEffectiveMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 import { audioManager, toAudioVec3 } from './audio';
 import { routeDirection } from './navigation';
@@ -86,7 +87,7 @@ function computeEngagementMovement(
     return steerTracks(ally.rotation, bearing + Math.PI, allyDef.maxReverseSpeed * 0.5, allyDef.trackWidth, true, steering.yawRate);
   }
   steering.heading.reset();
-  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation), allyDef.trackWidth, steering.yawRate);
+  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation, allyDef.traverseLimit), allyDef.trackWidth, steering.yawRate);
 }
 
 function computeFireFromPositionMovement(
@@ -97,7 +98,7 @@ function computeFireFromPositionMovement(
 ) {
   // Hold with the front plate angled to the enemy.
   const bearing = Math.atan2(target.position.x - ally.position.x, target.position.z - ally.position.z);
-  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation), allyDef.trackWidth, steering.yawRate);
+  return turnInPlace(ally.rotation, angledHullHeading(bearing, ally.rotation, allyDef.traverseLimit), allyDef.trackWidth, steering.yawRate);
 }
 
 function computeMoveToPoint(
@@ -332,10 +333,13 @@ export function AllyAI() {
           { ...ally, position: newPos, rotation: newRot, pitch, roll } as TankData,
           allyDef, closestEnemy.position, tankVelocity(closestEnemy), aimOff.azimuth, aimOff.elevation,
         );
+        // The error to the lay decides firing; the gun only travels as far as its arc allows.
         normalizedDiff = angleBetween(lay.turret, ally.turretRotation, true);
-        if (Math.abs(normalizedDiff) > 0.005) {
-          newTurretRot += Math.sign(normalizedDiff) * Math.min(allyDef.turretSpeed * delta, Math.abs(normalizedDiff));
+        const travel = angleBetween(clampTraverse(lay.turret, allyDef.traverseLimit), ally.turretRotation, true);
+        if (Math.abs(travel) > 0.005) {
+          newTurretRot += Math.sign(travel) * Math.min(allyDef.turretSpeed * delta, Math.abs(travel));
         }
+        newTurretRot = clampTraverse(newTurretRot, allyDef.traverseLimit);
 
         elevDiff = lay.elevation - ally.gunElevation;
         if (Math.abs(elevDiff) > 0.002) {

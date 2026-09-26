@@ -48,6 +48,7 @@ export function resolveTankSpec(spec: TankSpec): TankResolvedSpec {
     turnRateLimit: spec.mobility.turnRateLimit,
     rotationalInertia: spec.mobility.rotationalInertia,
     turretSpeed: spec.traverse.turretSpeed,
+    traverseLimit: spec.traverse.limitDeg === undefined ? undefined : degreesToRadians(spec.traverse.limitDeg),
     gunSpeed: spec.traverse.gunSpeed,
     minGunElevation: -degreesToRadians(spec.traverse.maxElevationDeg),
     maxGunElevation: degreesToRadians(spec.traverse.maxDepressionDeg),

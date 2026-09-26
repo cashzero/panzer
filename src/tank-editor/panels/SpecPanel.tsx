@@ -71,6 +71,7 @@ export function SpecPanel({spec, folderName, onChange}: {spec: TankSpec; folderN
           <NumberField label="Gun Speed" step={0.01} value={spec.traverse.gunSpeed} onChange={(value) => patch((next) => { next.traverse.gunSpeed = value; })} />
           <NumberField label="Max Elevation" value={spec.traverse.maxElevationDeg} onChange={(value) => patch((next) => { next.traverse.maxElevationDeg = value; })} hint="Degrees above horizontal" />
           <NumberField label="Max Depression" value={spec.traverse.maxDepressionDeg} onChange={(value) => patch((next) => { next.traverse.maxDepressionDeg = value; })} hint="Degrees below horizontal" />
+          <NumberField label="Traverse Limit" value={spec.traverse.limitDeg ?? 0} onChange={(value) => patch((next) => { if (value > 0) next.traverse.limitDeg = value; else delete next.traverse.limitDeg; })} hint="Degrees each side of the hull centreline; 0 for a full turret" />
         </FieldGrid>
       </PanelSection>
 

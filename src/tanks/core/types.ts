@@ -163,6 +163,8 @@ export interface TankSpec {
     gunSpeed: number;
     maxElevationDeg: number;
     maxDepressionDeg: number;
+    /** Gun traverse each side of the hull centreline, for turretless vehicles. Absent: full 360 degrees. */
+    limitDeg?: number;
   };
   weapons: {
     caliber: number;
@@ -303,6 +305,8 @@ export interface TankResolvedSpec {
   turnRateLimit: number;
   rotationalInertia: number;
   turretSpeed: number;
+  /** Radians each side of the hull centreline the gun can traverse; undefined for a full turret. */
+  traverseLimit?: number;
   gunSpeed: number;
   minGunElevation: number;
   maxGunElevation: number;

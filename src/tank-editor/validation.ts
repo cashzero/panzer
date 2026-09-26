@@ -95,6 +95,11 @@ export function validateTankDraft(spec: TankSpec | null, model: TankModelSpec | 
     pushIssue(issues, 'warning', 'spec', `Folder '${folderName}' does not match tank id '${spec.id}'.`);
   }
 
+  const limit = spec.traverse.limitDeg;
+  if (limit !== undefined && (!Number.isFinite(limit) || limit <= 0 || limit >= 180)) {
+    pushIssue(issues, 'error', 'spec', `Traverse limit ${limit} must be between 0 and 180 degrees each side; omit it for a full turret.`);
+  }
+
   if (!spec.weapons.ammo.AP) {
     pushIssue(issues, 'error', 'spec', `Tank '${spec.id}' is missing the required AP ammo definition.`);
   }

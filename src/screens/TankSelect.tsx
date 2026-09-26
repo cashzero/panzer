@@ -292,7 +292,7 @@ export function TankSelect() {
           title={def.displayName}
           subtitle={vehicleSubtitle(def)}
           rows={vehicleRows(def)}
-          footer={<>Side {def.armor.side} mm, rear {def.armor.rear} mm, turret {def.armor.turret} mm</>}
+          footer={<>Side {def.armor.side} mm, rear {def.armor.rear} mm, {def.traverseLimit === undefined ? 'turret' : 'mantlet'} {def.armor.turret} mm</>}
         />
 
         {def.camouflage.length > 1 && (
