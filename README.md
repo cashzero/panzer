@@ -5,7 +5,7 @@ A WW2 tank battle simulator for the browser, built with React 19, Three.js (via 
 ## Features
 
 **Combat**
-- Historical tanks: M4 Sherman, M4A2 (76), M10 GMC, Tiger I, Panzer II, III and IV, T-34/76. Each is a folder of JSON with per-plate armour (OBB hitboxes), mobility, traverse and weapon modes (AP, APC, HE, burst).
+- Historical tanks: M4 Sherman, M4A2 (76), M10 GMC, Tiger I, Panther Ausf. A, Panzer II, III and IV, T-34/76. Each is a folder of JSON with per-plate armour (OBB hitboxes), mobility, traverse and weapon modes (AP, APC, HE, burst).
 - Range-based penetration falloff, effective armour from impact angle, ricochets above 70°, post-penetration damage.
 - Three aim points: gunner sight (arrow keys), ballistic gun aim point and free-look viewpoint. The zero distance (PageUp / PageDown) drives drop compensation.
 - Allied and enemy AI with spotting, gravity-compensated aim, stances, fire control and waypoints.
