@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { GAME_CONFIG } from './config';
-import { getMatchup } from './aiMatchup';
+import { effectiveArmour, getMatchup } from './aiMatchup';
+import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { getTankDef } from './tanks/registry';
 import type { TankResolvedSpec } from './tanks/core/types';
 
@@ -69,31 +70,78 @@ function pickWeighted<T>(rng: Rng, items: T[], weight: (item: T) => number): T {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Combat value                                                       */
+/*  Combat strength                                                    */
 /* ------------------------------------------------------------------ */
 
+/** Ranges a tank fight is fought at, in metres. */
+const ENGAGEMENT_RANGES = [200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200];
+/** Share of shots that meet the front; the rest find a side. */
+const FRONT_SHARE = 0.7;
+/** Tanks that cannot penetrate still knock off tracks and crews now and then. */
+const MIN_KILL_RATE = 0.002;
+/** Human play is worth something: the player's tank fights above its type. */
+const PLAYER_BONUS = 1.2;
+
+const killRateCache = new Map<string, number>();
+
 /**
- * What one tank is worth against a set of opponents, from the same matchup
- * data the AI fights by: how far its gun defeats them, how close they must
- * come to defeat it, how much punishment it takes and how fast it fires.
+ * Tanks of type `target` one `attacker` knocks out per second of firing,
+ * from the same matchup data the AI fights by: how often its AP defeats
+ * the armour over the usual ranges, how many penetrations the target's
+ * health takes and how fast the gun fires (magazine and all).
  */
-function combatValue(tankType: string, opponents: string[]): number {
-  const horizon = GAME_CONFIG.ai.tactics.rangeHorizon;
-  let offense = 0;
-  let defense = 0;
-  for (const opponent of opponents) {
-    const m = getMatchup('oob', tankType, opponent);
-    offense += Math.min(1, Math.max(m.frontPenRange, m.sidePenRange * 0.5) / horizon);
-    defense += 1 - Math.min(1, m.threatRange / horizon);
+function killRate(attacker: string, target: string): number {
+  const key = `${attacker}>${target}`;
+  const cached = killRateCache.get(key);
+  if (cached !== undefined) return cached;
+  const m = getMatchup('oob', attacker, target);
+  let pen = 0;
+  for (const range of ENGAGEMENT_RANGES) {
+    pen += FRONT_SHARE * (range <= m.frontPenRange ? 1 : 0) + (1 - FRONT_SHARE) * (range <= m.sidePenRange ? 1 : 0);
   }
-  offense /= opponents.length;
-  defense /= opponents.length;
-  const def = getTankDef(tankType);
-  const durability = Math.sqrt(def.health / 250);
-  // Autocannon bursts count for a quicker gun; a slow loader for a slower one.
-  const reload = def.burstCount ? 2.5 : def.reloadTime;
-  const rate = Math.min(1.3, Math.max(0.75, Math.sqrt(6 / Math.max(reload, 1))));
-  return (0.25 + offense) * (0.35 + defense) * durability * rate;
+  pen /= ENGAGEMENT_RANGES.length;
+  const a = getTankDef(attacker);
+  const shotsToKill = Math.max(1, Math.ceil(getTankDef(target).health / Math.max(1, a.weapons.AP.damage)));
+  const shotsPerSecond = a.automaticMagazineSize && a.automaticFireInterval
+    ? a.automaticMagazineSize / ((a.reloadTime + a.automaticMagazineSize * a.automaticFireInterval) / 1000)
+    : 1000 / Math.max(500, a.reloadTime);
+  const rate = Math.max(MIN_KILL_RATE, (pen * shotsPerSecond) / shotsToKill);
+  killRateCache.set(key, rate);
+  return rate;
+}
+
+interface Fighter { type: string; bonus?: number }
+
+/**
+ * Seconds a force needs to knock out every tank it faces, all guns turning
+ * on one target after another. A target it can hardly penetrate (a Tiger
+ * for 75 mm Shermans) costs far more time than easy ones save, so a few
+ * weak tanks cannot hide a heavy one. For one type a side this is
+ * Lanchester's square law: twice the tanks, a quarter of the time.
+ */
+function timeToDestroy(force: Fighter[], opponents: Fighter[]): number {
+  let time = 0;
+  for (const target of opponents) {
+    let rate = 0;
+    for (const unit of force) rate += (unit.bonus ?? 1) * killRate(unit.type, target.type);
+    time += 1 / rate;
+  }
+  return time;
+}
+
+/** How much stronger the enemy is: above 1 it wins a straight fight. */
+function forceOdds(allies: Fighter[], enemies: Fighter[]): number {
+  if (enemies.length === 0) return 0;
+  return timeToDestroy(allies, enemies) / timeToDestroy(enemies, allies);
+}
+
+/**
+ * How heavy a tank is, independent of the matchup: frontal armour times
+ * gun, 1 for a Panzer IV. Sets how scarce it is and what counts as light.
+ */
+function tankClass(def: TankResolvedSpec): number {
+  const pen = getAmmoPenetrationAtDistance(def.weapons.AP, 'AP', def.caliber, 500);
+  return (effectiveArmour(def.id, 'front') / 80) * (pen / 90);
 }
 
 /* ------------------------------------------------------------------ */
@@ -132,12 +180,13 @@ function pickCamouflage(rng: Rng, def: TankResolvedSpec, year: number, winter: b
  * (there were far fewer Tigers than Panzer IVs). A tank that can barely
  * fight the other side (a Panzer II against Shermans) seldom appears.
  */
-function availability(def: TankResolvedSpec, year: number, value: number): number {
+function availability(def: TankResolvedSpec, year: number): number {
   if (def.year > year) return 0;
   const age = year - def.year;
   const obsolescence = age > 4 ? 0.35 : age > 2 ? 0.75 : 1;
-  const outclassed = value < 0.2 ? 0.15 : 1;
-  return obsolescence * outclassed / Math.sqrt(Math.max(value, 0.05));
+  const weight = tankClass(def);
+  const outclassed = weight < 0.25 ? 0.15 : 1;
+  return obsolescence * outclassed / Math.sqrt(Math.max(weight, 0.05));
 }
 
 /* ------------------------------------------------------------------ */
@@ -179,13 +228,14 @@ export const OOB_YEARS = [1941, 1942, 1943, 1944, 1945];
 export const MAX_ALLIED_TANKS = 9;
 const MAX_ENEMY_TANKS = 12;
 
-/** Enemy points over allied points. */
+/** Enemy strength over allied (square law: 1.44 is 1.2 times the tanks of one type). */
 const ODDS_RANGES: Record<Exclude<OobOdds, 'random'>, [number, number]> = {
-  favourable: [0.6, 0.8],
-  even: [0.9, 1.1],
-  hard: [1.2, 1.4],
-  desperate: [1.5, 1.9],
+  favourable: [0.45, 0.7],
+  even: [0.85, 1.15],
+  hard: [1.35, 1.8],
+  desperate: [2.1, 2.8],
 };
+const RANDOM_ODDS: [number, number] = [0.6, 1.4];
 
 /** Distance between the two deployments, in metres. */
 const RANGE_SEPARATIONS: Record<Exclude<OobRange, 'random'>, [number, number]> = {
@@ -202,9 +252,10 @@ function alliedSizeFor(mapSize: number): [number, number] {
 }
 
 /** Leans the enemy's picks toward light or heavy tanks. */
-function mixFactor(mix: OobEnemyMix, value: number): number {
-  if (mix === 'light') return 1 / Math.sqrt(Math.max(value, 0.05));
-  if (mix === 'heavy') return Math.pow(value, 2);
+function mixFactor(mix: OobEnemyMix, def: TankResolvedSpec): number {
+  const weight = tankClass(def);
+  if (mix === 'light') return 1 / Math.sqrt(Math.max(weight, 0.05));
+  if (mix === 'heavy') return Math.pow(weight, 2);
   return 1;
 }
 
@@ -240,10 +291,6 @@ function composeForces(rng: Rng, input: OobGeneratorInput): Composition {
     enemyPool = input.enemyPool.filter((def) => def.year === earliest);
   }
 
-  const enemyTypes = enemyPool.map((def) => def.id);
-  const alliedTypes = [...new Set([playerDef.id, ...alliedPool.map((def) => def.id)])];
-  const allyValue = new Map(alliedTypes.map((type) => [type, combatValue(type, enemyTypes)]));
-  const enemyValue = new Map(enemyTypes.map((type) => [type, combatValue(type, alliedTypes)]));
   const serviceYear = (def: TankResolvedSpec) => Math.min(def.year, year);
 
   const sizeRange = alliedSizeFor(input.mapSize);
@@ -253,42 +300,42 @@ function composeForces(rng: Rng, input: OobGeneratorInput): Composition {
   for (let i = 0; i < allyCount; i++) {
     // Platoons were mostly one type: the player's own tank is the likeliest pick.
     const def = pickWeighted(rng, alliedPool, (d) =>
-      availability({ ...d, year: serviceYear(d) }, year, allyValue.get(d.id) ?? 1) * (d.id === playerDef.id ? 3 : 1));
+      availability({ ...d, year: serviceYear(d) }, year) * (d.id === playerDef.id ? 3 : 1));
     const scheme = def.camouflage.some((s) => s.id === allyCamouflage) ? allyCamouflage : pickCamouflage(rng, def, year, winter);
     allies.push({ type: def.id, camouflage: scheme, wingman: i < settings.wingmen });
   }
 
-  // Human play is worth something: the player's tank counts a bit above its type.
-  const alliedPoints = (allyValue.get(playerDef.id) ?? 1) * 1.2
-    + allies.reduce((sum, unit) => sum + (allyValue.get(unit.type) ?? 1), 0);
-  const oddsRange = settings.odds === 'random' ? [0.8, 1.3] : ODDS_RANGES[settings.odds];
-  const target = alliedPoints * randRange(rng, oddsRange[0], oddsRange[1]);
+  // The enemy is weighed against the tanks actually fielded, not the whole catalogue.
+  const alliedFighters: Fighter[] = [
+    { type: playerDef.id, bonus: PLAYER_BONUS },
+    ...allies.map((unit) => ({ type: unit.type })),
+  ];
+  const oddsRange = settings.odds === 'random' ? RANDOM_ODDS : ODDS_RANGES[settings.odds];
+  const target = randRange(rng, oddsRange[0], oddsRange[1]);
 
-  const weightOf = (def: TankResolvedSpec) => {
-    const value = enemyValue.get(def.id) ?? 1;
-    return availability({ ...def, year: serviceYear(def) }, year, value) * mixFactor(settings.enemyMix, value);
-  };
+  const weightOf = (def: TankResolvedSpec) =>
+    availability({ ...def, year: serviceYear(def) }, year) * mixFactor(settings.enemyMix, def);
   const enemies: Composition['enemies'] = [];
+  const enemyFighters: Fighter[] = [];
   const enemyCamouflageByType = new Map<string, string | undefined>();
-  let points = 0;
+  let odds = 0;
   // Platoons of one to three of a type, as the enemy would have organised them.
   let platoonType: TankResolvedSpec | null = null;
   let platoonLeft = 0;
-  // Even a tank that cannot hurt the other side scouts, spots and ties down
-  // fire: counting it for something keeps it from turning up in swarms.
-  const valueOf = (def: TankResolvedSpec) => Math.max(0.15, enemyValue.get(def.id) ?? 1);
-  while (enemies.length < MAX_ENEMY_TANKS) {
-    const shortfall = target - points;
-    if (shortfall <= 0) break;
-    // A tank fits while adding it leaves the total nearer the target than
+  while (enemies.length < MAX_ENEMY_TANKS && odds < target) {
+    const oddsWith = (def: TankResolvedSpec) => forceOdds(alliedFighters, [...enemyFighters, { type: def.id }]);
+    // A tank fits while adding it leaves the odds nearer the target than
     // stopping would, and overshoots it by no more than a quarter.
-    const fits = (def: TankResolvedSpec) => valueOf(def) - shortfall < Math.min(shortfall, target * 0.25);
+    const fits = (def: TankResolvedSpec) => {
+      const after = oddsWith(def);
+      return after - target < Math.min(target - odds, target * 0.25);
+    };
     if (!platoonType || platoonLeft <= 0 || !fits(platoonType)) {
       const eligible = enemyPool.filter(fits);
       if (eligible.length === 0) {
         if (enemies.length > 0) break;
-        // There is always an enemy: the weakest tank on offer.
-        eligible.push(enemyPool.reduce((a, b) => (valueOf(a) <= valueOf(b) ? a : b)));
+        // There is always an enemy: the one that tips the odds least.
+        eligible.push(enemyPool.reduce((a, b) => (oddsWith(a) <= oddsWith(b) ? a : b)));
       }
       platoonType = pickWeighted(rng, eligible, weightOf);
       platoonLeft = randInt(rng, 1, 3);
@@ -297,11 +344,12 @@ function composeForces(rng: Rng, input: OobGeneratorInput): Composition {
       enemyCamouflageByType.set(platoonType.id, pickCamouflage(rng, platoonType, year, winter));
     }
     enemies.push({ type: platoonType.id, camouflage: enemyCamouflageByType.get(platoonType.id) });
-    points += valueOf(platoonType);
+    enemyFighters.push({ type: platoonType.id });
+    odds = forceOdds(alliedFighters, enemyFighters);
     platoonLeft--;
   }
 
-  return { year, winter, allies, enemies, odds: points / alliedPoints };
+  return { year, winter, allies, enemies, odds };
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,8 +488,8 @@ export function generateRandomOob(input: OobGeneratorInput): GeneratedOob {
   });
 
   const odds = composition.odds;
-  const balance = odds > 1.45 ? 'heavily outmatched' : odds > 1.15 ? 'enemy stronger'
-    : odds < 0.85 ? 'odds in your favour' : 'even odds';
+  const balance = odds > 1.9 ? 'heavily outmatched' : odds > 1.25 ? 'enemy stronger'
+    : odds < 0.75 ? 'odds in your favour' : 'even odds';
   const compass = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
   // +Z is south on the map sheet; the enemy lies along `forward`.
   const heading = Math.atan2(forward[0], -forward[1]);
