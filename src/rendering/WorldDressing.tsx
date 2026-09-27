@@ -3,15 +3,13 @@ import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { useGameStore } from '../store';
-import { planFieldBoundaries } from '../fieldBoundaries';
-import { isOnRoadForNetwork } from '../roads';
 import { isPointNearAnyBuilding } from '../buildings';
 import { getTerrainMeshHeight } from '../Terrain';
 import { foliageDepthMaterial, patchFoliageMaterial } from './foliageCards';
-import { TREE_SEED_OFFSET } from '../trees';
+import { HEDGE_STEP, getActiveHedges, hedgeStationProfile, type HedgeRun } from '../hedges';
 
-// Visual-only dressing. Hedges and poles neither collide nor block sight:
-// hedges stay below a tank commander's eye line, so combat reads the same.
+// Scenery dressing. Neither hedges nor poles collide; hedges block sight
+// through the same profile in spotting.ts (planned in hedges.ts).
 
 function mulberry32(seed: number) {
   return () => {
@@ -22,10 +20,6 @@ function mulberry32(seed: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-// Station spacing along a hedge (m). Hundreds of field hedges now line the
-// parcels; the leaf cards carry the detail.
-const HEDGE_STEP = 1.6;
 
 /** Camera-facing leaf cards over a hedge, laid out like foliageCards (centre + corner offset). */
 interface CardArrays {
@@ -39,34 +33,6 @@ interface CardArrays {
 
 /** Leaf card edge length range (m). */
 const CARD_SIZE: [number, number] = [1.15, 1.7];
-
-/**
- * How a hedge has been kept. Field hedges are not one clipped tube: some are
- * laid or flailed low and square, most have grown out a season or two, and
- * a few have run up into a rough wall of thorn and hazel.
- */
-interface HedgeCharacter {
-  height: number; // m
-  width: number; // m
-  /** Scale of the lumps and dips along the top. */
-  ragged: number;
-  /** Profile exponent: lower is squarer across the top. */
-  crown: number;
-  /** Leaf card size relative to CARD_SIZE; clipped hedges read finer. */
-  leaf: number;
-  /** Outer leaf cards per station: enough to close the outline at this size. */
-  cards: number;
-  hue: number;
-  lightness: number;
-}
-
-function hedgeCharacter(roll: number, tone: number): HedgeCharacter {
-  const hue = 0.215 + tone * 0.055;
-  const lightness = 0.5 + (1 - tone) * 0.08;
-  if (roll < 0.38) return { height: 1.35, width: 1.3, ragged: 0.35, crown: 0.42, leaf: 0.5, cards: 11, hue, lightness: lightness + 0.02 };
-  if (roll < 0.85) return { height: 1.85, width: 1.6, ragged: 1, crown: 0.7, leaf: 0.6, cards: 14, hue, lightness };
-  return { height: 2.6, width: 2.05, ragged: 1.7, crown: 0.8, leaf: 0.72, cards: 18, hue, lightness: lightness - 0.03 };
-}
 
 // Inner cards per outer card. They fill the body so a gap between outer
 // leaves shows shaded foliage further in, never a surface.
@@ -85,23 +51,15 @@ function hedgeHash(a: number, b: number) {
  * used to fill the inside; wherever the outer leaves parted it showed as a
  * dark rubbery tube. Now a gap shows more leaves, deeper in the shade.
  */
-function appendHedgeRun(
-  stations: Array<{ x: number; z: number; y: number }>,
-  dirX: number, dirZ: number, phase: number, character: HedgeCharacter,
-  cards: CardArrays,
-) {
+function appendHedgeRun(run: HedgeRun, cards: CardArrays) {
+  const { dirX, dirZ, phase, character } = run;
   const nx = -dirZ, nz = dirX;
   const tint = new THREE.Color();
   const normal = new THREE.Vector3();
   const inner = Math.round(character.cards * INNER_CARD_RATIO);
-  stations.forEach((station, i) => {
-    const s = i * HEDGE_STEP + phase;
-    // Lumps along the top, and a long swell where the hedge has been cut back or left.
-    const bumps = (Math.sin(s * 0.9) * 0.1 + Math.sin(s * 1.7 + 1.7) * 0.07) * character.ragged;
-    const swell = Math.sin(s * 0.13 + phase) * 0.14 * character.ragged + Math.sin(s * 0.047 + 2 * phase) * 0.1;
-    const endTaper = Math.min(1, i / 2, (stations.length - 1 - i) / 2);
-    const height = character.height * (1 + bumps + swell) * (0.35 + 0.65 * endTaper);
-    const width = character.width * (1 + Math.sin(s * 0.7 + 2.9) * 0.12 + Math.sin(s * 1.3) * 0.05 + swell * 0.5) * (0.5 + 0.5 * endTaper);
+  run.stations.forEach((station, i) => {
+    const { height, width, s } = hedgeStationProfile(run, i);
+    const ground = getTerrainMeshHeight(station.x, station.z);
     for (let c = 0; c < character.cards + inner; c++) {
       const h1 = hedgeHash(station.x + c * 3.1, station.z - c * 1.7);
       const h2 = hedgeHash(station.z + c * 2.3, station.x + c * 5.9);
@@ -124,7 +82,7 @@ function appendHedgeRun(
         character.lightness + (h1 - 0.5) * 0.025, THREE.SRGBColorSpace);
       const along = (h3 - 0.5) * HEDGE_STEP;
       const cx = station.x + nx * lateral + dirX * along, cz = station.z + nz * lateral + dirZ * along;
-      const cy = station.y - 0.25 + up;
+      const cy = ground - 0.25 + up;
       // Every card takes the arch's outward normal at its angle, so the hedge
       // lights as one body with a sunlit and a shaded face. Tipped toward the
       // sky: leaves on the shaded face still see most of it.
@@ -211,30 +169,9 @@ export function WorldDressing() {
     const quaternion = new THREE.Quaternion();
     const up = new THREE.Vector3(0, 1, 0);
 
-    // Hedges: continuous runs along the planned boundaries, broken wherever a
-    // road or farmyard crosses.
+    // Hedges: continuous runs along the planned boundaries (hedges.ts).
     const cards: CardArrays = { positions: [], offsets: [], normals: [], colors: [], uvs: [], indices: [] };
-    for (const boundary of planFieldBoundaries(farmlands, worldSeed + TREE_SEED_OFFSET)) {
-      if (boundary.kind !== 'hedge') continue;
-      const [ax, az] = boundary.from;
-      const [bx, bz] = boundary.to;
-      const length = Math.hypot(bx - ax, bz - az);
-      if (length < 4) continue;
-      const dirX = (bx - ax) / length, dirZ = (bz - az) / length;
-      const phase = rng() * 100;
-      const character = hedgeCharacter(rng(), rng());
-      let run: Array<{ x: number; z: number; y: number }> = [];
-      const flush = () => {
-        if (run.length >= 3) appendHedgeRun(run, dirX, dirZ, phase + cards.positions.length * 0.001, character, cards);
-        run = [];
-      };
-      for (let d = 0; d <= length; d += HEDGE_STEP) {
-        const x = ax + dirX * d, z = az + dirZ * d;
-        if (isOnRoadForNetwork(x, z, roadNetwork, 3) || isPointNearAnyBuilding(x, z, buildings, 4)) { flush(); continue; }
-        run.push({ x, z, y: getTerrainMeshHeight(x, z) });
-      }
-      flush();
-    }
+    for (const run of getActiveHedges()) appendHedgeRun(run, cards);
     const leafGeometry = new THREE.BufferGeometry();
     leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cards.positions, 3));
     leafGeometry.setAttribute('cardOffset', new THREE.Float32BufferAttribute(cards.offsets, 2));

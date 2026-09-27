@@ -11,6 +11,7 @@ import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
 import { generateTrees, planWoods, TREE_SEED_OFFSET } from './trees';
 import { buildForestMap, forestDepthAt, getActiveForest, setActiveForest } from './forest';
+import { planHedgeRuns, setActiveHedges } from './hedges';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
@@ -380,6 +381,8 @@ function generateWorld(mapSize: MapSize, seed: number) {
   // Every generated world is put straight into play by the store.
   setActiveForest(forest);
   const trees = generateTrees(mapScale, roadNetwork, buildings, farmlands, seed + TREE_SEED_OFFSET, woods, yards, forest);
+  // Hedges block sight (spotting.ts) and are drawn over the same runs.
+  setActiveHedges(planHedgeRuns(farmlands, roadNetwork, buildings, seed + TREE_SEED_OFFSET, seed));
   return { roadNetwork, buildings, farmlands, trees, yards, forest };
 }
 

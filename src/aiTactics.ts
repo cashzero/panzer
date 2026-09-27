@@ -3,6 +3,7 @@ import { GAME_CONFIG } from './config';
 import { casemateHullHeading } from './traverseLimit';
 import { getTerrainMeshHeight, raycastTerrain } from './Terrain';
 import { FOREST, forestDepthAt, forestLengthAlong, getActiveForest } from './forest';
+import { getActiveHedges, hedgeCrossing } from './hedges';
 import { isPointNearAnyBuilding, type BuildingInstance } from './buildings';
 import { forEachTreeNear } from './treeIndex';
 import type { TreeInstance } from './trees';
@@ -18,7 +19,7 @@ import type { Matchup } from './aiMatchup';
 const _from = new THREE.Vector3();
 const _dir = new THREE.Vector3();
 
-/** Clear sight between two points over the rendered ground and through the woods. */
+/** Clear sight between two points over the rendered ground and hedges, and through the woods. */
 function sightClear(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
   _from.set(ax, ay, az);
   _dir.set(bx - ax, by - ay, bz - az);
@@ -27,6 +28,7 @@ function sightClear(ax: number, ay: number, az: number, bx: number, by: number, 
   _dir.divideScalar(length);
   const hit = raycastTerrain(_from, _dir, length - 1, getTerrainMeshHeight);
   if (hit) return false;
+  if (hedgeCrossing(getActiveHedges(), ax, ay, az, bx, by, bz, getTerrainMeshHeight) !== null) return false;
   const forest = getActiveForest();
   return !forest || forestLengthAlong(forest, ax, ay, az, bx, by, bz, getTerrainMeshHeight, FOREST.sightDepth) < FOREST.sightDepth;
 }

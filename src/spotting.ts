@@ -7,8 +7,9 @@ import type { TankData } from './store';
 import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
 import { FOREST, forestLengthAlong, getActiveForest } from './forest';
+import { getActiveHedges, hedgeCrossing } from './hedges';
 
-export type LosBlocker = 'terrain' | 'building' | 'tree' | 'forest' | null;
+export type LosBlocker = 'terrain' | 'building' | 'tree' | 'hedge' | 'forest' | null;
 
 export interface LineOfSightResult {
   visible: boolean;
@@ -21,7 +22,7 @@ export interface LineOfSightResult {
 const _observerOffset = new THREE.Vector3();
 const _ray = new THREE.Ray();
 const _direction = new THREE.Vector3();
-const _forestEnd = new THREE.Vector3();
+const _segmentEnd = new THREE.Vector3();
 
 function getObserverPoint(tank: TankData): THREE.Vector3 {
   const def = getTankDef(tank.tankType);
@@ -67,11 +68,18 @@ function isBlocked(ray: THREE.Ray, distance: number, trees: TreeInstance[], buil
     return 'tree';
   }
 
+  // Nobody sees through a hedge, only over it.
+  const end = ray.at(distance, _segmentEnd);
+  const hedgeT = hedgeCrossing(getActiveHedges(), ray.origin.x, ray.origin.y, ray.origin.z, end.x, end.y, end.z,
+    getTerrainMeshHeight);
+  if (hedgeT !== null && hedgeT * distance < distance - margin) {
+    return 'hedge';
+  }
+
   // A crew at the edge of a wood sees out and can be seen; nobody sees
   // through more than FOREST.sightDepth of it below the canopy.
   const forest = getActiveForest();
   if (forest) {
-    const end = ray.at(distance, _forestEnd);
     const inForest = forestLengthAlong(forest, ray.origin.x, ray.origin.y, ray.origin.z, end.x, end.y, end.z,
       getTerrainMeshHeight, FOREST.sightDepth);
     if (inForest >= FOREST.sightDepth) return 'forest';
