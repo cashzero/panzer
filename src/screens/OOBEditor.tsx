@@ -31,7 +31,7 @@ export function OOBEditor() {
   const setMapSize = useGameStore((s) => s.setMapSize);
   const setWorldSeed = useGameStore((s) => s.setWorldSeed);
   const regenerateWorld = useGameStore((s) => s.regenerateWorld);
-  const deployOob = useGameStore((s) => s.deployOob);
+  const requestDeploy = useGameStore((s) => s.requestDeploy);
   const [randomOpen, setRandomOpen] = useState(false);
   const setGameScreen = useGameStore((s) => s.setGameScreen);
 
@@ -139,7 +139,7 @@ export function OOBEditor() {
           <button type="button" className="plain-button" onClick={() => setGameScreen('tank-select')}>
             Change your tank
           </button>
-          <button type="button" className="command-button" onClick={deployOob}>
+          <button type="button" className="command-button" onClick={requestDeploy}>
             Deploy
           </button>
         </div>

@@ -36,6 +36,7 @@ import { BurningWrecks } from './BurningWrecks';
 import { WaypointMarkers } from './WaypointMarker';
 import { audioManager, toAudioVec3 } from './audio';
 import { resolveDesignatedAimTarget } from './designatedAimTarget';
+import { BattleReadySignal } from './screens/DeployLoading';
 import { collectVisibleTargetIds } from './spotting';
 
 const EnemyTank = memo(function EnemyTank({ id }: { id: string }) {
@@ -613,6 +614,7 @@ export function GameScene() {
           <AllyAI />
           <IndependentAllyAI />
           <ScenePostProcessing />
+          <BattleReadySignal />
         </Suspense>
       </Canvas>
     </div>

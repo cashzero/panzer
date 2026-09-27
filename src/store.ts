@@ -126,7 +126,8 @@ export interface TankData {
   rightTrackSpeed: number;
 }
 
-export type GameScreen = 'oob-editor' | 'tank-select' | 'playing';
+/** 'deploying' shows the loading screen before the battle is built. */
+export type GameScreen = 'oob-editor' | 'tank-select' | 'deploying' | 'playing';
 export type MapSize = 'medium' | 'large';
 export const MAP_SIZE_VALUES: Record<MapSize, number> = { medium: 2000, large: 4000 };
 
@@ -232,6 +233,8 @@ interface GameState {
   worldTrees: TreeInstance[];
   /** Bumped at each deployment; the battle scene is keyed on it and mounts afresh. */
   battleId: number;
+  /** False from deployment until the battle scene has drawn its first frames; the loading screen covers it meanwhile. */
+  battleReady: boolean;
   battleStats: BattleStats;
 
   fireProjectile: (pos: Vector3, vel: Vector3, type: AmmoType, ammoSpec: TankAmmoSpec, dmg: number, firedBy: string, caliber: number, weapon?: WeaponClass) => void;
@@ -303,6 +306,9 @@ interface GameState {
   setOobRandomSettings: (settings: Partial<OobGeneratorSettings>) => void;
   setGameScreen: (screen: GameScreen) => void;
   deployOob: () => void;
+  /** Shows the loading screen, which deploys the order of battle once it has been painted. */
+  requestDeploy: () => void;
+  markBattleReady: () => void;
   triggerCameraShake: (intensity: number) => void;
   decayCameraShake: (dt: number) => void;
   setCameraYawAbs: (yaw: number) => void;
@@ -612,6 +618,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   trees: initialWorld.trees,
   worldTrees: initialWorld.trees,
   battleId: 0,
+  battleReady: false,
   battleStats: createBattleStats(0),
   cameraShake: 0,
   playerBurstRemaining: 0,
@@ -714,6 +721,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
   setOobRandomSettings: (settings) => set((state) => ({ oobRandomSettings: { ...state.oobRandomSettings, ...settings } })),
   setGameScreen: (screen) => set({ gameScreen: screen }),
+  requestDeploy: () => set({ gameScreen: 'deploying', battleReady: false, isMapMode: false }),
+  markBattleReady: () => set({ battleReady: true }),
   deployOob: () => {
     const state = get();
     const mapScale = MAP_SIZE_VALUES[state.mapSize] / 1000;
@@ -782,6 +791,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       aiWaypoints,
       trees: state.worldTrees,
       battleId: state.battleId + 1,
+      battleReady: false,
       battleStats: createBattleStats(Date.now()),
       isMapMode: false,
       viewMode: 'third-person',

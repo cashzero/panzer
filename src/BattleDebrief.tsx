@@ -51,7 +51,7 @@ export function BattleDebrief() {
   const player = useGameStore((state) => state.playerTank);
   const allies = useGameStore((state) => state.allies);
   const enemies = useGameStore((state) => state.enemies);
-  const deployOob = useGameStore((state) => state.deployOob);
+  const requestDeploy = useGameStore((state) => state.requestDeploy);
   const leaveBattle = useGameStore((state) => state.leaveBattle);
   const [open, setOpen] = useState(false);
   const primary = useRef<HTMLButtonElement>(null);
@@ -131,7 +131,7 @@ export function BattleDebrief() {
         </section>
 
         <footer className="debrief__actions">
-          <button ref={primary} type="button" className="debrief__button is-primary" onClick={deployOob}>Fight again</button>
+          <button ref={primary} type="button" className="debrief__button is-primary" onClick={requestDeploy}>Fight again</button>
           <button type="button" className="debrief__button" onClick={leaveBattle}>Order of battle</button>
         </footer>
       </article>
