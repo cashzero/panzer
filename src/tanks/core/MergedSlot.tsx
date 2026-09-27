@@ -60,7 +60,7 @@ function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme
     standard.type, standard.roughness, standard.metalness, standard.envMapIntensity,
     standard.emissive.getHexString(), standard.emissiveIntensity, standard.wireframe,
     standard.side, standard.transparent, standard.opacity, standard.customProgramCacheKey(),
-    pattern ? `camo:${camouflage!.id}` : '',
+    pattern ? `camo:${camouflage!.id}${bare ? ':bare' : ''}` : '',
     zimmerit ? `zim:${zimmerit}` : '',
   ].join('|');
   let shared = sharedMaterials.get(key);
@@ -80,8 +80,8 @@ function classifyMaterial(material: THREE.Material, camouflage: CamouflageScheme
     });
     if (pattern) {
       const [colorA = camouflage!.base, colorB = colorA] = camouflage!.colors;
-      shared.onBeforeCompile = createCamouflageWeathering(pattern, new THREE.Color(colorA), new THREE.Color(colorB));
-      shared.customProgramCacheKey = () => `armor-camo-${pattern}-v4`;
+      shared.onBeforeCompile = createCamouflageWeathering(pattern, new THREE.Color(colorA), new THREE.Color(colorB), bare);
+      shared.customProgramCacheKey = () => `armor-camo-${pattern}${bare ? '-bare' : ''}-v5`;
     } else {
       shared.onBeforeCompile = standard.onBeforeCompile;
       shared.customProgramCacheKey = standard.customProgramCacheKey;
