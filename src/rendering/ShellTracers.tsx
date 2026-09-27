@@ -95,7 +95,7 @@ void main() {
   float trail = mix(0.16, 1.0, head * head);
 
   vec3 hot = vec3(1.0, 0.86, 0.66);
-  vec3 rgb = (vColor * glow * 0.55 + hot * core) * trail * uIntensity * vOpacity;
+  vec3 rgb = (vColor * glow * 0.3 + hot * core) * trail * uIntensity * vOpacity;
   if (max(rgb.r, max(rgb.g, rgb.b)) < 0.002) discard;
   gl_FragColor = vec4(rgb, 1.0);
 }

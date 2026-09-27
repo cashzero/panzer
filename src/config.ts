@@ -218,9 +218,9 @@ export const GAME_CONFIG = {
     tracerColor: '#ff6a1f',
     ricochetColor: '#ff4210',
     tracerFadeTime: 160,     // ms, streak collapses into the impact point after the shell stops
-    width: 0.09,             // m, glowing core width for a 75mm shell (scales with caliber)
-    minPixelWidth: 3,        // px, keeps distant tracers readable
-    intensity: 16,           // HDR multiplier so the bloom pass catches the hot core
+    width: 0.07,             // m, glowing core width for a 75mm shell (scales with caliber)
+    minPixelWidth: 2,        // px, keeps distant tracers readable
+    intensity: 9,            // HDR multiplier; kept under the bloom threshold so tracers glow without flaring
   },
   impactDecals: {
     lifetime: 45000,         // ms before a crater has fully faded
