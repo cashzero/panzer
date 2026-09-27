@@ -102,7 +102,7 @@ export type CamouflageShaderPattern = keyof typeof CAMOUFLAGE_PATTERNS;
  * same object space (slot space for merged tanks, so paint follows the turret).
  * Colours are linear RGB. Needs a per-vertex `camoSeed` attribute.
  */
-export function createCamouflageWeathering(pattern: CamouflageShaderPattern, colorA: Color, colorB: Color): MeshStandardMaterial['onBeforeCompile'] {
+export function createCamouflageWeathering(pattern: CamouflageShaderPattern, colorA: Color, colorB: Color, groundWear = false): MeshStandardMaterial['onBeforeCompile'] {
   return (shader, renderer) => {
     armorWeathering(shader, renderer);
     shader.uniforms.camoColorA = { value: colorA };
@@ -112,6 +112,7 @@ export function createCamouflageWeathering(pattern: CamouflageShaderPattern, col
       '#include <begin_vertex>\nvCamoSeed = camoSeed;');
     shader.fragmentShader = shader.fragmentShader.replace('void main() {', `
       #define CAMO_PATTERN ${CAMOUFLAGE_PATTERNS[pattern]}
+      #define CAMO_GROUND_WEAR ${groundWear ? 1 : 0}
       uniform vec3 camoColorA, camoColorB;
       varying float vCamoSeed;
       float camoFbm(vec3 p) {
@@ -146,10 +147,16 @@ export function createCamouflageWeathering(pattern: CamouflageShaderPattern, col
             diffuseColor.rgb = mix(diffuseColor.rgb, mix(camoColorA, base, dark), dotMask);
           #endif
         #elif CAMO_PATTERN == 4
-          // Brushed whitewash worn through in vertical streaks, with grime.
-          float wash = camoEdge(camoFbm(camoP * vec3(1.6, 0.3, 1.6)), 0.41);
-          vec3 grime = camoColorA * (0.82 + 0.18 * surfaceNoise(camoP * 9.0));
-          diffuseColor.rgb = mix(diffuseColor.rgb, grime, wash);
+          // Near-complete whitewash. The base coat shows only where crews and
+          // mud wore it off: heavy along the hull's lower edge (skirts, hull
+          // bottom), fading upward, plus sparse small scuffs everywhere. Turret
+          // and gun sit well clear of the mud: scuffs only.
+          float lowWear = CAMO_GROUND_WEAR == 1 ? 1.0 - smoothstep(0.2, 0.8, vSurfacePosition.y) : 0.0;
+          float streaks = camoFbm(camoP * vec3(3.2, 0.8, 3.2));
+          float scuffs = camoFbm(camoP * 6.0);
+          float worn = max(camoEdge(streaks, 0.74 - 0.24 * lowWear), camoEdge(scuffs, 0.76));
+          vec3 grime = camoColorA * (0.86 + 0.14 * surfaceNoise(camoP * 9.0));
+          diffuseColor.rgb = mix(grime, diffuseColor.rgb, worn * (0.55 + 0.45 * lowWear));
         #endif
       }`);
   };
