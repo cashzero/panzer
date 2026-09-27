@@ -20,3 +20,6 @@ coverage/
 /docs/perf/*.png
 /docs/perf/*.json
 /docs/perf/*.cpuprofile
+
+# Git Bash crash dumps
+*.stackdump
