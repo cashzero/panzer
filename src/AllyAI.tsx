@@ -5,7 +5,7 @@ import { useRef } from 'react';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
 import { steerDirectionAroundBuildings, type BuildingInstance } from './buildings';
-import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
+import { chooseAvoidanceDirection, resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision, resolveHedgeCrush } from './collision';
 import { getTankDef } from './tanks/registry';
 import { computeTerrainOrientation, computeTrackMovement, computeBodyRock } from './tankPhysics';
 import { computeMuzzleAndDirection, applyDispersion } from './firing';
@@ -310,6 +310,10 @@ export function AllyAI() {
         const fallDir = Math.atan2(newPos.x - tree.position[0], newPos.z - tree.position[2]);
         updateTree(idx, { fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
         spawnParticle('tree_hit', new THREE.Vector3(tree.position[0], tree.position[1] + 2, tree.position[2]), new THREE.Vector3(0, 1, 0));
+      }
+      const hedgeBreak = resolveHedgeCrush(newPos, forwardSpeed);
+      if (hedgeBreak) {
+        spawnParticle('hedge_crush', new THREE.Vector3(hedgeBreak.x, getTerrainHeight(hedgeBreak.x, hedgeBreak.z) + 0.8, hedgeBreak.z), new THREE.Vector3(0, 1, 0));
       }
 
       newPos.y = getTerrainHeight(newPos.x, newPos.z);

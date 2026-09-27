@@ -17,7 +17,7 @@ import { useGameStore, AmmoType } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { GAME_CONFIG } from './config';
 import { getTerrainHeight } from './Terrain';
-import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision } from './collision';
+import { resolveTankCollision, resolveTreeCollision, resolveBuildingCollision, resolveForestCollision, resolveHedgeCrush } from './collision';
 import { BattleMapGrid, MapCameraController } from './MapMode';
 import { MapMarker } from './MapMarker';
 import { getTankDef } from './tanks/registry';
@@ -286,6 +286,10 @@ function PlayerController() {
       const fallDir = Math.atan2(newPos.x - tree.position[0], newPos.z - tree.position[2]);
       useGameStore.getState().updateTree(idx, { fallen: true, fallDirection: fallDir, fallProgress: 0.01 });
       useGameStore.getState().spawnParticle('tree_hit', new THREE.Vector3(tree.position[0], tree.position[1] + 2, tree.position[2]), new THREE.Vector3(0, 1, 0));
+    }
+    const hedgeBreak = resolveHedgeCrush(newPos, forwardSpeed);
+    if (hedgeBreak) {
+      useGameStore.getState().spawnParticle('hedge_crush', new THREE.Vector3(hedgeBreak.x, getTerrainHeight(hedgeBreak.x, hedgeBreak.z) + 0.8, hedgeBreak.z), new THREE.Vector3(0, 1, 0));
     }
 
     newPos.y = getTerrainHeight(newPos.x, newPos.z);

@@ -11,7 +11,7 @@ import type { TankAmmoSpec } from './tanks/types';
 import type { TreeInstance } from './trees';
 import { generateTrees, planWoods, TREE_SEED_OFFSET } from './trees';
 import { buildForestMap, forestDepthAt, getActiveForest, setActiveForest } from './forest';
-import { planHedgeRuns, setActiveHedges } from './hedges';
+import { planHedgeRuns, resetHedgeDamage, setActiveHedges } from './hedges';
 import { analyzeImpact, computeReflectedVelocity, computeEffectiveArmor, rollPenetration, computeDamage, computeHESplashDamage } from './combatPhysics';
 import { getAmmoPenetrationAtDistance } from './penetrationModel';
 import { stepProjectile } from './projectilePhysics';
@@ -41,7 +41,7 @@ export const GUNNER_ZOOM_LABELS = ['1x', '2x', '4x', '8x'] as const;
 
 export interface Particle {
   id: string;
-  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'non_pen_impact' | 'ricochet_impact' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'track_grass' | 'track_mud' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'wreck_fire' | 'tree_hit';
+  type: 'fire' | 'hit_penetrate' | 'hit_bounce' | 'non_pen_impact' | 'ricochet_impact' | 'hit_ground' | 'tank_explosion' | 'dust' | 'dust_low' | 'track_grass' | 'track_mud' | 'he_hit_ground' | 'he_hit_penetrate' | 'burning_smoke' | 'wreck_fire' | 'tree_hit' | 'hedge_crush';
   position: Vector3;
   normal?: Vector3;
   scale?: number;
@@ -766,6 +766,8 @@ export const useGameStore = create<GameState>((set, get) => ({
     const allyBaseMoveOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'follow' as AllyBaseMoveOrder]));
     const allyFireOrders = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-at-will' as AllyFireOrder]));
     const allyEngagementPostures = Object.fromEntries(allies.map((ally) => [ally.id, 'fire-from-position' as AllyEngagementPosture]));
+    // Hedges a previous battle crashed through stand whole again.
+    resetHedgeDamage();
 
       set({
         playerTank: player,

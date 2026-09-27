@@ -281,6 +281,7 @@ export const GAME_CONFIG = {
       spawnInterval: 120,   // ms between flame tongues
     },
     tree_hit: { lifetime: 800, color: '#8b6914', size: 2, expand: true },
+    hedge_crush: { lifetime: 900, color: '#4a6a2a', size: 1.2, expand: true },
     default: { lifetime: 500, color: '#ffffff', size: 1, expand: true },
   },
 };

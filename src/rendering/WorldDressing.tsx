@@ -6,10 +6,11 @@ import { useGameStore } from '../store';
 import { isPointNearAnyBuilding } from '../buildings';
 import { getTerrainMeshHeight } from '../Terrain';
 import { foliageDepthMaterial, patchFoliageMaterial } from './foliageCards';
-import { HEDGE_STEP, getActiveHedges, hedgeStationProfile, type HedgeRun } from '../hedges';
+import { BROKEN_HEDGE_HEIGHT, HEDGE_STEP, getActiveHedges, hedgeStationProfile, takeHedgeBreaks, type HedgeRun } from '../hedges';
 
 // Scenery dressing. Neither hedges nor poles collide; hedges block sight
-// through the same profile in spotting.ts (planned in hedges.ts).
+// through the same profile in spotting.ts (planned in hedges.ts), and tanks
+// crashing through flatten them (crushHedges), which squashes their leaves here.
 
 function mulberry32(seed: number) {
   return () => {
@@ -29,6 +30,8 @@ interface CardArrays {
   colors: number[];
   uvs: number[];
   indices: number[];
+  /** First vertex of each run; every station of a run has the same vertex count. */
+  runStart: Map<HedgeRun, number>;
 }
 
 /** Leaf card edge length range (m). */
@@ -53,6 +56,7 @@ function hedgeHash(a: number, b: number) {
  */
 function appendHedgeRun(run: HedgeRun, cards: CardArrays) {
   const { dirX, dirZ, phase, character } = run;
+  cards.runStart.set(run, cards.positions.length / 3);
   const nx = -dirZ, nz = dirX;
   const tint = new THREE.Color();
   const normal = new THREE.Vector3();
@@ -105,6 +109,38 @@ function appendHedgeRun(run: HedgeRun, cards: CardArrays) {
       cards.indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
     }
   });
+}
+
+/** Vertices per station of a run: four per leaf card. */
+function stationVertexCount(run: HedgeRun) {
+  return (run.character.cards + Math.round(run.character.cards * INNER_CARD_RATIO)) * 4;
+}
+
+/**
+ * A tank has crashed through station i: its leaves fall into a low trampled
+ * mat BROKEN_HEDGE_HEIGHT high, the height line of sight now sees over,
+ * smaller and darker where they are torn and bruised.
+ */
+function flattenStation(geometry: THREE.BufferGeometry, runStart: Map<HedgeRun, number>, run: HedgeRun, i: number) {
+  const start = runStart.get(run);
+  if (start === undefined) return;
+  const count = stationVertexCount(run);
+  const first = start + i * count;
+  const station = run.stations[i];
+  const base = getTerrainMeshHeight(station.x, station.z) - 0.25;
+  const squash = (BROKEN_HEDGE_HEIGHT + 0.25) / (hedgeStationProfile(run, i).height + 0.25);
+  const position = geometry.getAttribute('position') as THREE.BufferAttribute;
+  const offset = geometry.getAttribute('cardOffset') as THREE.BufferAttribute;
+  const color = geometry.getAttribute('color') as THREE.BufferAttribute;
+  for (let v = first; v < first + count; v++) {
+    position.setY(v, base + (position.getY(v) - base) * squash);
+    offset.setXY(v, offset.getX(v) * 0.7, offset.getY(v) * 0.7);
+    color.setXYZ(v, color.getX(v) * 0.8, color.getY(v) * 0.75, color.getZ(v) * 0.7);
+  }
+  for (const attribute of [position, offset, color]) {
+    attribute.addUpdateRange(first * attribute.itemSize, count * attribute.itemSize);
+    attribute.needsUpdate = true;
+  }
 }
 
 /** Telegraph pole with two crossarms, base at y = 0. */
@@ -162,6 +198,8 @@ export function WorldDressing() {
   const buildings = useGameStore((s) => s.buildings);
   const farmlands = useGameStore((s) => s.farmlands);
   const worldSeed = useGameStore((s) => s.worldSeed);
+  // A new battle stands every hedge up again (resetHedgeDamage).
+  const battleId = useGameStore((s) => s.battleId);
 
   const dressing = useMemo(() => {
     const rng = mulberry32(worldSeed ^ 0x2545f491);
@@ -170,7 +208,7 @@ export function WorldDressing() {
     const up = new THREE.Vector3(0, 1, 0);
 
     // Hedges: continuous runs along the planned boundaries (hedges.ts).
-    const cards: CardArrays = { positions: [], offsets: [], normals: [], colors: [], uvs: [], indices: [] };
+    const cards: CardArrays = { positions: [], offsets: [], normals: [], colors: [], uvs: [], indices: [], runStart: new Map() };
     for (const run of getActiveHedges()) appendHedgeRun(run, cards);
     const leafGeometry = new THREE.BufferGeometry();
     leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute(cards.positions, 3));
@@ -229,8 +267,13 @@ export function WorldDressing() {
     }
     const wires = new THREE.BufferGeometry();
     wires.setAttribute('position', new THREE.Float32BufferAttribute(wirePoints, 3));
-    return { leafGeometry, poleMatrices, wires };
-  }, [roadNetwork, buildings, farmlands, worldSeed]);
+    // Gaps already made stay open when the dressing is rebuilt mid-battle.
+    takeHedgeBreaks();
+    for (const run of getActiveHedges()) {
+      run.broken.forEach((broken, i) => { if (broken) flattenStation(leafGeometry, cards.runStart, run, i); });
+    }
+    return { leafGeometry, poleMatrices, wires, runStart: cards.runStart };
+  }, [roadNetwork, buildings, farmlands, worldSeed, battleId]);
 
   const poles = useMemo(() => {
     const mesh = new THREE.InstancedMesh(poleGeometry, poleMaterial, Math.max(1, dressing.poleMatrices.length));
@@ -243,7 +286,10 @@ export function WorldDressing() {
   }, [dressing]);
 
   useEffect(() => () => { poles.dispose(); }, [poles]);
-  useFrame(({ gl, size }) => { wireViewport.value = size.height * gl.getPixelRatio(); });
+  useFrame(({ gl, size }) => {
+    wireViewport.value = size.height * gl.getPixelRatio();
+    for (const { run, i } of takeHedgeBreaks()) flattenStation(dressing.leafGeometry, dressing.runStart, run, i);
+  });
   useEffect(() => () => {
     dressing.wires.dispose();
     dressing.leafGeometry.dispose();

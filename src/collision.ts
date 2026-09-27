@@ -4,6 +4,7 @@ import { GAME_CONFIG } from './config';
 import type { TreeInstance } from './trees';
 import { forEachTreeNear } from './treeIndex';
 import { forestDepthAt, getActiveForest, pushOutOfForest } from './forest';
+import { crushHedges, HEDGE_CRUSH_RADIUS } from './hedges';
 
 /** Indices of trees whose grid cells overlap a box, in array order. */
 function treesNear(trees: TreeInstance[], x: number, z: number, reach: number): number[] {
@@ -216,6 +217,15 @@ export function resolveTreeCollision(
   }
 
   return { knockedTreeIndex: null };
+}
+
+/**
+ * A moving tank crashes through any hedge it overlaps and leaves a gap.
+ * Returns where it broke through (x, z), or null.
+ */
+export function resolveHedgeCrush(newPos: THREE.Vector3, speed: number): { x: number; z: number } | null {
+  if (Math.abs(speed) < 0.3) return null;
+  return crushHedges(newPos.x, newPos.z, HEDGE_CRUSH_RADIUS);
 }
 
 /** Forests are impassable: a tank slides along the edge instead of entering. */

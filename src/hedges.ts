@@ -5,8 +5,9 @@ import { isOnRoadForNetwork, type RoadNetwork } from './roads';
 
 // Field hedges, planned once per world. The renderer builds leaf cards over
 // these runs and line of sight tests against the same profile, so a crew
-// cannot see through a hedge that hides the player's view. Tanks still drive
-// through them: hedges neither collide nor stop shells.
+// cannot see through a hedge that hides the player's view. Hedges neither
+// collide nor stop shells: a tank crashes through and leaves a gap
+// (crushHedges), which the renderer and sight lines both see.
 
 function mulberry32(seed: number) {
   return () => {
@@ -57,7 +58,15 @@ export interface HedgeRun {
   dirZ: number;
   phase: number;
   character: HedgeCharacter;
+  /** 1 where a tank has driven through and flattened the station. */
+  broken: Uint8Array;
 }
+
+/** A tank flattens hedge stations within this of its centre (m): its half width and the hedge's. */
+export const HEDGE_CRUSH_RADIUS = 2.3;
+
+/** What is left standing where a tank has crashed through: a trampled mat of brush (m). */
+export const BROKEN_HEDGE_HEIGHT = 0.35;
 
 /**
  * Height and width of a run at station i: an arch that wanders on a long
@@ -100,7 +109,9 @@ export function planHedgeRuns(
     let stations: Array<{ x: number; z: number }> = [];
     const flush = () => {
       // Runs split by the same road keep their own phase so their lumps differ.
-      if (stations.length >= 3) runs.push({ stations, dirX, dirZ, phase: phase + runs.length * 0.37, character });
+      if (stations.length >= 3) {
+        runs.push({ stations, dirX, dirZ, phase: phase + runs.length * 0.37, character, broken: new Uint8Array(stations.length) });
+      }
       stations = [];
     };
     for (let d = 0; d <= length; d += HEDGE_STEP) {
@@ -143,7 +154,7 @@ export function hedgeCrossing(
     if (best !== null && t >= best) continue;
     const i = Math.round(u * (run.stations.length - 1));
     const x = x0 + dx * t, z = z0 + dz * t;
-    const top = groundAt(x, z) + hedgeStationProfile(run, i).height;
+    const top = groundAt(x, z) + (run.broken[i] ? BROKEN_HEDGE_HEIGHT : hedgeStationProfile(run, i).height);
     if (y0 + (y1 - y0) * t < top) best = t;
   }
   return best;
@@ -153,10 +164,65 @@ export function hedgeCrossing(
 // active forest) for sight code that has no other route to the world state.
 let activeHedges: HedgeRun[] = [];
 
+// Stations by grid cell, for tanks asking what they are driving through.
+const CELL = 8; // m
+let stationGrid = new Map<number, Array<{ run: HedgeRun; i: number }>>();
+const cellKey = (ix: number, iz: number) => ix * 73856093 ^ iz * 19349663;
+
+/** Stations flattened since the renderer last took them. */
+let pendingBreaks: Array<{ run: HedgeRun; i: number }> = [];
+
 export function setActiveHedges(runs: HedgeRun[]) {
   activeHedges = runs;
+  stationGrid = new Map();
+  for (const run of runs) {
+    run.stations.forEach((station, i) => {
+      const key = cellKey(Math.floor(station.x / CELL), Math.floor(station.z / CELL));
+      const list = stationGrid.get(key);
+      if (list) list.push({ run, i }); else stationGrid.set(key, [{ run, i }]);
+    });
+  }
+  pendingBreaks = [];
 }
 
 export function getActiveHedges() {
   return activeHedges;
+}
+
+/** Every hedge stands whole again, for a new battle on the same world. */
+export function resetHedgeDamage() {
+  for (const run of activeHedges) run.broken.fill(0);
+  pendingBreaks = [];
+}
+
+/**
+ * A tank at (x, z) flattens every hedge station within `radius` of it.
+ * Returns the middle of the stations it broke just now, or null.
+ */
+export function crushHedges(x: number, z: number, radius: number): { x: number; z: number } | null {
+  const reach = Math.ceil(radius / CELL);
+  const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+  let count = 0, sumX = 0, sumZ = 0;
+  for (let ix = cx - reach; ix <= cx + reach; ix++) {
+    for (let iz = cz - reach; iz <= cz + reach; iz++) {
+      const list = stationGrid.get(cellKey(ix, iz));
+      if (!list) continue;
+      for (const entry of list) {
+        if (entry.run.broken[entry.i]) continue;
+        const station = entry.run.stations[entry.i];
+        if (Math.hypot(station.x - x, station.z - z) > radius) continue;
+        entry.run.broken[entry.i] = 1;
+        pendingBreaks.push(entry);
+        count++; sumX += station.x; sumZ += station.z;
+      }
+    }
+  }
+  return count ? { x: sumX / count, z: sumZ / count } : null;
+}
+
+/** Stations flattened since the last call; the renderer squashes their leaves. */
+export function takeHedgeBreaks() {
+  const taken = pendingBreaks;
+  pendingBreaks = [];
+  return taken;
 }

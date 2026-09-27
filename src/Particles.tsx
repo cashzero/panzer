@@ -397,6 +397,7 @@ function getConfig(type: Particle['type']) {
     case 'burning_smoke': return GAME_CONFIG.particles.burning_smoke;
     case 'wreck_fire': return GAME_CONFIG.particles.wreck_fire;
     case 'tree_hit': return GAME_CONFIG.particles.tree_hit;
+    case 'hedge_crush': return GAME_CONFIG.particles.hedge_crush;
     default: return GAME_CONFIG.particles.default;
   }
 }
@@ -839,6 +840,12 @@ function spawnSubParticles(p: Particle, subs: SubState[]) {
     add('flash', 0, 0, 0, 0, 0, 0, 2.0 * s, '#ffcc66', 0.15, 0);
     for (let i = 0; i < sc(10); i++) cone('debris', 2.0, (6 + Math.random() * 6) * sv, (0.12 + Math.random() * 0.16) * s, i < 5 ? '#8b6914' : '#5c3a1e', 1.8 + Math.random() * 0.6, 0);
     for (let i = 0; i < sc(4); i++) cone('smoke', 1.0, (1 + Math.random() * 2) * sv, (1.5 + Math.random()) * s, '#2d5a1e', 0.8, (Math.random() - 0.5) * 2);
+  } else if (type === 'hedge_crush') {
+    // A tank bursting through a hedge: torn leaves and snapped twigs thrown
+    // up and a puff of dust from the bank, no flash.
+    const LEAVES = ['#3f5f24', '#56722f', '#2f4a1c', '#6b5a2e'];
+    for (let i = 0; i < sc(14); i++) cone('debris', 2.4, (2.5 + Math.random() * 3.5) * sv, (0.1 + Math.random() * 0.14) * s, LEAVES[i % LEAVES.length], 1.4 + Math.random() * 0.8, 0);
+    for (let i = 0; i < sc(3); i++) cone('smoke', 1.2, (0.6 + Math.random()) * sv, (1.4 + Math.random()) * s, '#6f6448', 0.5, (Math.random() - 0.5) * 2);
   } else if (type === 'dust') {
     add('smoke', 0, 0, 0,
       (Math.random() - 0.5) * 2, Math.random() * 1.5 + 0.5, (Math.random() - 0.5) * 2,
