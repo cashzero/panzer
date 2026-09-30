@@ -2,44 +2,57 @@
 
 This document tracks unfinished work only. Move completed capabilities into `openspec/implemented.md`.
 
-## Sprint 1: Core Game Loop And Visual Polish
+## Sprint 1: Difficulty And Scenarios
 
-### Feature 1.1: Mission / Wave System [L]
+### Feature 1.4: Difficulty Levels [S]
 
-Objective: replace ad hoc spawning with mission-driven phase flow and authored wave progression.
-
-Implementation tasks:
-- [ ] Add mission phases ahead of the battle to `store.ts` (`'menu' | 'briefing'`); victory, defeat and the after-action report already exist (`battleStats`, `BattleDebrief.tsx`)
-- [ ] Create `src/missions.ts` to define wave compositions, spawn positions, and timing
-- [ ] Create `src/WaveManager.tsx` to read mission data and spawn waves under gameplay conditions
-- [ ] Modify `GameScene.tsx` to remove hardcoded `spawnEnemy` usage and delegate spawning to `WaveManager`
-- [ ] Modify `App.tsx` to switch between menu, briefing and gameplay screens
-- [ ] Create `src/screens/MissionSelect.tsx` and `src/screens/MissionBrief.tsx`; give the after-action report the mission's objectives
-
-Player-facing validation:
-- [ ] The game flows cleanly from mission selection through briefing, battle, and result states
-
-### Feature 2.1: Screen Shake On Hits [S]
-
-Objective: add recoil and damage feedback to strengthen impact readability.
+Objective: let the player choose how hard the enemy fights without breaking the armour penetration model.
 
 Implementation tasks:
-- [ ] Add a decaying shake offset to `CameraController.ts`
-- [ ] Add `cameraShake` state to `store.ts` and trigger it on damage received and firing
+- [ ] Add difficulty presets to `config.ts` that scale AI gun dispersion, reaction and reload time, and spotting reveal delay (never tank HP or armour)
+- [ ] Add a `difficulty` field to `store.ts` and a selector in the order-of-battle screen
+- [ ] Read difficulty-adjusted values in `EnemyAI.tsx`, `aiAccuracy.ts` and `spotting.ts`
 
 Player-facing validation:
-- [ ] Firing and incoming hits create readable but controlled camera shake without hurting aim usability
+- [ ] Difficulty selection changes combat challenge in clear and consistent ways while penetration outcomes stay the same
+
+### Feature 1.1: Scenario / Mission System [L]
+
+Objective: give battles objectives and authored order-of-battle setups, built on the existing order-of-battle editor rather than arcade waves.
+
+Implementation tasks:
+- [ ] Create `src/missions.ts` defining scenarios: fixed order of battle, map seed and size, objectives (destroy, hold a grid square, break through, withdraw) and optional timed reinforcements
+- [ ] Add mission selection and briefing screens (`src/screens/MissionSelect.tsx`, `src/screens/MissionBrief.tsx`) routed from `App.tsx`
+- [ ] Evaluate objectives in `store.ts` alongside the existing victory/defeat decision; show them in `BattleDebrief.tsx`
+- [ ] Spawn reinforcements from mission data and remove the legacy `spawnEnemy` store action
+
+Player-facing validation:
+- [ ] The game flows cleanly from mission selection through briefing, battle, and an after-action report that grades the objectives
 
 ---
 
-## Sprint 2: Scoring And Sound
+## Sprint 2: Environment And Sound
+
+### Feature 2.6: Environment Presets (Sky, Fog, Time Of Day) [M]
+
+Objective: replace the single summer-haze setup in `rendering/BattlefieldLighting.tsx` with presets that change atmosphere and gameplay together.
+
+Implementation tasks:
+- [ ] Add `environment` presets to `config.ts` (clear, overcast, morning mist, dusk) covering sun position, light intensity, fog range and cloud cover
+- [ ] Parameterize `BattlefieldLighting.tsx` sky, sun and fog from the active preset
+- [ ] Scale spotting range in `spotting.ts` and AI engagement distance by fog visibility and light level
+- [ ] Let each mission pick a preset
+
+Player-facing validation:
+- [ ] Mist and dusk noticeably shorten detection and engagement ranges; the sky and light read as different times of day
 
 ### Feature 2.4: Impact / Ricochet Sound Effects [M]
 
-Objective: replace temporary synthesized hit sounds with more convincing transient playback.
+Objective: make hit results distinguishable by ear.
 
 Implementation tasks:
-- [ ] Replace the generated impact, ricochet, and ground-hit backend in `audio.ts` with sample-based playback
+- [ ] Choose freely licensed samples and keep the bundle small
+- [ ] Replace the generated impact, ricochet, and ground-hit backend in `audio.ts` with sample-based playback via `replaceBackend()`
 - [ ] Tune `store.ts` `handleHit` event mapping and output levels against the new transient backend
 
 Player-facing validation:
@@ -47,171 +60,70 @@ Player-facing validation:
 
 ---
 
-## Sprint 3: AI Behaviors, Difficulty, And Sky
+## Sprint 3: Terrain, Water, And Squad AI
 
-### Feature 1.4: Difficulty Levels [S]
+### Feature 4.1: Terrain Profiles [M]
 
-Objective: let players tune challenge without changing core rules.
-
-Implementation tasks:
-- [ ] Add difficulty presets to `config.ts` that scale AI accuracy, reload time, and enemy HP
-- [ ] Add a `difficulty` field to `store.ts`
-- [ ] Read difficulty-adjusted config values in `EnemyAI.tsx`
-
-Player-facing validation:
-- [ ] Difficulty selection changes combat challenge in clear and consistent ways
-
-### Feature 3.5: Line-Of-Sight Spotting [M]
-
-Objective: make vision and concealment part of tactical play.
+Objective: make missions feel geographically different.
 
 Implementation tasks:
-- [ ] Add spotted and hidden state for tanks to `store.ts`
-- [ ] Use terrain and tree occlusion checks before AI can target enemies in `EnemyAI.tsx` and `AllyAI.tsx`
-- [ ] Hide unspotted enemies from `MapMode.tsx` and reduce HUD information until contact is established
-- [ ] Add spotting range and reveal delay tuning to `config.ts`
-
-Player-facing validation:
-- [ ] Terrain and vegetation meaningfully affect detection, targeting, and battlefield awareness
-
-### Feature 2.6: Sky And Clouds [S]
-
-Objective: make the battlefield sky feel authored rather than static.
-
-Implementation tasks:
-- [ ] Parameterize `Sky` sun position in `GameScene.tsx` and add drei `<Cloud>` support
-- [ ] Add `environment.timeOfDay` and `environment.fogDensity` to `config.ts`
-
-Player-facing validation:
-- [ ] The sky contributes to atmosphere and supports future environment presets
-
----
-
-## Sprint 4: Terrain Variety, Weather, And Performance
-
-### Feature 4.1: Terrain Variety [M]
-
-Objective: support distinct battlefield topographies across missions.
-
-Implementation tasks:
-- [ ] Parameterize terrain profile behavior in `Terrain.tsx` for amplitude, frequency, and flat regions
+- [ ] Parameterize `terrainHeight.ts` / `Terrain.tsx` for amplitude, frequency, and flat regions
 - [ ] Add `terrainProfiles` to `config.ts` for plains, hills, and valley layouts
+- [ ] Check that roads, villages, fields and forests (`roads.ts`, `landLayout.ts`, `forest.ts`) still lay out sensibly on every profile
 - [ ] Let each mission reference a terrain profile
 
 Player-facing validation:
 - [ ] Missions feel geographically different instead of sharing one terrain pattern
 
-### Feature 4.2: Weather Effects - Fog And Rain [M]
+### Feature 4.5: Rivers And Bridges [L]
 
-Objective: add weather that changes both atmosphere and battlefield behavior.
-
-Implementation tasks:
-- [ ] Add `<fog>` to `GameScene.tsx`
-- [ ] Add a rain particle system above the camera
-- [ ] Scale AI engagement distance by fog visibility
-- [ ] Reduce traction in rain through `tankPhysics.ts`
-
-Player-facing validation:
-- [ ] Fog and rain alter visibility, handling, and pacing in noticeable ways
-
----
-
-## Sprint 5: Advanced AI And Day/Night
-
-### Feature 3.2: AI Obstacle Avoidance [L]
-
-Objective: improve route selection around dynamic and static battlefield obstacles.
+Objective: add water as a route-shaping obstacle.
 
 Implementation tasks:
-- [ ] Add fan-shaped raycast sampling in `EnemyAI.tsx` to avoid trees and tanks
-- [ ] Export `isPathClear()` from `collision.ts`
+- [ ] Plan a seeded river per world and carve it into the terrain height
+- [ ] Place bridges and fords where roads cross; keep villages and fields off the water
+- [ ] Create `src/Water.tsx` for a semi-transparent reflective surface
+- [ ] Slow tanks in fords, make deep water impassable, and mark it in the `navigation.ts` route grid
+- [ ] Stop shells and draw water splashes in `projectilePhysics.ts` / `Particles.tsx`
 
 Player-facing validation:
-- [ ] AI units navigate around clutter with fewer obvious collisions and stalls
-
-### Feature 4.3: Day/Night Cycle [M]
-
-Objective: extend environmental variety across longer battles and future mission presets.
-
-Implementation tasks:
-- [ ] Animate sun position and lighting intensity over game time
-- [ ] Add headlight `SpotLight` support to tanks in `Tank.tsx`
-- [ ] Reduce AI engagement distance at night
-
-Player-facing validation:
-- [ ] Night conditions affect mood, visibility, and combat range
-
----
-
-## Sprint 6: Squad AI, Buildings, Water, And Save/Load
+- [ ] Rivers and crossings affect route choice and movement risk for the player and the AI
 
 ### Feature 3.4: AI Squad Coordination [L]
 
-Objective: coordinate AI units as groups instead of isolated actors.
+Objective: make multi-tank groups act as a team on top of the existing per-tank roles (`aiMatchup.ts`, `aiTactics.ts`).
 
 Implementation tasks:
-- [ ] Add a coordination layer that assigns pin, flank-left, and flank-right roles before individual AI updates
-- [ ] Add `squadAssignments` to `store.ts`
+- [ ] Add a coordination pass before individual AI updates that assigns pin, flank-left and flank-right to groups sharing a target
+- [ ] Add `squadAssignments` to `store.ts` and have fighting-position scoring respect them
 
 Player-facing validation:
-- [ ] Multi-tank enemy groups act with more coherent team behavior
-
-### Feature 4.4: Destructible Buildings [XL]
-
-Objective: turn village structures into damageable battlefield cover.
-
-Implementation tasks:
-- [ ] Add building HP and damage state to `store.ts`
-- [ ] Extend `src/buildings.ts` and `src/BuildingRenderer.tsx` from indestructible obstacles into destructible wall and roof sections
-- [ ] Add shell damage, collapse state, and debris or wreck visuals for destroyed buildings
-
-Player-facing validation:
-- [ ] Buildings can be broken down by fire and visibly transition into destroyed cover
-
-### Feature 4.5: Water / Rivers [M]
-
-Objective: add new terrain hazards and route constraints.
-
-Implementation tasks:
-- [ ] Create `src/Water.tsx` for a semi-transparent reflective plane
-- [ ] Add a speed penalty in shallow water and make deep water impassable
-
-Player-facing validation:
-- [ ] Rivers and water crossings affect route choice and movement risk
-
-### Feature 5.2: Save / Load [M]
-
-Objective: preserve game state between play sessions.
-
-Implementation tasks:
-- [ ] Add serialization and deserialization to `store.ts` with `Vector3` values stored as `[x, y, z]`
-- [ ] Persist saves using `localStorage` or a JSON file
-
-Player-facing validation:
-- [ ] Players can leave and resume a battle without losing key state
+- [ ] Multi-tank enemy groups pin and flank rather than all converging on one line
 
 ---
 
-## Sprint 7: Replay And Mobile
+## Sprint 4: Destructible Buildings
 
-### Feature 5.3: Replay System [XL]
+### Feature 4.4: Destructible Buildings [XL]
 
-Objective: support deterministic battle playback for review and debugging.
-
-Implementation tasks:
-- [ ] Record per-frame input state for deterministic playback
-- [ ] Create `src/replay.ts`
-
-Player-facing validation:
-- [ ] A finished battle can be replayed with matching motion and firing outcomes
-
-### Feature 5.4: Mobile Touch Controls [L]
-
-Objective: make the core control scheme portable to touch devices.
+Objective: turn buildings from indestructible cover into cover that can be shot down. Wall and roof impacts already exist in `buildings.ts`.
 
 Implementation tasks:
-- [ ] Create `src/TouchControls.tsx` for virtual joystick and touch-drag camera input
-- [ ] Abstract input sources in `useInput.ts`
+- [ ] Add building HP and damage state to `store.ts`
+- [ ] Split buildings in `buildings.ts` and `BuildingRenderer.tsx` into destructible wall and roof sections
+- [ ] Add collapse state, rubble footprint (collision and line of sight), and debris visuals
 
 Player-facing validation:
-- [ ] Core driving, aiming, and firing interactions remain usable on touch screens
+- [ ] Buildings can be broken down by fire and visibly transition into rubble cover
+
+---
+
+## Backlog (not scheduled)
+
+Low value for a short-battle simulator or blocked by large prerequisites; revisit only if priorities change.
+
+- Save / load [M]: battles are short; serialize `store.ts` state with `Vector3` as `[x, y, z]` only if long scenarios appear.
+- Replay system [XL]: needs a deterministic simulation first (fixed timestep, seeded dispersion) before recording inputs is meaningful.
+- Mobile touch controls [L]: precise gun laying, range calibration and view switching are hard to make usable on touch.
+- Rain [S]: rain particles and reduced traction in `tankPhysics.ts`; add as an environment preset once presets exist.
+- Tank headlights at night: dropped; wartime tanks fought blacked out.
