@@ -1,83 +1,48 @@
 import { useGameStore, isCommandable } from './store';
 import { useShallow } from 'zustand/react/shallow';
 import { BattleDebrief } from './BattleDebrief';
-import { getRecord } from './battleStats';
 import { useEffect, useState } from 'react';
-import { GAME_CONFIG } from './config';
 import { getTankDef } from './tanks/registry';
-import type { AllyBaseMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
+import type { AmmoType, AllyBaseMoveOrder, AllyEngagementPosture, AllyFireOrder, TankData } from './store';
 import { gridReference, mapView } from './MapMode';
 import { ArmourSymbol } from './screens/menuParts';
 import { GunnerSight } from './GunnerSight';
 
 
 
-function ReloadIndicator() {
-  const [secondsLeft, setSecondsLeft] = useState(0);
-  const [burstRemaining, setBurstRemaining] = useState(0);
-  const [magazineRounds, setMagazineRounds] = useState(0);
-  const [magazineSize, setMagazineSize] = useState(0);
-
-  useEffect(() => {
-    let animationFrameId: number;
-
-    const updateProgress = () => {
-      const store = useGameStore.getState();
-      const lastFireTime = store.lastFireTime;
-      const now = Date.now();
-      const timeSinceFire = now - lastFireTime;
-      const playerTankType = store.playerTank.tankType;
-      const def = getTankDef(playerTankType);
-
-      setBurstRemaining(store.playerBurstRemaining);
-      setMagazineRounds(store.playerMagazineRounds);
-      setMagazineSize(def.automaticMagazineSize ?? 0);
-
-      const remaining = Math.max(0, (def.reloadTime - timeSinceFire) / 1000);
-      setSecondsLeft(remaining);
-      animationFrameId = requestAnimationFrame(updateProgress);
-    };
-
-    updateProgress();
-
-    return () => cancelAnimationFrame(animationFrameId);
-  }, []);
-
-  const isBursting = burstRemaining > 0;
-  const isAutomatic = magazineSize > 0;
-  const isReloadingMagazine = isAutomatic && magazineRounds === 0 && secondsLeft > 0;
-  const isReady = secondsLeft === 0 && !isBursting && !isReloadingMagazine;
-  const label = isBursting
-    ? `Firing, ${burstRemaining} left`
-    : isReloadingMagazine
-      ? `Reloading ${secondsLeft.toFixed(1)} s`
-      : isAutomatic
-        ? `Ready, ${magazineRounds} of ${magazineSize}`
-        : isReady
-          ? 'Ready to fire'
-          : `Reloading ${secondsLeft.toFixed(1)} s`;
+/** Bottom-right ammo selector: one chip per round type, the loaded one lit. */
+function AmmoSelector() {
+  const ammoType = useGameStore((state) => state.ammoType);
+  const playerTankType = useGameStore((state) => state.playerTank.tankType);
+  const weapons = getTankDef(playerTankType).weapons;
+  const types: AmmoType[] = ['AP'];
+  if (weapons.APC) types.push('APC');
+  if (weapons.HE) types.push('HE');
 
   return (
-    <div className={`reload-status ${isReady ? 'is-ready' : 'is-cycling'}`}>
-      <i aria-hidden="true" />
-      <span>{label}</span>
+    <div className="ammo-panel hud-plate" aria-label="Ammunition">
+      {types.map((type) => (
+        <div key={type} className={`ammo-chip ammo-chip--${type.toLowerCase()}${type === ammoType ? ' is-selected' : ''}`}
+          aria-current={type === ammoType}>
+          <i aria-hidden="true" />
+          <span>{type}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
 function PhysicsHUD() {
-  const [physics, setPhysics] = useState({ speed: 0, rpm: 800, gear: 0, leftTrack: 0, rightTrack: 0 });
+  const [physics, setPhysics] = useState({ speed: 0, gear: 0 });
 
   useEffect(() => {
     let animationFrameId: number;
     const updatePhysics = () => {
       const tank = useGameStore.getState().playerTank;
-      setPhysics({
-        speed: tank.speed || 0,
-        rpm: tank.engineRPM || 800,
-        gear: tank.gear || 0,
-        leftTrack: tank.leftTrackSpeed || 0,
-        rightTrack: tank.rightTrackSpeed || 0
+      setPhysics((prev) => {
+        const speed = tank.speed || 0;
+        const gear = tank.gear || 0;
+        return prev.speed === speed && prev.gear === gear ? prev : { speed, gear };
       });
       animationFrameId = requestAnimationFrame(updatePhysics);
     };
@@ -85,44 +50,19 @@ function PhysicsHUD() {
     return () => cancelAnimationFrame(animationFrameId);
   }, []);
 
-  const speedKmh = Math.abs(physics.speed * 3.6).toFixed(1);
-  const rpm = Math.round(physics.rpm);
-  const playerTankType = useGameStore.getState().playerTank.tankType;
-  const tankDef = getTankDef(playerTankType);
-  const hp = Math.round(tankDef.horsepower * (physics.rpm / GAME_CONFIG.tank.maxRPM));
-  const gearStr = physics.gear === 0 ? 'N' : physics.gear < 0 ? 'R' : `D${physics.gear}`;
+  const speedKmh = Math.round(Math.abs(physics.speed * 3.6));
+  const gearStr = physics.gear === 0 ? 'N' : physics.gear < 0 ? 'R' : `${physics.gear}`;
 
   return (
     <div className="driver-cluster hud-plate">
-      <div className="driver-readout">
-        <span>Speed</span>
-        <strong>{speedKmh}</strong>
-        <small>km/h</small>
-      </div>
       <div className="driver-readout driver-readout--gear">
         <span>Gear</span>
         <strong>{gearStr}</strong>
       </div>
       <div className="driver-readout">
-        <span>Engine</span>
-        <strong>{rpm}</strong>
-        <small>rpm, {hp} hp</small>
-      </div>
-      <div className="track-readouts" aria-label="Track drive output">
-        <div className="track-readout">
-          <span>L</span>
-          <div className="track-scale">
-            <div className={physics.leftTrack >= 0 ? 'is-forward' : 'is-reverse'}
-              style={{ height: `${Math.min(50, Math.abs(physics.leftTrack / 12) * 50)}%`, [physics.leftTrack >= 0 ? 'bottom' : 'top']: '50%' }} />
-          </div>
-        </div>
-        <div className="track-readout">
-          <span>R</span>
-          <div className="track-scale">
-            <div className={physics.rightTrack >= 0 ? 'is-forward' : 'is-reverse'}
-              style={{ height: `${Math.min(50, Math.abs(physics.rightTrack / 12) * 50)}%`, [physics.rightTrack >= 0 ? 'bottom' : 'top']: '50%' }} />
-          </div>
-        </div>
+        <span>Speed</span>
+        <strong>{speedKmh}</strong>
+        <small>km/h</small>
       </div>
     </div>
   );
@@ -416,17 +356,11 @@ function GunnerFireOverlay() {
 }
 
 export function UI() {
-  const kills = useGameStore((state) => getRecord(state.battleStats, state.playerTank.id).kills);
-  const health = useGameStore((state) => state.playerTank.health);
-  const maxHealth = useGameStore((state) => state.playerTank.maxHealth);
   const destroyed = useGameStore((state) => state.playerTank.destroyed);
-  const ammoType = useGameStore((state) => state.ammoType);
   const messages = useGameStore((state) => state.messages);
 
   const viewMode = useGameStore((state) => state.viewMode);
   const isMapMode = useGameStore((state) => state.isMapMode);
-  const playerTankType = useGameStore((state) => state.playerTank.tankType);
-  const playerName = getTankDef(playerTankType).displayName;
 
   return (
     <div className="battle-hud">
@@ -435,30 +369,7 @@ export function UI() {
 
       {!isMapMode && <DirectionIndicator />}
 
-      {/* Top Left: Status */}
-      <section className="vehicle-status hud-plate" aria-label="Your tank">
-        <h2>{playerName}</h2>
-        <div>
-          <div className="hud-row">
-            <span>Hull</span><strong>{Math.max(0, Math.round(health))} / {maxHealth}</strong>
-          </div>
-          <div className="hull-integrity-track">
-            <div
-              className={`hull-integrity-fill${health / maxHealth < 0.35 ? ' is-critical' : ''}`}
-              style={{ width: `${Math.max(0, (health / maxHealth) * 100)}%` }}
-            />
-          </div>
-        </div>
-        {viewMode !== 'gunner' && <TrackDamageStatus />}
-        <div className="hud-row">
-          <span>Loaded</span>
-          <strong className={`ammo-round ${ammoType === 'AP' ? 'is-ap' : ammoType === 'APC' ? 'is-apc' : 'is-he'}`}>{ammoType}</strong>
-        </div>
-        <ReloadIndicator />
-        <div className="hud-row">
-          <span>Kills</span><strong>{kills}</strong>
-        </div>
-      </section>
+      {viewMode !== 'gunner' && !isMapMode && <TrackDamageStatus />}
       {isMapMode && <MapModeHUD />}
 
       {/* Crosshair - only in third person */}
@@ -468,7 +379,7 @@ export function UI() {
         </div>
       )}
 
-      {/* Bottom Left: Messages */}
+      {/* Messages, above the driver cluster */}
       <div className="battle-messages">
         {messages.map((m) => (
           <div key={m.id} style={{ color: m.color }} className="text-lg font-bold drop-shadow-md">
@@ -478,6 +389,7 @@ export function UI() {
       </div>
 
       {!isMapMode && <PhysicsHUD />}
+      {!isMapMode && <AmmoSelector />}
 
       {destroyed && (
         <div className="destroyed-overlay">

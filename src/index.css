@@ -1086,28 +1086,6 @@ select:focus-visible {
   box-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
 }
 
-.vehicle-status {
-  position: absolute;
-  z-index: 12;
-  top: 58px;
-  left: 18px;
-  display: grid;
-  width: min(236px, calc(100vw - 36px));
-  gap: 8px;
-  padding: 12px 14px 13px;
-  border-left: 3px solid var(--brass);
-}
-
-.vehicle-status h2 {
-  margin: 0;
-  font-family: var(--stencil);
-  font-size: 26px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
 .hud-row {
   display: flex;
   align-items: baseline;
@@ -1123,58 +1101,11 @@ select:focus-visible {
   font-weight: 600;
 }
 
-/* Engraved in tenths, like the scales on the data plate. */
-.hull-integrity-track {
-  height: 6px;
-  margin-top: 4px;
-  background:
-    repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), rgba(44, 49, 42, 0.9) calc(10% - 1px) 10%),
-    #1c201a;
-}
-
-.hull-integrity-fill {
-  height: 100%;
-  background-color: var(--chalk);
-  transition: width 240ms ease;
-}
-
-.hull-integrity-fill.is-critical { background-color: var(--pencil-red); }
-
-.ammo-round {
-  min-width: 42px;
-  padding: 1px 7px;
-  border: 1px solid currentColor;
-  text-align: center;
-}
-
-.hud-row .ammo-round.is-ap { color: var(--chalk); }
-.hud-row .ammo-round.is-apc { color: var(--brass-light); }
-.hud-row .ammo-round.is-he { color: #e0766a; }
-
-.reload-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--brass-light);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.reload-status i {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.reload-status.is-ready { color: #a9bf78; }
-.reload-status.is-cycling i { animation: reload-pulse 800ms steps(2, end) infinite; }
-
-@keyframes reload-pulse {
-  50% { opacity: 0.25; }
-}
-
 .track-damage {
+  position: absolute;
+  z-index: 12;
+  bottom: 100px;
+  left: 18px;
   margin: 0;
   color: #e0766a;
   font-size: 14px;
@@ -1240,13 +1171,12 @@ select:focus-visible {
   position: absolute;
   z-index: 12;
   bottom: 16px;
-  left: 50%;
+  left: 18px;
   display: grid;
-  width: min(500px, calc(100vw - 36px));
-  height: 80px;
-  grid-template-columns: 1.2fr 0.7fr 1.2fr 76px;
+  width: 200px;
+  height: 72px;
+  grid-template-columns: 0.7fr 1fr;
   border-top: 3px solid var(--brass);
-  transform: translateX(-50%);
 }
 
 .driver-readout {
@@ -1259,6 +1189,8 @@ select:focus-visible {
   border-right: 1px solid rgba(214, 209, 191, 0.14);
 }
 
+.driver-readout:last-child { border-right: 0; }
+
 .driver-readout > span,
 .driver-readout small {
   color: var(--chalk-dim);
@@ -1267,7 +1199,7 @@ select:focus-visible {
 }
 
 .driver-readout strong {
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 600;
   line-height: 1;
 }
@@ -1278,38 +1210,44 @@ select:focus-visible {
   font-weight: 800;
 }
 
-.track-readouts {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-}
-
-.track-readout {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--chalk-dim);
-  font-size: 13px;
-}
-
-.track-scale {
-  position: relative;
-  width: 7px;
-  height: 52px;
-  overflow: hidden;
-  background:
-    linear-gradient(180deg, transparent calc(50% - 1px), var(--chalk-dim) calc(50% - 1px) calc(50% + 1px), transparent calc(50% + 1px)),
-    #1c201a;
-}
-
-.track-scale > div {
+/* Bottom-right ammunition selector, one chip per round type. */
+.ammo-panel {
   position: absolute;
-  width: 100%;
+  z-index: 12;
+  right: 18px;
+  bottom: 16px;
+  display: flex;
+  height: 72px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-top: 3px solid var(--brass);
 }
 
-.track-scale .is-forward { background: var(--chalk); }
-.track-scale .is-reverse { background: var(--pencil-red); }
+.ammo-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(214, 209, 191, 0.2);
+  color: var(--chalk-dim);
+  font-family: var(--stencil);
+  font-size: 18px;
+  font-weight: 800;
+  opacity: 0.55;
+}
+
+.ammo-chip i {
+  width: 22px;
+  height: 8px;
+  background: currentColor;
+  clip-path: polygon(0 0, 70% 0, 100% 50%, 70% 100%, 0 100%);
+}
+
+.ammo-chip.is-selected { border-color: currentColor; opacity: 1; }
+.ammo-chip--ap.is-selected { color: var(--chalk); }
+.ammo-chip--apc.is-selected { color: var(--brass-light); }
+.ammo-chip--he.is-selected { color: #e0766a; }
 
 /* ---- Gunner's sight -------------------------------------------------- */
 
@@ -1350,7 +1288,7 @@ select:focus-visible {
   position: absolute;
   z-index: 12;
   right: 18px;
-  bottom: 16px;
+  bottom: 100px;
   display: grid;
   width: min(240px, calc(100vw - 36px));
   gap: 4px;
@@ -1394,7 +1332,7 @@ select:focus-visible {
 .battle-messages {
   position: absolute;
   z-index: 13;
-  bottom: 112px;
+  bottom: 128px;
   left: 18px;
   display: flex;
   max-width: min(420px, calc(100vw - 36px));
@@ -1651,27 +1589,15 @@ select:focus-visible {
     width: 76vw;
   }
 
-  .vehicle-status {
-    top: 49px;
-    left: 8px;
-    width: 196px;
-    gap: 5px;
-    padding: 9px 10px;
-  }
-
-  .vehicle-status h2 {
-    font-size: 20px;
-  }
-
   .driver-cluster {
     bottom: 8px;
-    width: calc(100vw - 16px);
-    height: 66px;
-    grid-template-columns: 1fr 0.62fr 1fr 62px;
+    left: 8px;
+    width: 160px;
+    height: 58px;
   }
 
   .driver-readout strong {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .driver-readout > span,
@@ -1679,11 +1605,22 @@ select:focus-visible {
     font-size: 11px;
   }
 
-  .track-scale {
-    height: 42px;
+  .ammo-panel {
+    right: 8px;
+    bottom: 8px;
+    height: 58px;
+    padding: 0 8px;
   }
 
-  /* The driver's cluster spans the bottom on narrow screens. */
+  .ammo-chip {
+    font-size: 15px;
+  }
+
+  .track-damage {
+    bottom: 76px;
+    left: 8px;
+  }
+
   .sight-data {
     top: 49px;
     right: 8px;
@@ -1693,7 +1630,7 @@ select:focus-visible {
   }
 
   .battle-messages {
-    bottom: 86px;
+    bottom: 100px;
     left: 8px;
     font-size: 11px;
   }
