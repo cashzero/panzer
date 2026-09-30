@@ -46,7 +46,7 @@ function surfaces(turret = 0, elevation = 0) {
   assert.ok(casting.type === 'group');
   const castingGroup = new THREE.Group();
   if (casting.scale) castingGroup.scale.fromArray(casting.scale);
-  castingGroup.add(...pick(casting.children, ['t23-single-cast-shell']));
+  castingGroup.add(...pick(casting.children, ['jumbo-upright-turret-casting']));
   turretGroup.add(castingGroup);
   const gunGroup = new THREE.Group();
   gunGroup.position.fromArray(spec.mounts.gunPivotOffset);

@@ -630,7 +630,7 @@
         "radialSegments": 32,
         "position": [
           -0.96,
-          2.033278,
+          2.06328,
           -1.14
         ],
         "materialRole": "hullPrimary",
@@ -1122,7 +1122,7 @@
         "radialSegments": 32,
         "position": [
           0.96,
-          2.033278,
+          2.06328,
           -1.14
         ],
         "materialRole": "hullPrimary",
@@ -1490,306 +1490,6 @@
         "materialRole": "hullPrimary"
       },
       {
-        "id": "left-diesel-deck-panel",
-        "type": "box",
-        "size": [
-          0.82,
-          0.04,
-          1.6
-        ],
-        "position": [
-          -0.73,
-          1.861635,
-          -1.91
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          -0.227567,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-diesel-intake",
-        "type": "box",
-        "size": [
-          0.55,
-          0.04,
-          1.1
-        ],
-        "position": [
-          -0.295,
-          1.961401,
-          -1.59
-        ],
-        "materialRole": "grille",
-        "rotation": [
-          -0.227567,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-0",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.108748,
-          -1.1
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-1",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.089991,
-          -1.181
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-2",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.071233,
-          -1.262
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-3",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.052475,
-          -1.343
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-4",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.033717,
-          -1.4240000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-5",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          2.014959,
-          -1.5050000000000001
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-6",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.996201,
-          -1.586
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-7",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.977443,
-          -1.6670000000000003
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-8",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.958685,
-          -1.7480000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-9",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.939927,
-          -1.8290000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-10",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.921169,
-          -1.9100000000000001
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-11",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.902412,
-          -1.991
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "left-intake-louvre-12",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          -0.295,
-          1.883654,
-          -2.072
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
         "id": "right-large-hatch-coaming",
         "type": "sphere",
         "radius": 1,
@@ -1855,306 +1555,6 @@
           1.39
         ],
         "materialRole": "hullPrimary"
-      },
-      {
-        "id": "right-diesel-deck-panel",
-        "type": "box",
-        "size": [
-          0.82,
-          0.04,
-          1.6
-        ],
-        "position": [
-          0.73,
-          1.861635,
-          -1.91
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          -0.227567,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-diesel-intake",
-        "type": "box",
-        "size": [
-          0.55,
-          0.04,
-          1.1
-        ],
-        "position": [
-          0.295,
-          1.961401,
-          -1.59
-        ],
-        "materialRole": "grille",
-        "rotation": [
-          -0.227567,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-0",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.108748,
-          -1.1
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-1",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.089991,
-          -1.181
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-2",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.071233,
-          -1.262
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-3",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.052475,
-          -1.343
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-4",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.033717,
-          -1.4240000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-5",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          2.014959,
-          -1.5050000000000001
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-6",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.996201,
-          -1.586
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-7",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.977443,
-          -1.6670000000000003
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-8",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.958685,
-          -1.7480000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-9",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.939927,
-          -1.8290000000000002
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-10",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.921169,
-          -1.9100000000000001
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-11",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.902412,
-          -1.991
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
-      },
-      {
-        "id": "right-intake-louvre-12",
-        "type": "box",
-        "size": [
-          0.53,
-          0.029,
-          0.026
-        ],
-        "position": [
-          0.295,
-          1.883654,
-          -2.072
-        ],
-        "materialRole": "hullPrimary",
-        "rotation": [
-          0.272433,
-          0,
-          0
-        ]
       },
       {
         "id": "left-front-deck-lifting-ring",
@@ -2643,384 +2043,422 @@
         ]
       },
       {
-        "id": "diesel-rear-exhaust-grille",
+        "id": "left-gaa-engine-door",
         "type": "box",
         "size": [
-          1.73,
-          0.33,
-          0.065
+          0.98,
+          0.03,
+          1.0
         ],
         "position": [
-          0,
-          0.925,
-          -2.8
+          -0.51,
+          1.95799,
+          -1.47
         ],
-        "materialRole": "steel"
-      },
-      {
-        "id": "rear-exhaust-louvre-0",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.78,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-1",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.813,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-2",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.846,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-3",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.879,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-4",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.912,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-5",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.945,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-6",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          0.978,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-7",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          1.011,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-8",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          1.044,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-louvre-9",
-        "type": "box",
-        "size": [
-          1.72,
-          0.022,
-          0.095
-        ],
-        "position": [
-          0,
-          1.077,
-          -2.84
-        ],
-        "materialRole": "hullPrimary"
-      },
-      {
-        "id": "rear-exhaust-upper-deflector",
-        "type": "box",
-        "size": [
-          1.82,
-          0.06,
-          0.32
-        ],
-        "position": [
-          0,
-          1.14,
-          -2.84
-        ],
-        "materialRole": "hullPrimary",
         "rotation": [
-          -0.4,
+          -0.227567,
           0,
           0
-        ]
-      },
-      {
-        "id": "rear-folding-stowage-shelf",
-        "type": "box",
-        "size": [
-          1.73,
-          0.06,
-          0.26
-        ],
-        "position": [
-          0,
-          1.29,
-          -2.93
         ],
         "materialRole": "hullPrimary"
       },
       {
-        "id": "left-rear-air-cleaner",
-        "type": "box",
-        "position": [
-          -0.99,
-          1.55,
-          -2.93
-        ],
-        "materialRole": "hullPrimary",
-        "size": [
-          0.34,
-          0.4,
-          0.24
-        ]
-      },
-      {
-        "id": "left-air-cleaner-fin-0",
-        "type": "box",
-        "position": [
-          -0.99,
-          1.4,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "left-air-cleaner-fin-1",
-        "type": "box",
-        "position": [
-          -0.99,
-          1.5,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "left-air-cleaner-fin-2",
-        "type": "box",
-        "position": [
-          -0.99,
-          1.6,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "left-air-cleaner-fin-3",
-        "type": "box",
-        "position": [
-          -0.99,
-          1.7,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "left-air-cleaner-bracket",
+        "id": "left-engine-door-handle",
         "type": "box",
         "size": [
-          0.2,
-          0.05,
-          0.12
+          0.16,
+          0.03,
+          0.03
         ],
         "position": [
-          -0.99,
-          1.33,
-          -2.86
+          -0.51,
+          1.8834,
+          -1.9
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
         ],
         "materialRole": "steel"
       },
       {
-        "id": "right-rear-air-cleaner",
+        "id": "right-gaa-engine-door",
         "type": "box",
-        "position": [
-          0.99,
-          1.55,
-          -2.93
-        ],
-        "materialRole": "hullPrimary",
         "size": [
-          0.34,
-          0.4,
-          0.24
-        ]
+          0.98,
+          0.03,
+          1.0
+        ],
+        "position": [
+          0.51,
+          1.95799,
+          -1.47
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
       },
       {
-        "id": "right-air-cleaner-fin-0",
-        "type": "box",
-        "position": [
-          0.99,
-          1.4,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "right-air-cleaner-fin-1",
-        "type": "box",
-        "position": [
-          0.99,
-          1.5,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "right-air-cleaner-fin-2",
-        "type": "box",
-        "position": [
-          0.99,
-          1.6,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "right-air-cleaner-fin-3",
-        "type": "box",
-        "position": [
-          0.99,
-          1.7,
-          -2.93
-        ],
-        "materialRole": "steel",
-        "size": [
-          0.36,
-          0.02,
-          0.26
-        ]
-      },
-      {
-        "id": "right-air-cleaner-bracket",
+        "id": "right-engine-door-handle",
         "type": "box",
         "size": [
-          0.2,
-          0.05,
-          0.12
+          0.16,
+          0.03,
+          0.03
         ],
         "position": [
-          0.99,
-          1.33,
-          -2.86
+          0.51,
+          1.8834,
+          -1.9
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
         ],
         "materialRole": "steel"
+      },
+      {
+        "id": "engine-door-center-seam",
+        "type": "box",
+        "size": [
+          0.02,
+          0.035,
+          1.0
+        ],
+        "position": [
+          0,
+          1.95899,
+          -1.47
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "gaa-radiator-grille-frame",
+        "type": "box",
+        "size": [
+          2.2,
+          0.05,
+          0.62
+        ],
+        "position": [
+          0,
+          1.76186,
+          -2.36
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-radiator-grille",
+        "type": "box",
+        "size": [
+          2.1,
+          0.02,
+          0.54
+        ],
+        "position": [
+          0,
+          1.78186,
+          -2.36
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "grille"
+      },
+      {
+        "id": "gaa-grille-bar-0",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.85476,
+          -2.11
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-1",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.84318,
+          -2.16
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-2",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.8316,
+          -2.21
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-3",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.82002,
+          -2.26
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-4",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.80844,
+          -2.31
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-5",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.79686,
+          -2.36
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-6",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.78528,
+          -2.41
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-7",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.7737,
+          -2.46
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-8",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.76212,
+          -2.51
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-9",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.75054,
+          -2.56
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-grille-bar-10",
+        "type": "box",
+        "size": [
+          2.1,
+          0.03,
+          0.022
+        ],
+        "position": [
+          0,
+          1.73896,
+          -2.61
+        ],
+        "rotation": [
+          -0.227567,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "gaa-rear-plate-exhaust-deflector",
+        "type": "box",
+        "size": [
+          1.76,
+          0.05,
+          0.36
+        ],
+        "position": [
+          0,
+          0.96,
+          -2.9
+        ],
+        "rotation": [
+          -0.55,
+          0,
+          0
+        ],
+        "materialRole": "hullPrimary"
+      },
+      {
+        "id": "left-gaa-exhaust-outlet",
+        "type": "cylinder",
+        "radiusTop": 0.07,
+        "radiusBottom": 0.07,
+        "height": 0.14,
+        "radialSegments": 24,
+        "position": [
+          -0.45,
+          0.8,
+          -2.86
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "materialRole": "darkMetal"
+      },
+      {
+        "id": "right-gaa-exhaust-outlet",
+        "type": "cylinder",
+        "radiusTop": 0.07,
+        "radiusBottom": 0.07,
+        "height": 0.14,
+        "radialSegments": 24,
+        "position": [
+          0.45,
+          0.8,
+          -2.86
+        ],
+        "rotation": [
+          1.5707963267948966,
+          0,
+          0
+        ],
+        "materialRole": "darkMetal"
       }
     ],
     "tracksLeft": [
@@ -23310,7 +22748,7 @@
             "materialRole": "steel"
           },
           {
-            "id": "t23-single-cast-shell",
+            "id": "jumbo-upright-turret-casting",
             "type": "polyhedron",
             "vertices": [
               [
@@ -23324,7 +22762,7 @@
                 0.9064
               ],
               [
-                0.6335999999999999,
+                0.6336,
                 0.045,
                 0.7744
               ],
@@ -23336,12 +22774,12 @@
               [
                 0.946,
                 0.045,
-                0.15839999999999999
+                0.1584
               ],
               [
-                0.9416000000000001,
+                0.9416,
                 0.045,
-                -0.17751677852348993
+                -0.17752
               ],
               [
                 0.8,
@@ -23379,14 +22817,14 @@
                 -0.43
               ],
               [
-                -0.9416000000000001,
+                -0.9416,
                 0.045,
-                -0.17751677852348993
+                -0.17752
               ],
               [
                 -0.946,
                 0.045,
-                0.15839999999999999
+                0.1584
               ],
               [
                 -0.836,
@@ -23394,7 +22832,7 @@
                 0.5104
               ],
               [
-                -0.6335999999999999,
+                -0.6336,
                 0.045,
                 0.7744
               ],
@@ -23431,1240 +22869,1252 @@
               [
                 1.07,
                 0.13,
-                -0.1821476510067114
-              ],
-              [
-                0.93,
-                0.2875,
-                -0.65
-              ],
-              [
-                0.71,
-                0.2875,
-                -1.15
-              ],
-              [
-                0.53,
-                0.2875,
-                -1.39
-              ],
-              [
-                0,
-                0.2875,
-                -1.45
-              ],
-              [
-                -0.53,
-                0.2875,
-                -1.39
-              ],
-              [
-                -0.71,
-                0.2875,
-                -1.15
-              ],
-              [
-                -0.93,
-                0.2875,
-                -0.65
-              ],
-              [
-                -1.07,
-                0.13,
-                -0.1821476510067114
-              ],
-              [
-                -1.075,
-                0.13,
-                0.18
-              ],
-              [
-                -0.95,
-                0.13,
-                0.58
-              ],
-              [
-                -0.72,
-                0.13,
-                0.88
-              ],
-              [
-                -0.44,
-                0.13,
-                1.03
-              ],
-              [
-                0,
-                0.38,
-                1.04
-              ],
-              [
-                0.44,
-                0.38,
-                1.03
-              ],
-              [
-                0.72,
-                0.38,
-                0.88
-              ],
-              [
-                0.95,
-                0.38,
-                0.58
-              ],
-              [
-                1.075,
-                0.38,
-                0.18
-              ],
-              [
-                1.07,
-                0.38,
                 -0.23
               ],
               [
                 0.94,
-                0.38,
+                0.287,
                 -0.67
               ],
               [
                 0.73,
-                0.38,
+                0.287,
                 -1.18
               ],
               [
                 0.55,
-                0.38,
+                0.287,
                 -1.43
               ],
               [
                 0,
-                0.38,
+                0.287,
                 -1.49
               ],
               [
                 -0.55,
-                0.38,
+                0.287,
                 -1.43
               ],
               [
                 -0.73,
-                0.38,
+                0.287,
                 -1.18
               ],
               [
                 -0.94,
-                0.38,
+                0.287,
                 -0.67
               ],
               [
                 -1.07,
-                0.38,
+                0.13,
                 -0.23
               ],
               [
                 -1.075,
-                0.38,
+                0.13,
                 0.18
               ],
               [
                 -0.95,
-                0.38,
+                0.13,
                 0.58
               ],
               [
                 -0.72,
-                0.38,
+                0.13,
                 0.88
               ],
               [
                 -0.44,
-                0.38,
+                0.13,
                 1.03
               ],
               [
                 0,
-                0.64,
-                0.9984
+                0.8,
+                1.04
               ],
               [
-                0.4224,
-                0.64,
-                0.9888
+                0.44,
+                0.8,
+                1.03
               ],
               [
-                0.6911999999999999,
-                0.64,
-                0.8448
+                0.72,
+                0.8,
+                0.88
               ],
               [
-                0.9119999999999999,
-                0.77,
-                0.5568
+                0.95,
+                0.8,
+                0.58
               ],
               [
-                1.032,
-                0.77,
-                0.17279999999999998
+                1.075,
+                0.8,
+                0.18
               ],
               [
-                1.0272000000000001,
-                0.77,
+                1.07,
+                0.8,
                 -0.23
               ],
               [
-                0.9023999999999999,
-                0.77,
+                0.94,
+                0.8,
                 -0.67
               ],
               [
-                0.7008,
-                0.77,
+                0.73,
+                0.8,
                 -1.18
               ],
               [
-                0.528,
-                0.77,
+                0.55,
+                0.8,
                 -1.43
               ],
               [
                 0,
-                0.77,
+                0.8,
                 -1.49
               ],
               [
-                -0.528,
-                0.77,
+                -0.55,
+                0.8,
                 -1.43
               ],
               [
-                -0.7008,
-                0.77,
+                -0.73,
+                0.8,
                 -1.18
               ],
               [
-                -0.9023999999999999,
-                0.77,
+                -0.94,
+                0.8,
                 -0.67
               ],
               [
-                -1.0272000000000001,
-                0.77,
+                -1.07,
+                0.8,
                 -0.23
               ],
               [
-                -1.032,
-                0.77,
-                0.17279999999999998
+                -1.075,
+                0.8,
+                0.18
               ],
               [
-                -0.9119999999999999,
-                0.77,
-                0.5568
+                -0.95,
+                0.8,
+                0.58
               ],
               [
-                -0.6911999999999999,
-                0.64,
-                0.8448
+                -0.72,
+                0.8,
+                0.88
               ],
               [
-                -0.4224,
-                0.64,
-                0.9888
+                -0.44,
+                0.8,
+                1.03
+              ],
+              [
+                0.0,
+                0.845,
+                1.0184
+              ],
+              [
+                0.4334,
+                0.845,
+                1.00855
+              ],
+              [
+                0.7092,
+                0.845,
+                0.8608
+              ],
+              [
+                0.93575,
+                0.845,
+                0.5653
+              ],
+              [
+                1.05888,
+                0.845,
+                0.1713
+              ],
+              [
+                1.05395,
+                0.845,
+                -0.23255
+              ],
+              [
+                0.9259,
+                0.845,
+                -0.66595
+              ],
+              [
+                0.71905,
+                0.845,
+                -1.1683
+              ],
+              [
+                0.54175,
+                0.845,
+                -1.41455
+              ],
+              [
+                0.0,
+                0.845,
+                -1.47365
+              ],
+              [
+                -0.54175,
+                0.845,
+                -1.41455
+              ],
+              [
+                -0.71905,
+                0.845,
+                -1.1683
+              ],
+              [
+                -0.9259,
+                0.845,
+                -0.66595
+              ],
+              [
+                -1.05395,
+                0.845,
+                -0.23255
+              ],
+              [
+                -1.05888,
+                0.845,
+                0.1713
+              ],
+              [
+                -0.93575,
+                0.845,
+                0.5653
+              ],
+              [
+                -0.7092,
+                0.845,
+                0.8608
+              ],
+              [
+                -0.4334,
+                0.845,
+                1.00855
+              ],
+              [
+                0.0,
+                0.875,
+                0.976
+              ],
+              [
+                0.418,
+                0.875,
+                0.9665
+              ],
+              [
+                0.684,
+                0.875,
+                0.824
+              ],
+              [
+                0.9025,
+                0.875,
+                0.539
+              ],
+              [
+                1.02125,
+                0.875,
+                0.159
+              ],
+              [
+                1.0165,
+                0.875,
+                -0.2305
+              ],
+              [
+                0.893,
+                0.875,
+                -0.6485
+              ],
+              [
+                0.6935,
+                0.875,
+                -1.133
+              ],
+              [
+                0.5225,
+                0.875,
+                -1.3705
+              ],
+              [
+                0.0,
+                0.875,
+                -1.4275
+              ],
+              [
+                -0.5225,
+                0.875,
+                -1.3705
+              ],
+              [
+                -0.6935,
+                0.875,
+                -1.133
+              ],
+              [
+                -0.893,
+                0.875,
+                -0.6485
+              ],
+              [
+                -1.0165,
+                0.875,
+                -0.2305
+              ],
+              [
+                -1.02125,
+                0.875,
+                0.159
+              ],
+              [
+                -0.9025,
+                0.875,
+                0.539
+              ],
+              [
+                -0.684,
+                0.875,
+                0.824
+              ],
+              [
+                -0.418,
+                0.875,
+                0.9665
               ],
               [
                 0,
-                0.87,
-                0.47
-              ],
-              [
-                0.3872,
-                0.87,
-                0.46
-              ],
-              [
-                0.6335999999999999,
-                0.87,
-                0.4
-              ],
-              [
-                0.836,
-                0.87,
-                0.5104
-              ],
-              [
-                0.946,
-                0.87,
-                0.15839999999999999
-              ],
-              [
-                0.9416000000000001,
-                0.87,
-                -0.2130201342281879
-              ],
-              [
-                0.8271999999999999,
-                0.87,
-                -0.6205369127516779
-              ],
-              [
-                0.6424,
-                0.87,
-                -1.0928859060402683
-              ],
-              [
-                0.48400000000000004,
-                0.87,
-                -1.324429530201342
+                0.875,
+                -0.12442
               ],
               [
                 0,
-                0.87,
-                -1.38
-              ],
-              [
-                -0.48400000000000004,
-                0.87,
-                -1.324429530201342
-              ],
-              [
-                -0.6424,
-                0.87,
-                -1.0928859060402683
-              ],
-              [
-                -0.8271999999999999,
-                0.87,
-                -0.6205369127516779
-              ],
-              [
-                -0.9416000000000001,
-                0.87,
-                -0.2130201342281879
-              ],
-              [
-                -0.946,
-                0.87,
-                0.15839999999999999
-              ],
-              [
-                -0.836,
-                0.87,
-                0.5104
-              ],
-              [
-                -0.6335999999999999,
-                0.87,
-                0.4
-              ],
-              [
-                -0.3872,
-                0.87,
-                0.46
+                0.045,
+                0.02996
               ]
             ],
             "faces": [
               [
                 0,
                 1,
-                18
+                19
               ],
               [
-                1,
+                0,
                 19,
                 18
               ],
               [
                 1,
                 2,
-                19
+                20
               ],
               [
-                2,
+                1,
                 20,
                 19
               ],
               [
                 2,
                 3,
-                20
+                21
               ],
               [
-                3,
+                2,
                 21,
                 20
               ],
               [
                 3,
                 4,
-                21
+                22
               ],
               [
-                4,
+                3,
                 22,
                 21
               ],
               [
                 4,
                 5,
-                22
+                23
               ],
               [
-                5,
+                4,
                 23,
                 22
               ],
               [
                 5,
                 6,
-                23
+                24
               ],
               [
-                6,
+                5,
                 24,
                 23
               ],
               [
                 6,
                 7,
-                24
+                25
               ],
               [
-                7,
+                6,
                 25,
                 24
               ],
               [
                 7,
                 8,
-                25
+                26
               ],
               [
-                8,
+                7,
                 26,
                 25
               ],
               [
                 8,
                 9,
-                26
+                27
               ],
               [
-                9,
+                8,
                 27,
                 26
               ],
               [
                 9,
                 10,
-                27
+                28
               ],
               [
-                10,
+                9,
                 28,
                 27
               ],
               [
                 10,
                 11,
-                28
+                29
               ],
               [
-                11,
+                10,
                 29,
                 28
               ],
               [
                 11,
                 12,
-                29
+                30
               ],
               [
-                12,
+                11,
                 30,
                 29
               ],
               [
                 12,
                 13,
-                30
+                31
               ],
               [
-                13,
+                12,
                 31,
                 30
               ],
               [
                 13,
                 14,
-                31
+                32
               ],
               [
-                14,
+                13,
                 32,
                 31
               ],
               [
                 14,
                 15,
-                32
+                33
               ],
               [
-                15,
+                14,
                 33,
                 32
               ],
               [
                 15,
                 16,
-                33
+                34
               ],
               [
-                16,
+                15,
                 34,
                 33
               ],
               [
                 16,
                 17,
-                34
+                35
               ],
               [
-                17,
+                16,
                 35,
                 34
               ],
               [
                 17,
                 0,
-                35
+                18
               ],
               [
-                0,
+                17,
                 18,
                 35
               ],
               [
                 18,
                 19,
-                36
+                37
               ],
               [
-                19,
+                18,
                 37,
                 36
               ],
               [
                 19,
                 20,
-                37
+                38
               ],
               [
-                20,
+                19,
                 38,
                 37
               ],
               [
                 20,
                 21,
-                38
+                39
               ],
               [
-                21,
+                20,
                 39,
                 38
               ],
               [
                 21,
                 22,
-                39
+                40
               ],
               [
-                22,
+                21,
                 40,
                 39
               ],
               [
                 22,
                 23,
-                40
+                41
               ],
               [
-                23,
+                22,
                 41,
                 40
               ],
               [
                 23,
                 24,
-                41
+                42
               ],
               [
-                24,
+                23,
                 42,
                 41
               ],
               [
                 24,
                 25,
-                42
+                43
               ],
               [
-                25,
+                24,
                 43,
                 42
               ],
               [
                 25,
                 26,
-                43
+                44
               ],
               [
-                26,
+                25,
                 44,
                 43
               ],
               [
                 26,
                 27,
-                44
+                45
               ],
               [
-                27,
+                26,
                 45,
                 44
               ],
               [
                 27,
                 28,
-                45
+                46
               ],
               [
-                28,
+                27,
                 46,
                 45
               ],
               [
                 28,
                 29,
-                46
+                47
               ],
               [
-                29,
+                28,
                 47,
                 46
               ],
               [
                 29,
                 30,
-                47
+                48
               ],
               [
-                30,
+                29,
                 48,
                 47
               ],
               [
                 30,
                 31,
-                48
+                49
               ],
               [
-                31,
+                30,
                 49,
                 48
               ],
               [
                 31,
                 32,
-                49
+                50
               ],
               [
-                32,
+                31,
                 50,
                 49
               ],
               [
                 32,
                 33,
-                50
+                51
               ],
               [
-                33,
+                32,
                 51,
                 50
               ],
               [
                 33,
                 34,
-                51
+                52
               ],
               [
-                34,
+                33,
                 52,
                 51
               ],
               [
                 34,
                 35,
-                52
+                53
               ],
               [
-                35,
+                34,
                 53,
                 52
               ],
               [
                 35,
                 18,
-                53
+                36
               ],
               [
-                18,
+                35,
                 36,
                 53
               ],
               [
                 36,
                 37,
-                54
+                55
               ],
               [
-                37,
+                36,
                 55,
                 54
               ],
               [
                 37,
                 38,
-                55
+                56
               ],
               [
-                38,
+                37,
                 56,
                 55
               ],
               [
                 38,
                 39,
-                56
+                57
               ],
               [
-                39,
+                38,
                 57,
                 56
               ],
               [
                 39,
                 40,
-                57
+                58
               ],
               [
-                40,
+                39,
                 58,
                 57
               ],
               [
                 40,
                 41,
-                58
+                59
               ],
               [
-                41,
+                40,
                 59,
                 58
               ],
               [
                 41,
                 42,
-                59
+                60
               ],
               [
-                42,
+                41,
                 60,
                 59
               ],
               [
                 42,
                 43,
-                60
+                61
               ],
               [
-                43,
+                42,
                 61,
                 60
               ],
               [
                 43,
                 44,
-                61
+                62
               ],
               [
-                44,
+                43,
                 62,
                 61
               ],
               [
                 44,
                 45,
-                62
+                63
               ],
               [
-                45,
+                44,
                 63,
                 62
               ],
               [
                 45,
                 46,
-                63
+                64
               ],
               [
-                46,
+                45,
                 64,
                 63
               ],
               [
                 46,
                 47,
-                64
+                65
               ],
               [
-                47,
+                46,
                 65,
                 64
               ],
               [
                 47,
                 48,
-                65
+                66
               ],
               [
-                48,
+                47,
                 66,
                 65
               ],
               [
                 48,
                 49,
-                66
+                67
               ],
               [
-                49,
+                48,
                 67,
                 66
               ],
               [
                 49,
                 50,
-                67
+                68
               ],
               [
-                50,
+                49,
                 68,
                 67
               ],
               [
                 50,
                 51,
-                68
+                69
               ],
               [
-                51,
+                50,
                 69,
                 68
               ],
               [
                 51,
                 52,
-                69
+                70
               ],
               [
-                52,
+                51,
                 70,
                 69
               ],
               [
                 52,
                 53,
-                70
+                71
               ],
               [
-                53,
+                52,
                 71,
                 70
               ],
               [
                 53,
                 36,
-                71
+                54
               ],
               [
-                36,
+                53,
                 54,
                 71
               ],
               [
                 54,
                 55,
-                72
+                73
               ],
               [
-                55,
+                54,
                 73,
                 72
               ],
               [
                 55,
                 56,
-                73
+                74
               ],
               [
-                56,
+                55,
                 74,
                 73
               ],
               [
                 56,
                 57,
-                74
+                75
               ],
               [
-                57,
+                56,
                 75,
                 74
               ],
               [
                 57,
                 58,
-                75
+                76
               ],
               [
-                58,
+                57,
                 76,
                 75
               ],
               [
                 58,
                 59,
-                76
+                77
               ],
               [
-                59,
+                58,
                 77,
                 76
               ],
               [
                 59,
                 60,
-                77
+                78
               ],
               [
-                60,
+                59,
                 78,
                 77
               ],
               [
                 60,
                 61,
-                78
+                79
               ],
               [
-                61,
+                60,
                 79,
                 78
               ],
               [
                 61,
                 62,
-                79
+                80
               ],
               [
-                62,
+                61,
                 80,
                 79
               ],
               [
                 62,
                 63,
-                80
+                81
               ],
               [
-                63,
+                62,
                 81,
                 80
               ],
               [
                 63,
                 64,
-                81
+                82
               ],
               [
-                64,
+                63,
                 82,
                 81
               ],
               [
                 64,
                 65,
-                82
+                83
               ],
               [
-                65,
+                64,
                 83,
                 82
               ],
               [
                 65,
                 66,
-                83
+                84
               ],
               [
-                66,
+                65,
                 84,
                 83
               ],
               [
                 66,
                 67,
-                84
+                85
               ],
               [
-                67,
+                66,
                 85,
                 84
               ],
               [
                 67,
                 68,
-                85
+                86
               ],
               [
-                68,
+                67,
                 86,
                 85
               ],
               [
                 68,
                 69,
-                86
+                87
               ],
               [
-                69,
+                68,
                 87,
                 86
               ],
               [
                 69,
                 70,
-                87
+                88
               ],
               [
-                70,
+                69,
                 88,
                 87
               ],
               [
                 70,
                 71,
-                88
+                89
               ],
               [
-                71,
+                70,
                 89,
                 88
               ],
               [
                 71,
                 54,
-                89
+                72
               ],
               [
-                54,
+                71,
                 72,
                 89
-              ],
-              [
-                0,
-                2,
-                1
               ],
               [
                 72,
                 73,
-                74
+                90
               ],
               [
                 0,
-                3,
+                91,
+                1
+              ],
+              [
+                73,
+                74,
+                90
+              ],
+              [
+                1,
+                91,
                 2
               ],
               [
-                72,
                 74,
-                75
+                75,
+                90
               ],
               [
-                0,
-                4,
+                2,
+                91,
                 3
               ],
               [
-                72,
                 75,
-                76
+                76,
+                90
               ],
               [
-                0,
-                5,
+                3,
+                91,
                 4
               ],
               [
-                72,
                 76,
-                77
+                77,
+                90
               ],
               [
-                0,
-                6,
+                4,
+                91,
                 5
               ],
               [
-                72,
                 77,
-                78
+                78,
+                90
               ],
               [
-                0,
-                7,
+                5,
+                91,
                 6
               ],
               [
-                72,
                 78,
-                79
+                79,
+                90
               ],
               [
-                0,
-                8,
+                6,
+                91,
                 7
               ],
               [
-                72,
                 79,
-                80
+                80,
+                90
               ],
               [
-                0,
-                9,
+                7,
+                91,
                 8
               ],
               [
-                72,
                 80,
-                81
+                81,
+                90
               ],
               [
-                0,
-                10,
+                8,
+                91,
                 9
               ],
               [
-                72,
                 81,
-                82
+                82,
+                90
               ],
               [
-                0,
-                11,
+                9,
+                91,
                 10
               ],
               [
-                72,
                 82,
-                83
+                83,
+                90
               ],
               [
-                0,
-                12,
+                10,
+                91,
                 11
               ],
               [
-                72,
                 83,
-                84
+                84,
+                90
               ],
               [
-                0,
-                13,
+                11,
+                91,
                 12
               ],
               [
-                72,
                 84,
-                85
+                85,
+                90
               ],
               [
-                0,
-                14,
+                12,
+                91,
                 13
               ],
               [
-                72,
                 85,
-                86
+                86,
+                90
               ],
               [
-                0,
-                15,
+                13,
+                91,
                 14
               ],
               [
-                72,
                 86,
-                87
+                87,
+                90
               ],
               [
-                0,
-                16,
+                14,
+                91,
                 15
               ],
               [
-                72,
                 87,
-                88
+                88,
+                90
               ],
               [
-                0,
-                17,
+                15,
+                91,
                 16
               ],
               [
-                72,
                 88,
-                89
+                89,
+                90
+              ],
+              [
+                16,
+                91,
+                17
+              ],
+              [
+                89,
+                72,
+                90
+              ],
+              [
+                17,
+                91,
+                0
               ]
             ],
             "smoothShading": true,
-            "materialRole": "hullPrimary"
-          },
-          {
-            "id": "t23-front-casting",
-            "type": "sphere",
-            "radius": 1,
-            "widthSegments": 32,
-            "heightSegments": 16,
-            "position": [
-              0,
-              0.4,
-              0.99
-            ],
-            "scale": [
-              0.72,
-              0.3,
-              0.12
-            ],
             "materialRole": "hullPrimary"
           },
           {
