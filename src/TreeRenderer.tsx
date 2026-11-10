@@ -271,8 +271,8 @@ function treeLeafColor(tree: TreeInstance) {
  * outside the view and outside the sun's shadow box. Before this, every tree
  * on the map went into the shadow map each frame. Each chunk holds:
  * - detail: full crowns, branches and shadows, drawn while the chunk is near;
- * - lite: the same trees with a third of the crown cards and no shadows,
- *   drawn once the chunk is far;
+ * - lite: the same trees with a third of the crown cards, no branches and
+ *   only the crowns casting shadows, drawn once the chunk is far;
  * - interior: trees deep inside a forest, always lite and never casting
  *   shadows. Nothing sees them up close: the forest edge hides them and
  *   tanks cannot drive in.
@@ -366,8 +366,10 @@ function buildTreeChunks(trees: TreeInstance[]) {
     const liteLayers: TreeLayers = {
       trunk: makeLayer(trunkGeo, trunkMat, outer[0], null, false),
       branches: null,
-      deciduous: makeLayer(deciduousLiteGeo, deciduousLeafMat, outer[1], null, false),
-      conifer: makeLayer(coniferLiteGeo, coniferLeafMat, outer[2], null, false),
+      // Far crowns still shade the ground: only the far sun cascade, redrawn
+      // every fourth frame, ever reaches them.
+      deciduous: makeLayer(deciduousLiteGeo, deciduousLeafMat, outer[1], deciduousLeafDepthMat, true),
+      conifer: makeLayer(coniferLiteGeo, coniferLeafMat, outer[2], coniferLeafDepthMat, true),
     };
     const interiorLayers: TreeLayers = {
       trunk: makeLayer(trunkGeo, trunkMat, interior[0], null, false),

@@ -6,7 +6,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { N8AOPass } from 'n8ao';
-import { createColorGradePass } from './colorGrade';
+import { BATTLEFIELD_GRADE, createColorGradePass } from './colorGrade';
 import { createShockwavePass, updateShockwavePass } from './shockwaves';
 import { Vector2 } from 'three';
 import type { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
@@ -35,7 +35,9 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
   const { gl, scene, camera, size } = useThree();
   const pipeline = useRef<EffectComposer | null>(null);
   const shockwaves = useRef<ShaderPass | null>(null);
-  const battlePasses = useRef<{ ao: N8AOPass; bloom: UnrealBloomPass; plain: RenderPass } | null>(null);
+  const battlePasses = useRef<{ ao: N8AOPass; bloom: UnrealBloomPass; plain: RenderPass; grade: ShaderPass } | null>(null);
+  const reducedMotion = useRef(window.matchMedia('(prefers-reduced-motion: reduce)'));
+  const grainFrame = useRef(0);
   const bufferSize = useRef(new Vector2());
   const sample = useRef({ seconds: 0, frames: 0 });
 
@@ -67,12 +69,13 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
     composer.addPass(bloom);
     composer.addPass(shock);
     composer.addPass(output);
-    composer.addPass(grade);
     composer.addPass(antialias);
+    // Last: sharpening and grain must not be smoothed by the anti-aliasing.
+    composer.addPass(grade);
     composer.setSize(size.width, size.height);
     pipeline.current = composer;
     shockwaves.current = shock;
-    battlePasses.current = { ao, bloom, plain };
+    battlePasses.current = { ao, bloom, plain, grade };
     return () => {
       pipeline.current = null;
       shockwaves.current = null;
@@ -142,10 +145,18 @@ export function BattlefieldPostProcessing({ mapMode }: { mapMode: boolean }) {
       passes.ao.enabled = !mapMode;
       passes.bloom.enabled = !mapMode;
       passes.plain.enabled = mapMode;
+      gl.getDrawingBufferSize(bufferSize.current);
+      const grade = passes.grade.uniforms;
+      grade.texel.value.set(1 / bufferSize.current.x, 1 / bufferSize.current.y);
+      // The map is a drawn sheet: no lens, no film.
+      grade.sharpen.value = mapMode ? 0 : BATTLEFIELD_GRADE.sharpen;
+      grade.grain.value = mapMode ? 0 : BATTLEFIELD_GRADE.grain;
+      // A new grain pattern each frame; still under reduced motion.
+      if (!reducedMotion.current.matches) grainFrame.current = (grainFrame.current + 1) % 251;
+      grade.grainSeed.value = grainFrame.current * 7.31;
       if (shockwaves.current) {
         if (mapMode) shockwaves.current.enabled = false;
         else {
-          gl.getDrawingBufferSize(bufferSize.current);
           updateShockwavePass(shockwaves.current, camera, bufferSize.current.x, bufferSize.current.y);
         }
       }

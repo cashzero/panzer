@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Tank } from './Tank';
-import { BattlefieldLighting } from './rendering/BattlefieldLighting';
+import { BATTLEFIELD_EXPOSURE, BattlefieldLighting } from './rendering/BattlefieldLighting';
 import { BattlefieldPostProcessing } from './rendering/BattlefieldPostProcessing';
 import { Terrain } from './Terrain';
 import { ProjectileManager } from './ProjectileManager';
@@ -582,7 +582,7 @@ export function GameScene() {
         onCreated={({ gl }) => {
           gl.outputColorSpace = THREE.SRGBColorSpace;
           gl.toneMapping = THREE.ACESFilmicToneMapping;
-          gl.toneMappingExposure = 1.15;
+          gl.toneMappingExposure = BATTLEFIELD_EXPOSURE;
           gl.shadowMap.type = THREE.PCFShadowMap;
         }}
       >
