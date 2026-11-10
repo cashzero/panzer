@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { SUN_COLOR, SUN_DIRECTION, SUN_INTENSITY } from './sunDirection';
 
 /**
  * Foliage built from many small camera-facing leaf cards with crown normals.
@@ -175,14 +176,37 @@ export function buildConiferCrown(tiers: ConiferTier[]) {
   return finish(builder);
 }
 
+// Sunlight passing through leaves, as shares of the direct sun: on the side
+// turned from the sun, extra when seen against the sun, and what still gets
+// through where the shadow map says shade.
+const FOLIAGE_THROUGH = 0.3;
+const FOLIAGE_GLOW = 0.9;
+const FOLIAGE_SHADE_LEAK = 0.35;
+
+/** Seconds of wind, shared by every foliage material; whoever owns the weather advances it. */
+export const foliageWind = { value: 0 };
+
 const billboardVertex = /* glsl */ `
   vec4 cardCenter = vec4(transformed, 1.0);
   float cardScale = 1.0;
+  // Metres a card moves in a full gust: crowns swing more toward the top;
+  // hedges and scrub, which are not instanced, only stir.
+  float swayReach = 0.035;
   #ifdef USE_INSTANCING
     cardCenter = instanceMatrix * cardCenter;
     cardScale = 0.5 * (length(instanceMatrix[0].xyz) + length(instanceMatrix[1].xyz));
+    swayReach = 0.02 * max(transformed.y, 0.0) * cardScale;
   #endif
   vec4 worldCenter = modelMatrix * cardCenter;
+  {
+    // Gusts cross the country with the prevailing wind (the grass and the
+    // clouds use the same heading); each card also flutters on its own.
+    float gust = sin(foliageWind * 0.9 - worldCenter.x * 0.06 - worldCenter.z * 0.024) * 0.6
+      + sin(foliageWind * 1.7 - worldCenter.x * 0.13 + worldCenter.z * 0.09) * 0.4;
+    float flutter = sin(foliageWind * 4.1 + dot(transformed, vec3(5.3, 3.7, 4.9)));
+    worldCenter.xz += vec2(0.93, 0.37) * (0.35 + 0.65 * gust) * swayReach;
+    worldCenter.xyz += vec3(flutter, flutter * 0.6, -flutter) * min(swayReach, 0.05) * 0.3;
+  }
   #ifdef FOLIAGE_UPRIGHT
     // Turn about the vertical only, so spruce whorls stay upright.
     vec3 toCamera = cameraPosition - worldCenter.xyz;
@@ -196,7 +220,8 @@ const billboardVertex = /* glsl */ `
 `;
 
 function injectBillboard(shader: THREE.WebGLProgramParametersWithUniforms) {
-  shader.vertexShader = 'attribute vec2 cardOffset;\n' + shader.vertexShader
+  shader.uniforms.foliageWind = foliageWind;
+  shader.vertexShader = 'attribute vec2 cardOffset;\nuniform float foliageWind;\n' + shader.vertexShader
     .replace('#include <project_vertex>', billboardVertex);
 }
 
@@ -212,9 +237,27 @@ export function patchFoliageMaterial(material: THREE.MeshStandardMaterial, uprig
       #include <normal_fragment_begin>
       normal = normalize(vNormal);
       nonPerturbedNormal = normal;
+    `).replace('#include <lights_fragment_end>', `
+      #include <lights_fragment_end>
+      #if NUM_DIR_LIGHTS > 0
+      {
+        // Leaves pass light. The side of a crown turned from the sun is lit
+        // through its leaves, yellower than by reflection, and the leaves
+        // glow when the view looks through them toward the sun. Without
+        // it, every crown and hedge seen against the light was a black
+        // cut-out. The crown shades its own far side in the shadow map, so
+        // shadow only dims this light; it does not remove it.
+        vec3 foliageSun = normalize((viewMatrix * vec4(${SUN_DIRECTION.x.toFixed(4)}, ${SUN_DIRECTION.y.toFixed(4)}, ${SUN_DIRECTION.z.toFixed(4)}, 0.0)).xyz);
+        float foliageBack = clamp(0.3 - dot(normal, foliageSun) * 0.7, 0.0, 1.0);
+        float foliageGlow = pow(clamp(dot(geometryViewDir, -foliageSun), 0.0, 1.0), 4.0);
+        vec3 foliageSunLight = vec3(${(SUN_COLOR.r * SUN_INTENSITY).toFixed(4)}, ${(SUN_COLOR.g * SUN_INTENSITY).toFixed(4)}, ${(SUN_COLOR.b * SUN_INTENSITY).toFixed(4)}) * mix(${FOLIAGE_SHADE_LEAK.toFixed(2)}, 1.0, sunCascadeShadow);
+        reflectedLight.directDiffuse += foliageSunLight * BRDF_Lambert(material.diffuseColor * vec3(1.12, 1.18, 0.5))
+          * foliageBack * (${FOLIAGE_THROUGH.toFixed(2)} + ${FOLIAGE_GLOW.toFixed(2)} * foliageGlow);
+      }
+      #endif
     `);
   };
-  material.customProgramCacheKey = () => `foliage-cards-v1-${upright ? 'upright' : 'sphere'}`;
+  material.customProgramCacheKey = () => `foliage-cards-v3-${upright ? 'upright' : 'sphere'}`;
 }
 
 /** Shadow pass for billboarded cards; the shadow map copies map and alphaTest in. */
@@ -222,6 +265,6 @@ export function foliageDepthMaterial(upright: boolean) {
   const material = new THREE.MeshDepthMaterial();
   if (upright) material.defines = { FOLIAGE_UPRIGHT: '' };
   material.onBeforeCompile = injectBillboard;
-  material.customProgramCacheKey = () => `foliage-cards-depth-v1-${upright ? 'upright' : 'sphere'}`;
+  material.customProgramCacheKey = () => `foliage-cards-depth-v2-${upright ? 'upright' : 'sphere'}`;
   return material;
 }

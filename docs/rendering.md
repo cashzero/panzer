@@ -6,20 +6,52 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
 ## Pipeline
 
 - `src/rendering/BattlefieldLighting.tsx`: one sun direction for sky, direct light
-  and a PMREM environment baked once per mount. The 200m-wide, 4096px shadow region
-  follows the camera, snapped in light space. Outside this region, direct shadows
-  are unavailable; atmospheric fog supplies distant depth cues.
+  and a PMREM environment baked once per mount.
+- `sunCascades.ts`: sun shadows in three cascades of 2048 px, each fitted round a
+  depth slice of the view (to 26, 115 and 560 m at the 60 degree FOV; a zoomed
+  sight stretches the slices up to three times) and snapped in light space. Texels
+  run from about 3 cm under the player's tank to about 70 cm at the far treelines.
+  Three.js gives each light one shadow map, so every cascade is a colourless
+  `DirectionalLight` that casts a shadow, and the sun is a light that casts none.
+  The patched `lights_fragment_begin` chunk gathers the cascades into one term (the
+  finest cascade containing the fragment, cross-faded into the next at its edge),
+  applies it to directional lights without a shadow of their own, and skips the
+  colourless lights. No material needs setting up, and scenes without cascade
+  lights (studio previews, editor) light as before. The far cascades are redrawn
+  every second and fourth frame, or at once when the view swings away from where
+  they were fitted. Far tree crowns (the lite LOD) cast shadows; only the far
+  cascade reaches them. The patch compares the chunk without blank lines, because
+  the built Three.js module drops them; if an upgrade changes the chunk, it warns
+  and leaves the stock lighting.
+- `cloudField.ts`: one field of fair-weather cumulus (two octaves of value noise
+  over world XZ, drifting at 7 m/s with the wind the grass and foliage use). The
+  light chunk reads it as cloud shadow on the ground, taking up to 58% of the direct
+  sun. The sky reads the same field for the clouds themselves, looking up the
+  ground point each piece of cloud shades (deck at 1150 m), so a shadow crossing a
+  field has its cloud between that field and the sun. The chunk has no uniform of
+  its own: the drift distance travels in the first cascade's unused `shadow.radius`,
+  and 0 switches cloud shadows off (map mode).
+- Sky clouds: the Sky addon's flat cloud layer is off. The patched sky shader adds
+  three finer billow octaves near the zenith, lights each cloud by how much cloud
+  lies toward the sun (bright sunward edges, grey bases and far sides, a glow on
+  thin edges near the sun) and sinks distant cloud into the haze.
 - `BattlefieldPostProcessing.tsx`: N8AO Medium at half resolution, high-threshold
-  bloom, OutputPass (ACES and sRGB exactly once), the colour grade, then SMAA. The
+  bloom, OutputPass (ACES and sRGB exactly once), SMAA, then the finishing pass. The
   HTML HUD stays sharp.
-- `colorGrade.ts`: display-referred grade after OutputPass: saturation 0.74, mild
-  contrast, olive-tinted lift, warm gain and a light vignette. Values live in
-  `BATTLEFIELD_GRADE`. Map mode bypasses it with the rest of the pipeline.
-- Look: sun about 35 degrees up, hazy Preetham sky (turbidity 10, Rayleigh 2.2), a
-  weak neutral hemisphere fill so grey armour does not turn blue, warm haze fog from
-  120 to 1400 m and exposure 1.15. The ground shader desaturates grass toward straw
-  and olive and takes the red out of gravel roads. `cloudCoverage` above about 0.55
-  turns the whole sky into one flat cloud deck.
+- `colorGrade.ts`: the finishing pass, display-referred and last so anti-aliasing
+  does not smooth it: contrast-adaptive sharpening (four taps, clamped to the
+  neighbourhood's range, so no halos), saturation 0.74, mild contrast, olive-tinted
+  lift, warm gain, a light vignette and faint film grain (strongest in the
+  mid-tones, still under reduced motion). Values live in `BATTLEFIELD_GRADE`. Map
+  mode keeps the grade and drops the sharpening and grain.
+- Look: sun about 35 degrees up, hazy Preetham sky (turbidity 10, Rayleigh 2.2)
+  and warm haze. Exposure is 1.36 (`BATTLEFIELD_EXPOSURE`); the sky and the haze
+  colour are scaled back by 1.15 / 1.36, so the land came up about a quarter of a
+  stop against a sky that kept its place. The hemisphere light is 1.0 with a
+  faintly cool sky colour and a warm ground bounce: at 0.7 with a dark ground
+  colour, everything turned from the sun fell to black. Grey armour still reads
+  neutral. The ground shader desaturates grass toward straw and olive and takes
+  the red out of gravel roads.
   The sky shader is patched: the sun disc is 1500 instead of 19000 (about 60
   rather than 760 in HDR), and sky luminance away from the disc is compressed
   above 6 so it stays under the bloom threshold of 12. Uncompressed, the Mie glow
@@ -27,7 +59,6 @@ geometry. This is a lighting and material upgrade, not a claim of AAA asset qual
   zoom it covered the whole view. `mieDirectionalG` is 0.74. Grass back-scatter
   is cubed and scaled to 0.4, so a field against the sun glows at its tips
   instead of turning white.
-  Map mode uses direct rendering and releases the post-processing resources.
 - `GroundMaterial.tsx`: separate grass, dry soil and gravel albedo/normal layers,
   world-space stochastic hex tiling and aerial vegetation macro modulation.
   `terrainSplat.ts` rasterizes signed road-edge distance into a 2048 RG texture;
@@ -89,8 +120,9 @@ sample from this browser and scene, not a GPU benchmark or a guaranteed frame ra
 
 The pipeline is capped at the existing 1.5 device pixel ratio. No cross-device
 performance guarantee is made. Production builds retain a large-chunk warning.
-The remaining asset-quality work is authored high-detail vehicles/buildings,
-denser world dressing and distant shadows.
+The remaining asset-quality work is authored high-detail vehicles/buildings
+and denser world dressing. Shadows end at the far cascade (560 m, further when
+zoomed), where they fade out.
 
 ## Draw-call budget
 
@@ -120,7 +152,13 @@ denser world dressing and distant shadows.
   values are meant as sRGB albedo, or dark greens come out pale.
 - Foliage (`foliageCards.ts`): every leaf card stores its centre as `position` and
   its corner as `cardOffset`; the vertex shader expands it facing the camera
-  (spherical for broadleaf and scrub, about the vertical for spruce). Normals and
+  (spherical for broadleaf and scrub, about the vertical for spruce). Leaves pass
+  light: the side of a crown or hedge turned from the sun is lit through its
+  leaves, yellower than by reflection, and glows when seen against the sun; the
+  shadow map only dims this light, because a crown shades its own far side. Cards
+  sway with gusts that cross the map on the prevailing wind (crowns more toward the
+  top, hedges and scrub only stirring) and flutter singly; `foliageWind` is the
+  shared clock, stopped under reduced motion. The depth materials sway the same. Normals and
   vertex-colour occlusion come from the enclosing crown shape, and the fragment
   shader keeps them unflipped on back faces. The default shadow depth material
   would see degenerate quads, so every foliage mesh sets a `customDepthMaterial`

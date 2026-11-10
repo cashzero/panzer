@@ -45,7 +45,7 @@ export interface HedgeCharacter {
 
 function hedgeCharacter(roll: number, tone: number): HedgeCharacter {
   const hue = 0.215 + tone * 0.055;
-  const lightness = 0.5 + (1 - tone) * 0.08;
+  const lightness = 0.59 + (1 - tone) * 0.08;
   if (roll < 0.38) return { height: 1.35, width: 1.3, ragged: 0.35, crown: 0.42, leaf: 0.5, cards: 11, hue, lightness: lightness + 0.02 };
   if (roll < 0.85) return { height: 1.85, width: 1.6, ragged: 1, crown: 0.7, leaf: 0.6, cards: 14, hue, lightness };
   return { height: 2.6, width: 2.05, ragged: 1.7, crown: 0.8, leaf: 0.72, cards: 18, hue, lightness: lightness - 0.03 };
